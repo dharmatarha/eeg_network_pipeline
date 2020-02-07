@@ -63,6 +63,12 @@ if ~ismember(measure, {'PLI', 'PLV', 'wPLI'})
     error('Input arg "measure" should be one of the following: "PLI", "PLV" or "wPLI"');
 end
 
+% user message
+disp([char(10), 'Called connectivitySpeedtest with input args:',...
+    char(10), 'number of channels: ', num2str(channelNo),...
+    char(10), 'epoch length in samples: ', num2str(epochL),...
+    char(10), 'connectivity measure: ', measure]);
+
 
 %% Basics: generate data, start timer
 
@@ -73,6 +79,9 @@ phaseData = angle(data);
 
 % preallocate results matrix
 connResults = nan(channelNo);
+
+% user message
+disp('Generated random data, calculating connectivity for all unique channel pairings...');
 
 startTime = tic;
 
@@ -136,6 +145,13 @@ end  % channelOne
 
 elapsedTime = toc(startTime); 
 pairingsNo = counter;
+
+disp(['Done!', ...
+    char(10), 'Overall time elapsed: ', num2str(round(elapsedTime, 4)), ' secs',...
+    char(10), 'Number of unique channel pairings: ', num2str(pairingsNo),...
+    char(10), 'Elapsed time per channel pairing: ',...
+    num2str(round(elapsedTime/pairingsNo, 4)), ' secs']);
+
 
 return
 
