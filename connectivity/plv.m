@@ -1,7 +1,7 @@
-function plvRes = plv(epochData)
+function plvRes = plv(epochData, v)
 %% Phase-Locking value
 %
-% USAGE: plvRes = plv(epochData)
+% USAGE: plvRes = plv(epochData, v=1)
 %
 % Function to calculate phase-locking values (PLVs) between a set of 
 % channels / time series. IMPORTANT: Works on phase values!
@@ -10,6 +10,8 @@ function plvRes = plv(epochData)
 % epochData     - The input is a matrix of phase values (numeric between 
 %               -1 +1 pi) where each row is a separate channel / time 
 %               series and columns correspond to samples.  
+% v             - Verbosity. If 1, it prints to command window, 0 means
+%               silence. Default is 1.
 %
 % Output(s):
 % plvRes        - Matrix (sized no. of channels X no. of channels) of PLV
@@ -29,8 +31,14 @@ function plvRes = plv(epochData)
 %% Input checks
 
 % number of input args
-if nargin ~= 1
-    error('Function plv requires input arg "epochData"!');
+if nargin == 1 
+    v = 1;
+elseif nargin ~= 2
+    error('Function plv requires input arg "epochData" and optional arg "v"!');
+end
+% check verbosity
+if ~ismembertol(v, [0 1])
+    error('Input arg "v" is either 0 or 1!');
 end
 % are input values between -pi +pi ?
 if any(any(epochData > pi)) || any(any(epochData < -pi))
@@ -42,8 +50,10 @@ channelNo = size(epochData, 1);
 sampleNo = size(epochData, 2);
 
 % user message
-disp([char(10), 'Called plv on data with ', num2str(channelNo),... 
-    ' channels, each with ', num2str(sampleNo), ' samples']);
+if v
+    disp([char(10), 'Called plv on data with ', num2str(channelNo),... 
+        ' channels, each with ', num2str(sampleNo), ' samples']);
+end
 
 
 %% Loop across channel pairings
@@ -76,7 +86,9 @@ for channelOne = 1:channelNo
 end  % channelOne for loop
 
 % user message
-disp(['Calculated plv for ', num2str(channelNo*(channelNo-1)/2), ' channel pairings']);
+if v
+    disp(['Calculated plv for ', num2str(channelNo*(channelNo-1)/2), ' channel pairings']);
+end
 
 
 return
