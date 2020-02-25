@@ -1,4 +1,4 @@
-function yPhaseRand = phaseScrambleMatrix(y, imagThresh)
+function yPhaseRand = phaseScramble(y, imagThresh)
 %% Phase-scrambling function
 % 
 % USAGE: yPhaseRand = phaseScramble(y, imagThresh=0.01)
@@ -31,7 +31,7 @@ function yPhaseRand = phaseScrambleMatrix(y, imagThresh)
 % should have the same magnitude (amplitude) of DFFT components as the
 % original (a negligible difference exists due to numerical inaccuracies):
 %   data = randn(1000, 10);
-%   dataRand = phaseScrambleMatrix(data);
+%   dataRand = phaseScramble(data);
 %   % difference of fft amplitudes
 %   fftAmpDiff = abs(fft(data))-abs(fft(dataRand));
 %   % print the maximum differences for each column
