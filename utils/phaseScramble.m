@@ -7,15 +7,14 @@ function yPhaseRand = phaseScramble(y, imagThresh)
 % with a column vector input (single variable / time series) or a matrix
 % where each column is treated as a variable / time series.
 %
-% Logic:
-% Performs fft, swaps the phases of fourier components to uniform random
-% values then calculates inverse fft.
+% Works by performing fft, swapping the phases of fourier components to 
+% uniform random values and then calculating inverse fft.
 %
 % Intended for real numbers, as we only deal with half of the fft spectrum.
 %
 % Input: 
-% y             - Numerical matrix (real), input data, each column is a
-%           separately phase scrambled time series
+% y             - Numerical matrix (real), input data, each row is a
+%           time series. Phase scrambling is done for each row separately.
 % imagThresh    - Threshold for detecting errors. Due to numerical
 %           imprecision, the pipeline fft -> random phase injection -> ifft
 %           often yields complex results for real input, where the
@@ -24,21 +23,23 @@ function yPhaseRand = phaseScramble(y, imagThresh)
 %           at which the function returns with an error. Defaults to 0.001.
 %
 % Output:
-% yPhaseRand    - numerical matrix (real), data with scrambled phases
+% yPhaseRand    - numerical matrix (real) with the same size as input 
+%           matrix "y", contains data with scrambled phases
 %
 % Notes:
 % (1) An easy test of the function is given below. The phase scrambled data
 % should have the same magnitude (amplitude) of DFFT components as the
 % original (a negligible difference exists due to numerical inaccuracies):
-%   data = randn(1000, 10);
+%   data = randn(10, 1000);
 %   dataRand = phaseScramble(data);
 %   % difference of fft amplitudes
-%   fftAmpDiff = abs(fft(data))-abs(fft(dataRand));
-%   % print the maximum differences for each column
+%   fftAmpDiff = abs(fft(data'))-abs(fft(dataRand'));
+%   % print the maximum differences for each variable
 %   disp(['Maximum difference between corresponding FFT amplitude components, ',...
 %   'for each variable:']);
 %   disp(max(fftAmpDiff));
-%
+%   % show the histogram of differences
+%   hist(fftAmpDiff);
 
 
 %% Input checks
@@ -50,23 +51,23 @@ if ~ismatrix(y) || ~isreal(y)
     error('Function phaseScramble expects a numerical matrix of reals as input!');
 end
 
-% columns are variables - give a warning if there seems to be more
+% rows are variables - give a warning if there seems to be more
 % variables than time points
-if size(y, 2) > size(y, 1)
+if size(y, 1) > size(y, 2)
     warning(['There seems to be more time series than data points in ',...
-        'each series - are you sure columns are separate time series?'])
+        'each series - are you sure rows are separate time series?'])
 end
 
 
 %% Phase-scrambling
 
 % time series length
-L = size(y, 1);
+L = size(y, 2);
 % no. of time series
-nTS = size(y, 2);
+nTS = size(y, 1);
 
 % get fft
-yfft = fft(y);
+yfft = fft(y');  % note the transpose
 % get only half of it (exclude also zero component)
 yfft_part = yfft(2:floor(L/2)+1, :);
 % get amplitude values
@@ -89,6 +90,9 @@ end
 % inverse FFT
 yPhaseRand = ifft(phaseRandFFT);
 
+% transpose so that rows correspond to variables / time series
+yPhaseRand = yPhaseRand';
+
 
 %% Correct for numerical imprecision
 
@@ -98,7 +102,7 @@ yPhaseRand = ifft(phaseRandFFT);
 % let's test the magnitude of the remaining imaginary part
 
 if any(any(abs(imag(yPhaseRand))>imagThresh))
-    error('Stg went wrong at phase randomization, the resulting data is complex!');
+    error('There is at least one datum in the phase randomized data where the imaginary part > imagThresh!');
 else
     yPhaseRand = real(yPhaseRand);
 end
