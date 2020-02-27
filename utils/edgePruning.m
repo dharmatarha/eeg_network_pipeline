@@ -116,6 +116,7 @@ disp([char(10), 'First data file had ', num2str(roiNo), ' channels/ROIs, ',...
 % Preallocate result matrix
 connectivityRes = nan(subNo, stimNo, epochNo, roiNo, roiNo);
 measuredConnectivityRes = nan(subNo, stimNo, epochNo, roiNo, roiNo);
+prunedMeasuredConnectivityRes = nan(subNo, stimNo, epochNo, roiNo, roiNo);
 meanSurrogateConnectivityRes = nan(subNo, stimNo, epochNo, roiNo, roiNo);
 surrogatePValues = nan(subNo, stimNo, epochNo, roiNo, roiNo);
 
@@ -168,6 +169,7 @@ for subIdx = 1:subNo
                     toc
                     meanSurrogateConnectivityRes(subIdx, stimIdx, epochIdx, :, :) = mean(surrogateConnectivityRes, 1);
                     surrogatePValues(subIdx, stimIdx, epochIdx, :, :) = surrogateConnectivityStatistics(squeeze(measuredConnectivityRes(subIdx, stimIdx, epochIdx, :, :)), surrogateConnectivityRes);
+                    prunedMeasuredConnectivityRes(subIdx, stimIdx, epochIdx, :, :)  = pruningFunction(squeeze(surrogatePValues(subIdx, stimIdx, epochIdx, :, :)), squeeze(measuredConnectivityRes(subIdx, stimIdx, epochIdx, :, :)));
 
                 case 'pli'
                     connectivityRes(subIdx, stimIdx, epochIdx, :, :) = pli(squeeze(EEG.data(:, :, epochIdx, stimIdx)), 0);  % suppress messages from pli function
@@ -177,7 +179,7 @@ for subIdx = 1:subNo
     end  % stimIdx for loop
     
     % interim save
-    save(saveF, 'realConnectivityRes', 'meanSurrogateConnectivityRes', 'surrogatePValues', 'freq', 'dirName', 'method', 'subjects');
+    % save(saveF, 'measuredConnectivityRes', 'meanSurrogateConnectivityRes', 'surrogatePValues', 'freq', 'dirName', 'method', 'subjects');
     
     % report elapsed time
     disp([char(10), 'Finished with subject ', subjects{subIdx},...
@@ -188,7 +190,7 @@ end  % subIdx for loop
 
 %% Saving, cleaning up
 
-save(saveF, 'connectivityRes', 'freq', 'dirName', 'method', 'subjects');
+save(saveF, 'measuredConnectivityRes', 'prunedMeasuredConnectivityRes', 'meanSurrogateConnectivityRes', 'surrogatePValues', 'freq', 'dirName', 'method', 'subjects');
 
 disp([char(10), 'Done! Took ', num2str(toc(funcClock), 3),... 
     ' secs for the whole set']);
