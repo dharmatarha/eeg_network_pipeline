@@ -1,4 +1,37 @@
 function [prunedMatrix] = pruningFunction(pValuesMatrix, matrixToPrune)
+%% Execute pruning
+% 
+% USAGE: prunedMatrix = pruningFunction(pValuesMatrix, matrixToPrune)
+%
+% Prunes the input matrix based on the p-values by setting nonsignificant
+% matrix elements to NaN.
+%
+% Input: 
+% pValuesMatrix     - Matrix of p-values corresponding to members in the matrix
+%              to prune.
+% matrixToPrune    - Matrix to prune.
+%
+% Output:
+% prunedMatrix     - Pruned matrix.
+%
+% Notes: It is assumed that the input matrix "matrixToPrune" is symmetrical
+% and pruning is executed only for elements over the main diagonal.
+
+
+%% Input checks
+
+% number of input args
+if nargin ~= 2
+    error('Function pruningFunction requires input arg "pValuesMatrix" and "matrixToPrune"!');
+end
+
+% check the size of input matrices
+if size(pValuesMatrix, 1) ~= size(matrixToPrune, 1) || size(pValuesMatrix, 2) ~= size(matrixToPrune, 2)
+    error('Function pruningFunction requires input marices "pValuesMatrix" and "matrixToPrune" of equal size!');
+end
+
+
+%% Order non-NaN matrix elements into a vector
 
 % number of ROIs
 roiNo = size(pValuesMatrix, 1);
@@ -24,6 +57,9 @@ for roiOne = 1:roiNo
         end  % if  
     end  % channelTwo
 end  % channelOne
+
+
+%% Set nonsignificant matrix elements into NaN
 
 [h, pCrit] = fdr(vectorizedPValues);
 prunedMatrix = matrixToPrune;
