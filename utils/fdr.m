@@ -47,6 +47,14 @@ if ~isempty(varargin)
     end
 end
 
+% assign default values
+if ~exist('method', 'var')
+    method = 'bh';
+end
+if ~exist('q', 'var')
+    q = 0.05;
+end
+
 % check values
 if q<=0 || q>=1
     error(['Input arg "q" = ', num2str(q), ', looks very fishy!']);
