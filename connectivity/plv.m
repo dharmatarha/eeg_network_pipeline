@@ -40,6 +40,10 @@ end
 if ~ismembertol(v, [0 1])
     error('Input arg "v" is either 0 or 1!');
 end
+% check input data dimensionality
+if length(size(epochData)) ~= 2
+    error('Input arg "epochData" is expected to be a 2D matrix (channels/ROIs X samples)!');
+end
 % are input values between -pi +pi ?
 if any(any(epochData > pi)) || any(any(epochData < -pi))
     error('Elements of input arg "epochData" are >pi or <-pi. Are you sure these are phase values?');
@@ -56,40 +60,24 @@ if v
 end
 
 
-%% Loop across channel pairings
+%% Loop across channels
 
 % preallocate results variable
 plvRes = nan(channelNo, channelNo);
-% variable for storing channel pairings we already calculated PLV for
-pastPairings = nan(channelNo*(channelNo-1)/2, 2);
-% channel pairing counter
-counter = 0;
 
-% loops over channels
-for channelOne = 1:channelNo
-    for channelTwo = 1:channelNo
-        
-        % only calculate PLV if channel numbers do not match and have not
-        % been encountered before
-        if channelOne ~= channelTwo && ~ismember([channelOne, channelTwo], pastPairings, 'rows') && ~ismember([channelTwo, channelOne], pastPairings, 'rows')
-            
-            % remember pairing, adjust counter
-            counter = counter+1;
-            pastPairings(counter, :) = [channelOne, channelTwo];
-            
-            % We use the Mormann et al. version here:
-            plvRes(channelOne, channelTwo) = abs(sum(exp(1i*(epochData(channelOne, :)-epochData(channelTwo, :))))/sampleNo);            
-            
-        end  % pairings if-then
-        
-    end  % channelTwo for loop  
-end  % channelOne for loop
+% go through channels/ROIs
+for channelOne = 1:channelNo-1
+    % fill a matrix with repetitions of the data from current channel/ROI
+    d1 = repmat(epochData(channelOne, :), [62-channelOne, 1]);
+    % calculate plv on matrices (= multiple channel pairings)
+    plvRes(channelOne, channelOne+1:end) = abs(sum(exp(1i*(d1-epochData(channelOne+1:end, :))), 2)/sampleNo);
+    
+end
 
 % user message
 if v
     disp(['Calculated plv for ', num2str(channelNo*(channelNo-1)/2), ' channel pairings']);
 end
-
 
 return
 
