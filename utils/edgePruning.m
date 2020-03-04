@@ -115,12 +115,6 @@ disp([char(10), 'Starting edgePruning function with following arguments: ',...
 disp(subjects);
 
 
-%% Init parallel pool
-
-% use default settings
-myPool = parpool();
-
-
 %% Basics
 
 % number of subjects
@@ -137,9 +131,6 @@ for s = 1:subNo
     angleFiles{s} = [angleDir, subjects{s}, '_', freq, '.mat'];
     envFiles{s} = [envDir, subjects{s}, '_', freq, '.mat'];
 end
-% add files to parallel pool
-addAttachedFiles(myPool, angleFiles);
-addAttachedFiles(myPool, envFiles);
 
 % load first data files, both angle and envelope, check dimensions
 disp([char(10), 'Sanity checks on the first angle and envelope data sets...']);
