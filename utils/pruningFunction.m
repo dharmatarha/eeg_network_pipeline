@@ -1,86 +1,69 @@
-function [prunedMatrix] = pruningFunction(pValuesMatrix, matrixToPrune)
-%% Execute pruning
+function [prunedMatrix] = pruningFunction(pValuesMatrix, matrixToPrune, q)
+%% Edge pruning based on FDR on p-value matrix
 % 
-% USAGE: prunedMatrix = pruningFunction(pValuesMatrix, matrixToPrune)
+% USAGE: prunedMatrix = pruningFunction(pValuesMatrix, matrixToPrune, q=0.05)
 %
-% Prunes the input matrix based on the p-values by setting nonsignificant
-% matrix elements to NaN.
+% Prunes the input matrix by first calculating FDR on the p-values and 
+% then setting nonsignificant elements of the connectivity matrix to NaN.
 %
-% Input: 
-% pValuesMatrix     - Matrix of p-values corresponding to members in the matrix
-%              to prune.
-% matrixToPrune    - Matrix to prune.
+% Mandatory inputs: 
+% pValuesMatrix     - Matrix of p-values corresponding to the values in 
+%                   matrixToPrune
+% matrixToPrune     - Connectivity matrix where each value corresponds to 
+%                   the value of an edge.
+%
+% Optional input:
+% q                 - Q for FDR rate, numeric between 10^-9 - 1. 
+%                   Defaults to 0.05. 
 %
 % Output:
-% prunedMatrix     - Pruned matrix.
+% prunedMatrix     - Pruned connectivity matrix.
 %
-% Notes: It is assumed that the input matrix "matrixToPrune" is symmetrical
-% and pruning is executed only for elements over the main diagonal.
 
 
 %% Input checks
 
 % number of input args
-if nargin ~= 2
-    error('Function pruningFunction requires input arg "pValuesMatrix" and "matrixToPrune"!');
+if ~ismember(nargin, [2 3]) 
+    error(['Function pruningFunction requires mandatory input args ',...
+        '"pValuesMatrix" and "matrixToPrune" and optional arg "q"!']);
 end
-
+% set / check q
+if nargin == 2
+    q = 0.05;
+else
+    if ~isnumeric(q) || q>1 || q<10^-9 
+        error('Optional input arg "q" is expected to be a number between 10e-9 - 1!');
+    end
+end
+% matrix?
+if ~ismatrix(pValuesMatrix) || ~ismatrix(matrixToPrune)
+    error('Input args "pValuesMatrix" and "matrixToPrune" should be matrices!');
+end
 % check the size of input matrices
-if size(pValuesMatrix, 1) ~= size(matrixToPrune, 1) || size(pValuesMatrix, 2) ~= size(matrixToPrune, 2)
-    error('Function pruningFunction requires input marices "pValuesMatrix" and "matrixToPrune" of equal size!');
+if ~isequal(size(pValuesMatrix), size(matrixToPrune))
+    error('Input marices "pValuesMatrix" and "matrixToPrune" have different sizes!');
+end
+% sanity check: square matrices?
+if ~isequal(size(pValuesMatrix, 1), size(pValuesMatrix, 1))
+    error('Input args "pValuesMatrix" and "matrixToPrune" should be square matrices!')
 end
 
 
-%% Order non-NaN matrix elements into a vector
+%% FDR on p-values
 
-% number of ROIs
-roiNo = size(pValuesMatrix, 1);
-% variable for storing ROI pairings we already calculated P value for
-pastPairings = nan(roiNo*(roiNo-1)/2, 2);
-% ROI pairing counter
-counter = 0;
-% vectorized p-values
-vectorizedPValues = nan(roiNo, 1);
+% reshape and if there are NaN values, delete them
+pValuesVect = reshape(pValuesMatrix, [size(pValuesMatrix, 1)^2, 1]);
+pValuesVect(isnan(pValuesVect)) = [];
 
-for roiOne = 1:roiNo  
-    for roiTwo = 1:roiNo    
-        % only consider P value if ROI numbers do not match and have not
-        % been encountered before
-        if roiOne ~= roiTwo && ~ismember([roiOne, roiTwo], pastPairings, 'rows') && ~ismember([roiTwo, roiOne], pastPairings, 'rows')
-            
-            % remember pairing, adjust counter
-            counter = counter+1;
-            pastPairings(counter, :) = [roiOne, roiTwo];
-            
-            vectorizedPValues(counter) = pValuesMatrix(roiOne, roiTwo);
-            
-        end  % if  
-    end  % channelTwo
-end  % channelOne
+% FDR
+[~, pCrit] = fdr(pValuesVect, q);
 
 
-%% Set nonsignificant matrix elements into NaN
+%% Set non-significant values in matrixToPrune to NaN
 
-[h, pCrit] = fdr(vectorizedPValues);
 prunedMatrix = matrixToPrune;
-pastPairings = nan(roiNo*(roiNo-1)/2, 2);
-counter = 0;
+prunedMatrix(pValuesMatrix>pCrit) = nan;
 
-for roiOne = 1:roiNo
-    for roiTwo = 1:roiNo
-        % only consider P value if ROI numbers do not match and have not
-        % been encountered before
-        if roiOne ~= roiTwo && ~ismember([roiOne, roiTwo], pastPairings, 'rows') && ~ismember([roiTwo, roiOne], pastPairings, 'rows')
-            
-            % remember pairing, adjust counter
-            counter = counter+1;
-            pastPairings(counter, :) = [roiOne, roiTwo];
-            if h(counter) ~= 1
-                prunedMatrix(roiOne, roiTwo) = NaN;
-            end
-            
-        end  % if    
-    end  % channelTwo  
-end  % channelOne
 
 return
