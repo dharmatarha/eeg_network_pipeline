@@ -11,23 +11,29 @@ function [surrogateConnectivityData] = generateSurrogateConnectivityData(realDat
 % connectivity using the Phase Locking Value (PLV).
 %
 % Input: 
-% realData                     - Numerical matrix (real), input data, each row is a
-%                          time series.
-% numberOfSurrogates           - Number of surrogates. Defaults to 10000.
+% realData                      - Numerical matrix (real), input data, each row is a
+%                           time series.
+% numberOfSurrogates            - Number of surrogates. Defaults to 10000.
 %
 % Output:
-% surrogateConnectivityData    - Numerical matrix (real) with connectivity values
+% surrogateConnectivityData     - Numerical matrix (real) with connectivity values
 %                          with all possible combinations between time series in matrix 
 %                          "realData".
+%
 
 
 %% Input checks
 
 if nargin == 1
     numberOfSurrogates = 10000;
+elseif nargin ~= 2
+    error('Function generateSurrogateConnectivityData expects input args "realData" and "numberOfSurrogates"!');
 end
 if ~ismatrix(realData) || ~isreal(realData)
     error('Function generateSurrogateConnectivityData expects a numerical matrix of reals as input!');
+end
+if ~ismember(numberOfSurrogates, 1:10^5)
+    error('Input arg "numberOfSurrogates" is expected to be between 1:10e5!');
 end
 
 % rows are variables - give a warning if there seems to be more
@@ -43,13 +49,15 @@ end
 % number of ROIs
 roiNo = size(realData, 1);
 % variable for storing surrogate connectivity results
-surrogateConnectivityRes = nan(numberOfSurrogates, roiNo, roiNo);
+surrogateConnectivityData = nan(numberOfSurrogates, roiNo, roiNo);
 
-parfor surrogateNumber = 1 : numberOfSurrogates
+% loop through surrogate data sets: generate, turn to phases, calculate
+% connectivity
+for surrogateNumber = 1 : numberOfSurrogates
     yPhaseRand = phaseScramble(realData);
     surrogatePhaseData = timeSeriesToPhase(yPhaseRand);
-    surrogateConnectivityRes(surrogateNumber, :, :) = plv(surrogatePhaseData, 0);
+    surrogateConnectivityData(surrogateNumber, :, :) = plv(surrogatePhaseData, 0);
 end
-surrogateConnectivityData = surrogateConnectivityRes;
+
 
 return
