@@ -8,7 +8,7 @@ function edgePruning(freq, varargin)
 % a phase scrambling based surrogate null model.
 %
 % Connectivity is measured by calling functions (plv or pli) defined 
-% outside this script.
+% outside this script. IMPORTANT: Only supports 'plv' as of now.
 %
 % Results are saved into the provided
 % directory (or into current working directory), named
@@ -242,7 +242,7 @@ parfor subIdx = 1:subNo
                     
                     % compare the real and surrogate connectivity matrices,
                     % estimate p-values for each value
-                    pValues(:, :, epochIdx, stimIdx) = surrogateConnectivityStatistics(squeeze(realConn(:, :, epochIdx, stimIdx)), surrConnData);
+                    pValues(:, :, epochIdx, stimIdx) = surrConnStats(squeeze(realConn(:, :, epochIdx, stimIdx)), surrConnData);
                     
                     % edge pruning based on pValues
                     prunedConn(:, :, epochIdx, stimIdx) = pruningFunction(squeeze(pValues(:, :, epochIdx, stimIdx)), squeeze(realConn(:, :, epochIdx, stimIdx)));
