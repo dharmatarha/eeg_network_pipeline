@@ -236,13 +236,13 @@ parfor subIdx = 1:subNo
                     
                     % generate surrogate datasets and calculate
                     % connectivity matrices for them
-                    surrConnRes = generateSurrogateConnectivityData(realData, surrNo);
+                    surrConnData = getSurrConn(realData, surrNo);
                     % store the mean
-                    meanSurrConn(:, :, epochIdx, stimIdx) = squeeze(mean(surrConnRes, 1));
+                    meanSurrConn(:, :, epochIdx, stimIdx) = squeeze(mean(surrConnData, 1));
                     
                     % compare the real and surrogate connectivity matrices,
                     % estimate p-values for each value
-                    pValues(:, :, epochIdx, stimIdx) = surrogateConnectivityStatistics(squeeze(realConn(:, :, epochIdx, stimIdx)), surrConnRes);
+                    pValues(:, :, epochIdx, stimIdx) = surrogateConnectivityStatistics(squeeze(realConn(:, :, epochIdx, stimIdx)), surrConnData);
                     
                     % edge pruning based on pValues
                     prunedConn(:, :, epochIdx, stimIdx) = pruningFunction(squeeze(pValues(:, :, epochIdx, stimIdx)), squeeze(realConn(:, :, epochIdx, stimIdx)));
