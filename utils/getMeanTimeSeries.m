@@ -118,10 +118,10 @@ disp(['Finished with subject ', subjects{1}]);
 for subIndex = 2:subNo
     
     % load next angle + envelope data
-    nextAngleFile = [dirName, '/', subjects{subIndex}, '_', freq,'.mat'];
+    nextAngleFile = [dirAngle, '/', subjects{subIndex}, '_', freq,'.mat'];
     load(nextAngleFile);
     angleData = EEG.data;
-    nextEnvFile = [dirName, '/', subjects{subIndex}, '_', freq,'.mat'];
+    nextEnvFile = [dirEnv, '/', subjects{subIndex}, '_', freq,'.mat'];
     load(nextEnvFile);
     envData = EEG.data;
 
