@@ -4,15 +4,15 @@ function edgePruning(freq, varargin)
 %
 % USAGE: edgePruning(freq, dirName = pwd, subjects = {'s02', 's03', ...}, method = 'plv', dRate = 1, surrNo = 10000)
 %
-% Calculates p-values of edges in the connectivity matrix based on
-% a phase scrambling based surrogate null model.
+% Calculates p-values of edges in the connectivity matrix using
+% a phase scrambling based surrogate null model. USES PARFOR!
 %
 % Connectivity is measured by calling functions (plv or pli) defined 
 % outside this script. IMPORTANT: Only supports 'plv' as of now.
 %
 % Results are saved into the provided
 % directory (or into current working directory), named
-% 'FREQUENCYBAND_edgePruningResults.mat'.
+% 'FREQUENCYBAND_edgePruningInfo.mat'.
 %
 % Assumes that the data is in EEGlab structures and that file naming
 % follows the 'SUBJECTNUMBER_FREQUENCYBAND.mat' (e.g. 's05_alpha.mat')
@@ -80,7 +80,7 @@ if ~isempty(varargin)
             surrNo = varargin{v};
         else
             error(['There are either too many input args or they are not ',...
-                'mapping nicely to "dirName", "subjects", "method" and "dRate"!']);
+                'mapping nicely to "dirName", "subjects", "method", "dRate" and "surrNo"!']);
         end
     end
 end
