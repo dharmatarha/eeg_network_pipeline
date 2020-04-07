@@ -27,8 +27,7 @@ function [permRes, withinCondPermRes, connSim] = cmpFullConn(connData, varargin)
 %               matrix comparisons. Matrices are first vectorized, 
 %               then one of these ditances is used: {'corr', 'eucl'}.  
 % permNo        - Numeric value, the number of permutations to perform for
-%               random permutation tests. One of 1:1000000 - the values
-%               supported by permTest.m
+%               random permutation tests. One of 100:100:10^6.
 % permStat      - String specifying the statistic we perform the random
 %               permutaiton tests on. One of {'mean', 'median', 'std'} -
 %               the ones supported by permTest.m
@@ -77,7 +76,7 @@ if nargin > 1
             else
                 error('An input arg (string) could not be mapped to any optional arg!');
             end
-        elseif isnumeric(varargin{v}) && ismember(varargin{v}), 1:10^6)
+        elseif isnumeric(varargin{v}) && ismember(varargin{v}, 100:100:10^6)
             permNo = varargin{v};
         else
             error('At least one input arg could not mapped to any optional arg!');
@@ -86,13 +85,13 @@ if nargin > 1
 end
             
 % assign default values where necessary
-if ~exist(metric, 'var')
+if ~exist('metric', 'var')
     metric = 'corr';
 end
-if ~exist(permStat, 'var')
+if ~exist('permStat', 'var')
     permStat = 'mean';
 end
-if ~exist(permNo, 'var')
+if ~exist('permNo', 'var')
     permNo = 10^4;
 end  
 
@@ -106,7 +105,7 @@ end
 
 % user message
 disp([char(10), 'Called cmpFullConn function with input args:',...
-    char(10), 'Input data is array with size ', num2str(size(connData))
+    char(10), 'Input data is array with size ', num2str(size(connData)),...
     char(10), 'Metric: ', metric,...
     char(10), 'No. of random permutations: ', num2str(permNo),...
     char(10), 'Test statistic for random permutations: ', permStat]);
@@ -145,7 +144,7 @@ end
 dataLin = reshape(dataLin, [(roiNo*roiNo-roiNo)/2, epochNo*condNo]);
 
 % user message
-disp([char(10), 'Linearized data']);
+disp([char(10), 'Vectorized connectivity matrices (upper triangles)']);
 
 
 %% Get similarity across all epoch-pairings
@@ -193,7 +192,7 @@ permRes.acrossCondMean = nan;
 permRes.acrossCondSD = nan;
 permRes.acrossCondMedian = nan;
 permRes.realDiff = nan;
-permRes.permDiff = nan(perm, 1);
+permRes.permDiff = nan(permNo, 1);
 permRes.pEst = nan;
 
 for cond = 1:condNo
