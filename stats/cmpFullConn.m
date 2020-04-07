@@ -62,19 +62,41 @@ function [permRes, withinCondPermRes, connSim] = cmpFullConn(connData, varargin)
 %% Input checks
 
 % number of args
-if ~ismember(nargin, [1 2])
-    error('Wrong number of input args - "connData" is needed while "metric" is optional!');
+if ~ismember(nargin, 1:4)
+    error('Wrong number of input args - "connData" is needed while "metric", "permNo" and "permStat" are optional!');
 end
-% assign default value to "metric" if no value was provided
-if nargin == 1
-    metric = 'corr';
-else
-    % check value provided for "metric"
-    if ~ismember(metric, {'corr', 'eucl'})
-        error('Input arg "metric" must be one of {"corr", "eucl"}!');
+
+% loop through varargin to sort out input args
+if nargin > 1
+    for v = 1:length(varargin)
+        if ischar(varargin{v})
+            if ismember(varargin{v}, {'corr', 'eucl'})
+                metric = varargin{v};
+            elseif ismember(varargin{v}, {'mean', 'median', 'std'})
+                permStat = varargin{v};
+            else
+                error('An input arg (string) could not be mapped to any optional arg!');
+            end
+        elseif isnumeric(varargin{v}) && ismember(varargin{v}), 1:10^6)
+            permNo = varargin{v};
+        else
+            error('At least one input arg could not mapped to any optional arg!');
+        end
     end
 end
-% check dimensionality of arg "connData"
+            
+% assign default values where necessary
+if ~exist(metric, 'var')
+    metric = 'corr';
+end
+if ~exist(permStat, 'var')
+    permStat = 'mean';
+end
+if ~exist(permNo, 'var')
+    permNo = 10^4;
+end  
+
+% check size and dimensionality of mandatory arg "connData"
 if ~isequal(size(connData, 1), size(connData, 2))
     error('First two dimensions of input arg "connData" need to have equal size!');
 end
@@ -84,8 +106,10 @@ end
 
 % user message
 disp([char(10), 'Called cmpFullConn function with input args:',...
+    char(10), 'Input data is array with size ', num2str(size(connData))
     char(10), 'Metric: ', metric,...
-    char(10), 'Input data is array with size ', num2str(size(connData))]);
+    char(10), 'No. of random permutations: ', num2str(permNo),...
+    char(10), 'Test statistic for random permutations: ', permStat]);
 
 
 %% Basics
