@@ -50,7 +50,7 @@ if nargin < 1
     error('Input arg frequency band is required!');
 end
 if ~ismember(freq, {'delta', 'theta', 'alpha', 'beta', 'gamma'})
-    error('Input arg freq has an unexpected value!');
+    error('Input arg "freq" has an unexpected value!');
 end
 
 % check optional arguments

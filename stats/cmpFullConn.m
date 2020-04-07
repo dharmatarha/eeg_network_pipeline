@@ -1,7 +1,7 @@
 function [permRes, withinCondPermRes, connSim] = cmpFullConn(connData, varargin)
 %% Compare full connectivity matrices across conditions
 %
-% USAGE: [permRes, withinCondPermRes, connSim, dataLin] = cmpFullConn(connData, metric='corr', permNo=10000, permStat='mean')
+% USAGE: [permRes, withinCondPermRes, connSim] = cmpFullConn(connData, metric='corr', permNo=10000, permStat='mean')
 %
 % Compares connectivity patterns across different groups of epoch-pairings 
 % using permutation tests. First, for each condition, it tests the

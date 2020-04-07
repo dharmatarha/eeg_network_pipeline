@@ -1,7 +1,7 @@
 function [permRes, withinCondPermRes, connSim] = cmpPrunedConn(connData, varargin)
 %% Compare pruned connectivity matrices across conditions
 %
-% USAGE: [permRes, withinCondPermRes, connSim, dataLin] = cmpPrunedConn(connData, metric='corr', permNo=10000, permStat='mean', maskThr=0.9)
+% USAGE: [permRes, withinCondPermRes, connSim] = cmpPrunedConn(connData, metric='corr', permNo=10000, permStat='mean', maskThr=0.9)
 %
 % Compares connectivity patterns across different groups of epoch-pairings 
 % using permutation tests. Very similar to cmpFullConn, but works on 
