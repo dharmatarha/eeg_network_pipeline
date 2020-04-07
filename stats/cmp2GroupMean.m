@@ -1,0 +1,1 @@
+function cmp2GroupMean(subData, groupData, metric)
