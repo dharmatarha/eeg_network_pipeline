@@ -43,7 +43,7 @@ function [permRes, withinCondPermRes, connSim] = cmpPrunedConn(connData, varargi
 % Optional inputs:
 % metric        - String specifying distance metric for connectivity
 %               matrix comparisons. Matrices are first vectorized, 
-%               then one of these ditances is used: {'corr', 'eucl'}.  
+%               then one of these distances is used: {'corr', 'eucl'}.  
 % permNo        - Numeric value, the number of permutations to perform for
 %               random permutation tests. One of 100:100:10^6.
 % permStat      - String specifying the statistic we perform the random
@@ -85,7 +85,6 @@ function [permRes, withinCondPermRes, connSim] = cmpPrunedConn(connData, varargi
 if ~ismember(nargin, 1:4)
     error('Wrong number of input args - "connData" is needed while "metric", "permNo" and "permStat" are optional!');
 end
-
 % loop through varargin to sort out input args
 if nargin > 1
     for v = 1:length(varargin)
@@ -107,8 +106,7 @@ if nargin > 1
             error('At least one input arg could not mapped to any optional arg!');
         end
     end
-end
-            
+end    
 % assign default values where necessary
 if ~exist('metric', 'var')
     metric = 'corr';
@@ -122,7 +120,6 @@ end
 if ~exist('maskThr', 'var')
     maskThr = 0;
 end  
-
 % check size and dimensionality of mandatory arg "connData"
 if ~isequal(size(connData, 1), size(connData, 2))
     error('First two dimensions of input arg "connData" need to have equal size!');
