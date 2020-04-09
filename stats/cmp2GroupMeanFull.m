@@ -1,8 +1,8 @@
-function cmp2GroupMeanFull(groupData, subIdx, varargin)
+function [permRes, withinSim, acrossSim] = cmp2GroupMeanFull(groupData, subIdx, varargin)
 %% Compare individual connectivity to leave-one-out group mean connectivity
 % Version for full connectivity matrices.
 %
-% USAGE cmp2GroupMeanFull(groupData, subIdx, metric='corr', permNo=10000, permTest='mean')
+% USAGE [permRes, withinSim, acrossSim] = cmp2GroupMeanFull(groupData, subIdx, metric='corr', permNo=10000, permTest='mean')
 %
 % Function to compare the full connectivity matrix of a subject to that
 % of the whole group except that subject (leave-one-out mean). 
@@ -190,10 +190,15 @@ end  % switch metric
 withinSim = diag(connSim);
 acrossSim = connSim(triu(true(epochNo*condNo), 1));
 
-% compare them with a random permutation test
-[pEst, realDiff, permDiff] = permTest(withinSim, acrossSim, permNo, permStat); 
+% results into a struct
+permRes = struct;
+
+% compare within- and across- with a random permutation test
+[permRes.pEst, permRes.realDiff,... 
+    permRes.permDiff] = permTest(withinSim, acrossSim, permNo, permStat); 
 
 
+return
 
 
 
