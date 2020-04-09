@@ -1,12 +1,12 @@
 function meanConn = getMeanConn(freq, varargin)
 %% Get group mean from connectivity data
 %
-% USAGE: meanConn = getMeanConn(freq, dirName=pwd, subjects={'s02', 's03', ...}, edgeThr=0.9, ) 
+% USAGE: meanConn = getMeanConn(freq, dirName=pwd, subjects={'s02', 's03', ...}, edgeThr=0, ) 
 %
 % Calculate mean connectivity matrices from a set of individual 
 % connectivity results. 
 % 
-% Generally, we assume that the individual connectivity results were
+% Generally, we assume that individual connectivity results were
 % generated with edgePruning.m. Accordingly, individual connectivity 
 % results are assumed to be stored in files with the naming convention
 % SUBJECTID_FREQUENCYBAND_edgePruningInfo.mat, e.g. 
@@ -20,9 +20,11 @@ function meanConn = getMeanConn(freq, varargin)
 % "pValues" var with the significance values from real vs surrogate 
 % comparisons. 
 % Matrices "realConn" and "meanSurrConn" are averaged in a straightforward
-% manner. "prunedConn" is averaged by first selecting edges present in at
-% least "edgeThr" ratio of individual-level epochs, then by selecting edges
-% that are present in at least "edgeThr" ratio of subjects.
+% manner. "prunedConn" is expected to contain NaN values for 
+% non-significant edges, the function first sets those values to zero. 
+% Then the function averages across subjects by first selecting edges 
+% present in more than "edgeThr" ratio of subjects (no selection takes place
+% by default: edgeThr=0). 
 %
 % Optional arguments are sorted based on type.
 %
@@ -45,8 +47,8 @@ function meanConn = getMeanConn(freq, varargin)
 %           's21','s22','s23','s24','s25','s26','s27','s28'}
 % edgeThr   - Numeric value determining the minimum ratio of individual
 %       epochs and also of subjects that we expect averaged edges to be 
-%       present in for mean pruned connectivity. Defaults to 0.9, must be
-%       in range of 0.1:0.01:1.
+%       present in for mean pruned connectivity. Defaults to 0, must be
+%       in range of 0:0.01:1.
 %
 % Output:
 % meanConn  - Struct containing fields with averaged connectivity results
@@ -72,7 +74,7 @@ if nargin > 1
             dirName = varargin{v};
         elseif iscell(varargin{v})
             subjects = varargin{v};
-        elseif isnumeric(varargin{v}) && ismember(varargin{v}, [0.1:0.01:1])
+        elseif isnumeric(varargin{v}) && ismember(varargin{v}, 0:0.01:1)
             edgeThr = varargin{v};
         else
             error('There was an input that could not be mapped to any of "dirName", "subjects" or "edgeThr"!');
@@ -89,7 +91,7 @@ if ~exist('subjects', 'var')
            's21','s22','s23','s24','s25','s26','s27','s28'};
 end
 if ~exist('edgeThr', 'var')
-    edgeThr = 0.9;
+    edgeThr = 0;
 end
 
 % user message
@@ -163,6 +165,9 @@ for subIdx = 1:subNo
     meanConn.meanSurrConn(:, :, :, :, subIdx) = l.meanSurrConn;
 end
 
+% user message
+disp([char(10), 'Loaded all data and collected individual matrices into struct "meanConn"']);
+
 
 %% Averaging
 
@@ -172,13 +177,27 @@ meanConn.meanSurrConnAvg = mean(meanConn.meanSurrConn, 5);
 
 % for "prunedConn" we create a mask first then select edges based on
 % edgeThr
-prunedConnMask = ~isnan(meanConn.prunedConn);
-maskSum = sum(prunedConnMask, 5);
-meanConn.prunedConnMask = maskSum >= round(edgeThr*subNo);
-maskRepmat = repmat(meanConn.prunedConnMask, [1 1 1 1 subNo]);
-tmp = meanConn.prunedConn;
-tmp(~maskRepmat) = NaN;
-meanConn.prunedConnAvg = mean(tmp, 5, 'omitnan');
+prunedConnMask = ~isnan(meanConn.prunedConn);  % mask of non-NaN edges
+maskSum = sum(prunedConnMask, 5);  % sum across subjects
+meanConn.prunedConnMask = maskSum > round(edgeThr*subNo);  % mask of edges present in more than edgeThr ratio of subjects
+maskRepmat = repmat(meanConn.prunedConnMask, [1 1 1 1 subNo]);  % mask repeated for each subject, concatenated
+
+% Edges not passing the threshold are set to NaN, similar to any edge that
+% was not present in any individual data. Then all NaN values are set to 0
+% for averaging - practically weighting edges with their prevalence across
+% subjects
+tmp = meanConn.prunedConn;  
+tmp(~maskRepmat) = NaN;  % set edges not passing the threshold to NaN
+tmp(isnan(tmp)) = 0;  % set all NaN values to 0
+meanConn.prunedConnAvg = mean(tmp, 5);  % simple averaging
+
+% set zero values back to NaN after averaging, to keep consistent with
+% individual-level connectivity result files (stat scripts will except NaN
+% values for non-sign. edges in pruned connectivity matrices)
+meanConn.prunedConnAvg(meanConn.prunedConnAvg==0) = NaN; 
+
+% user message
+disp([char(10), 'Done, averaged all matrices']);
 
 
 return

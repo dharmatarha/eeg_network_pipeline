@@ -1,7 +1,7 @@
 function [permRes, withinCondPermRes, connSim] = cmpPrunedConn(connData, varargin)
 %% Compare pruned connectivity matrices across conditions
 %
-% USAGE: [permRes, withinCondPermRes, connSim] = cmpPrunedConn(connData, metric='corr', permNo=10000, permStat='mean', maskThr=0.9)
+% USAGE: [permRes, withinCondPermRes, connSim] = cmpPrunedConn(connData, metric='corr', permNo=10000, permStat='mean', maskThr=0)
 %
 % Compares connectivity patterns across different groups of epoch-pairings 
 % using permutation tests. Very similar to cmpFullConn, but works on 
@@ -14,15 +14,16 @@ function [permRes, withinCondPermRes, connSim] = cmpPrunedConn(connData, varargi
 % NaN values render the connectivity matrices different from
 % epoch-to-epoch, posing a problem for similarity measures. We deal with
 % this in two steps:
-% (1) Only the edges present in at least maskThr ratio of epochs is taken
+% (1) Only the edges present in more than maskThr ratio of epochs is taken
 %       into account. All other edges are set to zero (not NaN anymore!).
+%       By default this step is omitted (maskThr=0), as its results are
+%       hard to interpret.
 % (2) When calculating similarity, we delete the elements where both 
 %       vectors (containing connectivity values) are zero. So, if, after 
-%       step  (1), one pruned connectivity matrix has an edge between toe 
+%       step (1), one pruned connectivity matrix has an edge between two 
 %       ROIs but the other matrix does not, we take those values into
-%       account, boosting dissimlarity (zero vs stg>0). However, when both
-%       values are zero we ignore (delete them), to avoid inflating 
-%       similarity due to missing edges.
+%       account. However, when both values are zero we ignore (delete) 
+%       them, to avoid inflating similarity due to missing edges.
 %
 % For comparisons, first, for each condition, the function tests the
 % within-condition epoch-pairings against the across-condition epoch
@@ -49,9 +50,9 @@ function [permRes, withinCondPermRes, connSim] = cmpPrunedConn(connData, varargi
 %               permutaiton tests on. One of {'mean', 'median', 'std'} -
 %               the ones supported by permTest.m
 % maskThr       - Numeric value, threshold for frequency-based masking of
-%               edges. Edges that are not present in at least maskThr ratio
-%               of all epochs are set to 0. Defaults to 0.9, must be one 
-%               of 0.1:0.01:1.
+%               edges. Edges that are not present in more than maskThr ratio
+%               of all epochs are set to 0. Defaults to 0, must be one 
+%               of 0:0.01:1.
 %
 % Outputs:
 % permRes       - Struct, random permutation test results. Each element of
@@ -99,7 +100,7 @@ if nargin > 1
         elseif isnumeric(varargin{v})
             if ismember(varargin{v}, 100:100:10^6)
                 permNo = varargin{v};
-            elseif ismember(varargin{v}, 0.1:0.01:1)
+            elseif ismember(varargin{v}, 0:0.01:1)
                 maskThr = varargin{v};
             end
         else
@@ -119,7 +120,7 @@ if ~exist('permNo', 'var')
     permNo = 10^4;
 end  
 if ~exist('maskThr', 'var')
-    maskThr = 0.9;
+    maskThr = 0;
 end  
 
 % check size and dimensionality of mandatory arg "connData"
@@ -135,7 +136,8 @@ disp([char(10), 'Called cmpPrunedConn function with input args:',...
     char(10), 'Input data: array with size ', num2str(size(connData)),...
     char(10), 'Metric: ', metric,...
     char(10), 'No. of random permutations: ', num2str(permNo),...
-    char(10), 'Test statistic for random permutations: ', permStat]);
+    char(10), 'Test statistic for random permutations: ', permStat,...
+    char(10), 'Edge masking threshold: ', num2str(maskThr)]);
 
 
 %% Basics
@@ -152,7 +154,7 @@ dataLin = zeros((roiNo*roiNo-roiNo)/2, epochNo, condNo);
 
 connMask = ~isnan(connData);  % mask of edges that survived pruning
 connMaskSum = sum(sum(connMask, 4), 3);  % sum across all epochs
-connMaskFinal = connMaskSum >= round(maskThr*epochNo*condNo);  % mask of edges that are present in at least maskThr ratio of epochs
+connMaskFinal = connMaskSum > round(maskThr*epochNo*condNo);  % mask of edges that are present in more than maskThr ratio of epochs
 edgeNo = sum(sum(connMaskFinal));  % number of remaining edges
 
 % set everything outside the mask to NaN, and all NaN values to zero
@@ -161,7 +163,7 @@ connData(~maskTmp) = NaN;
 connData(isnan(connData)) = 0;
 
 % user message
-disp([char(10), 'Only considering edges that are present in at least ',... 
+disp([char(10), 'Only considering edges that are present in more than ',... 
     num2str(round(maskThr*epochNo*condNo)), ' epochs (maskThr=',... 
     num2str(maskThr), '), remaining no. of edges is ', num2str(edgeNo)]);
 
