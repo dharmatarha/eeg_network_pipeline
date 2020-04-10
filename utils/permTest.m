@@ -1,7 +1,7 @@
-function [pEst, realDiff, permDiff] = permTest(a, b, varargin)
+function [pEst, realDiff, permDiff, CohenD] = permTest(a, b, varargin)
 %% Permutation test for the difference between two data vectors
 %
-% USAGE: [pEst, realDiff, permDiff] = permTest(a, b, perm = 10000, stat = 'mean')
+% USAGE: [pEst, realDiff, permDiff, CohenD] = permTest(a, b, perm = 10000, stat = 'mean')
 %
 % Simple permutation test to estimate the statistical significance of the
 % difference between two data sets in terms of the mean or the median.
@@ -25,6 +25,8 @@ function [pEst, realDiff, permDiff] = permTest(a, b, varargin)
 % realDiff  - Real difference between data "a" and "b" in terms of the test
 %           statistic.
 % permDiff  - Differences from random permutations.
+% CohenD    - Cohen's d (effect size). Note that Cohen's d relies on the
+%           mean irrespective of the stat used for the permutation test
 %
 %
 
@@ -133,7 +135,7 @@ for i = 1:perm
 end
 
 
-%% get p value
+%% get p value and effect size
 
 if realDiff <= 0
     pEst = 1-(sum(permDiff>realDiff)/perm);
@@ -141,9 +143,12 @@ elseif realDiff > 0
     pEst = 1-(sum(permDiff<realDiff)/perm);
 end
 
+CohenD = (mean(a)-mean(b))/(((std(a)^2+std(b)^2)/2)^0.5);
+
 % user message
 disp([char(10), 'Real difference was ', num2str(realDiff),...
-    char(10), 'Estimated probability of H0 (equality): ', num2str(pEst)]);
+    char(10), 'Estimated probability of H0 (equality): ', num2str(pEst),...
+    char(10), 'Effect size (Cohen''s d): ', num2str(CohenD), char(10)]);
 
 
 return
