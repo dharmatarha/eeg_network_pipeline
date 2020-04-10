@@ -195,7 +195,7 @@ permRes = struct;
 
 % compare within- and across- with a random permutation test
 [permRes.pEst, permRes.realDiff,... 
-    permRes.permDiff] = permTest(withinSim, acrossSim, permNo, permStat); 
+    permRes.permDiff, permRes.CohenD] = permTest(withinSim, acrossSim, permNo, permStat); 
 
 
 return
