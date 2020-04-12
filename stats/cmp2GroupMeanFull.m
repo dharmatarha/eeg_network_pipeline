@@ -38,6 +38,18 @@ function [permRes, withinSim, acrossSim] = cmp2GroupMeanFull(groupData, subIdx, 
 %               permutation tests on. One of {'mean', 'median', 'std'} -
 %               the ones supported by permTest.m
 %
+% Outputs:
+% permRes       - Struct containing the output of permTest.m. Its fields
+%               are pEst (estimated prob.), realDiff (the real difference
+%               between within-epoch and across-epoch pairing similarities
+%               in terms of the test stat), permDiff (the permuted
+%               difference values) and CohenD (effect size, Cohen's d).
+% withinSim     - Numeric vector of within-epoch pairing connectivity
+%               similarities. Its size is
+%               [numberOfEpochs*numberOfConditions, 1]
+% acrossSim     - Numeric vector of across-epoch pairing connectivity
+%               similarities. Its size is
+%               [(numberOfEpochs^2*numberOfConditions^2-numberOfEpochs*numberOfConditions)/2, 1]
 %
 
 
