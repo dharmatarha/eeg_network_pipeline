@@ -88,7 +88,7 @@ end
 if ~exist('permNo', 'var')
     permNo = 10^4;
 end  
-% check size and dimensionality of mandatory arg "connData"
+% check size and dimensionality of mandatory arg "groupData"
 if ~isequal(size(groupData, 1), size(groupData, 2))
     error('First two dimensions of input arg "groupData" need to have equal size!');
 end
@@ -194,6 +194,9 @@ switch metric
         end  % subEpoch for
         
 end  % switch metric
+
+% user message
+disp([char(10), 'Calculated epoch-pairing similarities']);
 
 
 %% Extract within-epoch and across-epoch values, compare them

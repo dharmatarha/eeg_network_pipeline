@@ -49,7 +49,7 @@ else
         error('Input arg "metric" must be one of {''corr'', ''eucl''}!');
     end
 end
-% check size and dimensionality of mandatory arg "connData"
+% check size and dimensionality of mandatory arg "groupData"
 if ~isequal(size(groupData, 1), size(groupData, 2))
     error('First two dimensions of input arg "groupData" need to have equal size!');
 end
