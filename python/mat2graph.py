@@ -90,17 +90,53 @@ def mat2roinames(roinamesfile, roinamesvar='rois'):
 
     return roilist
 
+
 def la_partition(g):
 
-    p = la.find_partition(g, la.ModularityVertexPartition, weights=g.es['weight'], n_iterations=-1)
+        p = la.find_partition(g, la.ModularityVertexPartition, weights=g.es['weight'], n_iterations=-1)
 
-    return p
+        return p
 
-def plot_communities(g, p):
+
+def plot_communities(g, partition):
+    """
+    Plots igraph graph partition "partition" with a layout that groups
+    vertices in each community together.
+    Partition is an output from a leidenalg modularity
+    detection method on the graph (leidenalg.VertexPartition).
+    Works by defining a layout on the graph without cross-community edges,
+    than utilizing that layout for plotting the partition.
+
+    Inputs:
+    g              -- igraph graph object
+    partition      -- leidenalg.VertexPartition object
+
+    Outputs:
+    community_plot -- igraph plot object
+    """
+
+    # copy the graph
+    gcopy = g.copy()
+    # empty lists for non-crossing edges and colors of all edges
+    edges = []
+    edges_colors = []
+    # set diff colors for intra- and inter-community edges
+    for edge in g.es():
+        if partition.membership[edge.tuple[0]] != partition.membership[edge.tuple[1]]:
+            edges.append(edge)
+            edges_colors.append("gray")
+        else:
+            edges_colors.append("black")
+    # get layout for graph without inter-community edges
+    gcopy.delete_edges(edges)
+    layout = gcopy.layout("kk")
+    g.es["color"] = edges_colors
 
     return
 
 def _plot(g, membership=None):
+
+
     if membership is not None:
         gcopy = g.copy()
         edges = []
@@ -143,8 +179,6 @@ def _plot(g, membership=None):
  #       cl = g.community_fastgreedy()
  #       membership = cl.as_clustering().membership
  #       _plot(g, membership)
-
-
 
 
 
