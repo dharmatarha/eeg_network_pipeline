@@ -2,7 +2,9 @@ from scipy.io import loadmat
 import igraph as ig
 import leidenalg as la
 import numpy as np
-from random import randint
+from math import pi
+from random import sample
+
 
 def mat2graph(matfile,
               arrayname='prunedConn',
@@ -25,7 +27,7 @@ def mat2graph(matfile,
 
     Outputs:
     graphs      -- List of lists, where each element is a list for a condition.
-        In each condition list, there is a Graph object for each epoch.
+        In each condition list, there is a igraph Graph object for each epoch.
     """
 
     # load data, select adjacency matrices
@@ -64,7 +66,7 @@ def mat2graph(matfile,
     return graphs
 
 
-def mat2roinames(roinamesfile, roinamesvar='rois'):
+def mat2roinames(roinamesfile, roinamesvar='roisShort'):
     """
     Loads a mat file containing ROI (graph vertex) names in a cell array.
 
@@ -92,13 +94,16 @@ def mat2roinames(roinamesfile, roinamesvar='rois'):
 
 
 def la_partition(g):
+    """
+    Placeholder to remind me of important args - use the one-liner with appropriate args in any wrapper
+    """
 
-        p = la.find_partition(g, la.ModularityVertexPartition, weights=g.es['weight'], n_iterations=-1)
+    p = la.find_partition(g, la.ModularityVertexPartition, weights=g.es['weight'], n_iterations=-1)
 
-        return p
+    return p
 
 
-def plot_communities(g, partition):
+def plot_communities(g, partition, layout_edgeratio=0.2):
     """
     Plots igraph graph partition "partition" with a layout that groups
     vertices in each community together.
@@ -120,65 +125,128 @@ def plot_communities(g, partition):
     # empty lists for non-crossing edges and colors of all edges
     edges = []
     edges_colors = []
+
     # set diff colors for intra- and inter-community edges
     for edge in g.es():
         if partition.membership[edge.tuple[0]] != partition.membership[edge.tuple[1]]:
             edges.append(edge)
-            edges_colors.append("gray")
+            edges_colors.append('gray')
         else:
-            edges_colors.append("black")
-    # get layout for graph without inter-community edges
-    gcopy.delete_edges(edges)
-    layout = gcopy.layout("kk")
-    g.es["color"] = edges_colors
+            edges_colors.append('black')
 
-    return
+    # get layout for graph without (most) inter-community edges
+    noToDelete = round(len(edges)*(1-layout_edgeratio))  # no of edges to delete from all of edges
+    delIdx = sample([i for i in range(len(edges))], noToDelete)  # indices of edges to delete
+    delIdx.sort(reverse=True)
+    for i in delIdx:
+        gcopy.delete_edges(edges[i])
+#    [gcopy.delete_edges(edges[i]) for i in delIdx]
+#    gcopy.delete_edges(edges[delIdx])
+    layout = gcopy.layout_fruchterman_reingold()  # usually works well for eeg connectivity data
+    # set edge colors
+    g.es['color'] = edges_colors
 
-def _plot(g, membership=None):
-
-
-    if membership is not None:
-        gcopy = g.copy()
-        edges = []
-        edges_colors = []
-        for edge in g.es():
-            if membership[edge.tuple[0]] != membership[edge.tuple[1]]:
-                edges.append(edge)
-                edges_colors.append("gray")
-            else:
-                edges_colors.append("black")
-        gcopy.delete_edges(edges)
-        layout = gcopy.layout("kk")
-        g.es["color"] = edges_colors
-    else:
-        layout = g.layout("kk")
-        g.es["color"] = "gray"
+    # create a visual style dict to be passed on to igraph.plot
     visual_style = {}
-    visual_style["vertex_label_dist"] = 0
-    visual_style["vertex_shape"] = "circle"
-    visual_style["edge_color"] = g.es["color"]
-    # visual_style["bbox"] = (4000, 2500)
-    visual_style["vertex_size"] = 30
-    visual_style["layout"] = layout
-    visual_style["bbox"] = (1024, 768)
-    visual_style["margin"] = 40
-    visual_style["edge_label"] = g.es["weight"]
-    for vertex in g.vs():
-        vertex["label"] = vertex.index
-    if membership is not None:
-        colors = []
-        for i in range(0, max(membership) + 1):
-            colors.append('%06X' % randint(0, 0xFFFFFF))
-        for vertex in g.vs():
-            vertex["color"] = str('#') + colors[membership[vertex.index]]
-        visual_style["vertex_color"] = g.vs["color"]
-    ig.plot(g, **visual_style)
+    visual_style['vertex_shape'] = 'circle'
+    visual_style['vertex_size'] = 10
+    visual_style['vertex_label_dist'] = 15
+    visual_style['vertex_label_angle'] = 1.5*pi
+    visual_style['edge_color'] = g.es['color']
+    visual_style['edge_width'] = g.es['weight']*10
+    visual_style['layout'] = layout
+    visual_style['bbox'] = (1024, 768)
+    visual_style['margin'] = (100, 100, 100, 200)
 
- #   if __name__ == "__main__":
- #       g = igraph.Nexus.get("karate")
- #       cl = g.community_fastgreedy()
- #       membership = cl.as_clustering().membership
- #       _plot(g, membership)
+    # plot
+    community_plot = ig.plot(partition, **visual_style)
+
+    return community_plot
+
+
+def partitionwrapper(matfile,
+                     roinamesfile,
+                     roinamesvar='roisShort',
+                     arrayname='prunedConn',
+                     expshape=(62, 62, 40, 4),
+                     n_partitioning=100):
+    """
+    Wrapper for community / modularity detection on EEG data using the Leiden algorithm.
+    Relies on other functions in mat2graph (mat2roinames, mat2graph) and
+    calls leidenalg functions on each network (on the connectivity network of each epoch).
+
+    matfile        -- Valid path to a .mat file, up to version -v7
+    roinamesfile   -- Path to .mat file containing ROI names
+            in a cell array
+    roinamesvar    -- String, name of variable (dict key) containing
+            the ROI names            
+    arrayname      -- Name of the array containing the adjacency
+            matrices of interest, defaults to 'prunedConn'
+    expshape       -- Tuple containing the expected shape of the array
+            containing adjacency matrices, defaults to (62, 62, 40, 4)
+    n_partitioning -- No. of community detections to run on each network
+
+    Outputs:
+    partitions     -- list of lists of leidenalg.VertexPartition objects, one for each network (epoch)
+    memberships    -- numpy array of membership indexes of graph vertices, its shape is
+    (expshape[0], expshape[-2], expshape[-1])
+    """
+
+    # load roi names
+    roiList = mat2roinames(roinamesfile, roinamesvar=roinamesvar)
+
+    # load connectivity matrices, define graphs
+    graphs = mat2graph(matfile, arrayname=arrayname, expshape=expshape, vertexnames=roiList)
+
+    # init output variables
+    partitions = []
+    memberships = np.zeros((expshape[0], expshape[-2], expshape[-1]))
+
+    # calculate modularity on each graph n_partitioning times
+    for stim in range(len(graphs)):
+        # user message
+        print('\n\nCalculating for stim/cond no. ' + str(stim))
+        # init list holding epoch-level partitions
+        epochPartitions = []
+
+        for epoch in range(len(graphs[0])):
+            # user message
+            print('Epoch no. ' + str(epoch))
+
+            # select graph of epoch
+            g = graphs[stim][epoch]
+
+            # init temporary variables for partitioning runs
+            modulValues = np.zeros((n_partitioning, 1))  # will hold modularity values from each partitioning run
+            tmpPartitions = []  # empty list for partitioning outcomes
+
+            # as community detection is somewhat random (and maximization is not guaranteed),
+            # # more runs are used for each network
+            for p in range(n_partitioning):
+                tmp = la.find_partition(g,
+                                        la.ModularityVertexPartition,
+                                        weights=g.es['weight'],
+                                        n_iterations=-1)
+                tmpPartitions.append(tmp)
+                modulValues[p] = tmp.modularity
+
+            # find maximal modularity and corresponding partitioning
+            idx = np.where(modulValues == modulValues.max())
+            print(idx)
+#            if idx[0].shape[0] > 1:
+#                idx = tmpIdx[0][0]
+#            else:
+#                idx = tmpIdx[0]
+            maxPartition = tmpPartitions[idx[0][0]]
+
+            # store results, both the max-modularity partition and the corresponding membership array
+            epochPartitions.append(maxPartition)
+            memberships[:, epoch, stim] = np.asarray(maxPartition.membership)
+
+        # store epoch-level partitions
+        partitions.append(epochPartitions)
+
+    return partitions, memberships
 
 
 
