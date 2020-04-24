@@ -1,9 +1,10 @@
-from scipy.io import loadmat
+from scipy.io import loadmat, savemat
 import igraph as ig
 import leidenalg as la
 import numpy as np
 from math import pi
 from random import sample
+import os
 
 
 def mat2graph(matfile,
@@ -189,11 +190,17 @@ def partitionwrapper(matfile,
     Outputs:
     partitions     -- list of lists of leidenalg.VertexPartition objects, one for each network (epoch)
     memberships    -- numpy array of membership indexes of graph vertices, its shape is
-    (expshape[0], expshape[-2], expshape[-1])
+    (expshape[0], expshape[-2], expshape[-1]). Membership indexes are also saved
+    out to the directory of "matfile" with the name of "matfile" appended with "_modules"
     """
 
     # load roi names
     roiList = mat2roinames(roinamesfile, roinamesvar=roinamesvar)
+
+    # construct save file path
+    pathparts = os.path.split(matfile)
+    filename, fileext = pathparts[1].split(sep='.')
+    savefilename = pathparts[0] + '/' + filename + '_modules.' + fileext
 
     # load connectivity matrices, define graphs
     graphs = mat2graph(matfile, arrayname=arrayname, expshape=expshape, vertexnames=roiList)
@@ -232,11 +239,6 @@ def partitionwrapper(matfile,
 
             # find maximal modularity and corresponding partitioning
             idx = np.where(modulValues == modulValues.max())
-            print(idx)
-#            if idx[0].shape[0] > 1:
-#                idx = tmpIdx[0][0]
-#            else:
-#                idx = tmpIdx[0]
             maxPartition = tmpPartitions[idx[0][0]]
 
             # store results, both the max-modularity partition and the corresponding membership array
@@ -245,6 +247,16 @@ def partitionwrapper(matfile,
 
         # store epoch-level partitions
         partitions.append(epochPartitions)
+
+    # save memberships to .mat file
+    matdict = {}  # arrays and strings are to be stored in a dict for .mat saving
+    matdict['memberships'] = memberships
+    matdict['arrayname'] = arrayname
+    matdict['expshape'] = np.asarray(expshape)
+    matdict['n_partitioning'] = np.asarray(n_partitioning)
+    matdict['matfile'] = matfile
+    matdict['roinamesfile'] = roinamesfile
+    savemat(savefilename, matdict)
 
     return partitions, memberships
 
