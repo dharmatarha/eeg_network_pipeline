@@ -3,8 +3,10 @@
 % basic data
 meanConnFile = '/home/adamb/eeg_network_pipeline/dev/edgePruningResults/alpha/avg_alpha_edgePruningInfo.mat';
 membershipFile = '/home/adamb/eeg_network_pipeline/dev/edgePruningResults/alpha/avg_alpha_edgePruningInfo_modules.mat';
+colorFile = '/home/adamb/eeg_network_pipeline/utils/colorTriplets.mat';
 load(meanConnFile, 'prunedConnAvg');
 load(membershipFile, 'memberships');
+load(colorFile, 'colorTriplets');
 
 % select graph (and corresponding memberships)
 epochIdx = 1;
@@ -12,14 +14,18 @@ condIdx = 1;
 g = prunedConnAvg(:, :, epochIdx, condIdx);
 m = memberships(:, epochIdx, condIdx);
 
+% load labels / ROI names
+rois = '/home/adamb/eeg_network_pipeline/utils/roiNamesInOrder.mat';
+l = load(rois); labels = l.roisShort;
+
+
 % create symmetric adjacency matrix with zeros at diagonal
 g = triu(g, 1) + triu(g, 1)';
 g(isnan(g)) = 0;
 % % just for plotting we set low values to zero
 % g(g<0.2) = 0;  
 
-% load RGB triplets
-load('colorTriplets.mat');
+
 
 % get colors to modules
 moduleIndices = unique(m);
@@ -28,9 +34,6 @@ for i = 1:length(moduleIndices)
     colorMap(m==moduleIndices(i), :) = repmat(colorTriplets(i, :), [sum(m==moduleIndices(i)), 1]);
 end
 
-% load labels / ROI names
-rois = '/home/adamb/eeg_network_pipeline/utils/roiNamesInOrder.mat';
-l = load(rois); labels = l.roisShort;
 
 % % draw circular network figure
 % circularGraph(g,'Colormap', colorMap,'Label',labels);
