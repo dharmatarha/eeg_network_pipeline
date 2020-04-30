@@ -1,18 +1,30 @@
-function [baseH, moduleH] = circleGraphPlot(connMatrix, membership, colorTriplets, varargin)
+function [mainFig, subFig] = circleGraphPlot(connMatrix, membership, colorTriplets, varargin)
 %% Plotting network connectivity with module-structure in a circle layout
 %
-% USAGE: graphPlot = circleGraphPlot(connMatrix, 
-%                                   membership,
-%                                   colorTriplets,
-%                                   trimmingThr=0.2, 
-%                                   labels={}, 
-%                                   drawFlag=1)
+% USAGE: [mainFig, subFig] = circleGraphPlot(connMatrix, 
+%                                       membership,
+%                                       colorTriplets,
+%                                       trimmingThr=0.2, 
+%                                       labels={}, 
+%                                       figTitle=[];
+%                                       drawFlag=1)
 % 
-% Create a circle plot of the graph contructed from the supplied
-% connectivity (adjacency) matrix and module membership vector. 
-% Its details are fine-tuned for undirected EEG connectivity data. 
-% Returns the plot object and optionally displays it in a figure window  
+% Creates two figures for the supplied network and its modules.
+%
+% The first figure is a circle plot of the whole graph, highlighting
+% both the module membership of each node and within-module edges with 
+% different colors. 
+% The second figure depicts the separate modules as subplots. 
+%
+% Figure details are fine-tuned for undirected EEG connectivity data. 
 % 
+% Some finer details (e.g. lobule labels, node grouping into lobules) only
+% work with a specific set of labels (62 anatomic ROIs with specific
+% order), otherwise they are avoided.
+% 
+% Specific size and position settings are for screen with a resolution of 
+% 1920 x 1080, no guarantee that figures look decent with anything else.
+%
 % FOR UNDIRECTED GRAPH!
 %
 % Mandatory inputs:
@@ -33,14 +45,17 @@ function [baseH, moduleH] = circleGraphPlot(connMatrix, membership, colorTriplet
 %               applied to within-module, the second to between-module
 %               connections. Defaults to [0.2], value(s) must be in range
 %               [0:0.01:0.9].
-% labels          - Cell array of node labels / names. Defaults to 
-%               empty array (no labels). 
+% labels          - Cell array of node labels / names. Defaults to a cell
+%               array of numbers {'1', '2', ...}. 
+% figTitle        - String, displayed as title on the figures. 
 % drawFlag        - String, one of {'draw', 'nodraw'}. Flag for 
 %               displaying the plot (=1) or only returning the plot object 
 %               handle (0). Defaults to 1 (display plot).
 %
 % Outputs:
-% graphPlot       - Graph plot object handle
+% mainFig       - Figure handle for the plot depicting the whole network
+%               and highlighting modules with colors.
+% subFig        - Figure handle for plot with the modules as subplots.
 %
 %
 
@@ -51,7 +66,7 @@ function [baseH, moduleH] = circleGraphPlot(connMatrix, membership, colorTriplet
 if nargin < 3 || nargin > 6
     error(['Function circleGraphPlot requires mandatory input args "connMatrix", '... 
         '"membership" and "colorTriplets", while input args "trimmingThr", ',...
-        '"labels" and "drawFlag" are optional!']);
+        '"labels", "figTitle" and "drawFlag" are optional!']);
 end
 
 % check mandatory inputs
@@ -61,6 +76,9 @@ end
 if ~isvector(membership) || length(membership) ~= size(connMatrix, 1)
     error(['Input arg "membership" should be a vector with the same ',...
         'length as either dimension of "connMatrix"!']);
+end
+if any(~ismember(unique(membership), 0:20))
+    error('Input arg "membership" should contain values in range 0:20!');
 end
 if ~ismatrix(colorTriplets) || size(colorTriplets, 2) ~= 3
     error(['Input arg "colorTriplets" should be a matrix with three ',...
@@ -81,19 +99,24 @@ if ~isempty(varargin)
             labels = varargin{v};
         elseif ischar(varargin{v}) && ismember(varargin{v}, {'draw', 'nodraw'})
             drawFlag = varargin{v};
+        elseif ischar(varargin{v}) && ~ismember(varargin{v}, {'draw', 'nodraw'})
+            figTitle = varargin{v};            
         else
             error(['An input arg could not be parsed as any of "trimmingThr", ',...
                 '"labels" or "drawFlag"!']);
         end
     end
 end
-
+   
 % defaults
 if ~exist('trimmingThr', 'var')
     trimmingThr = 0.2;
 end
 if ~ exist('labels', 'var')
-    labels = {};
+    labels = cellstr(num2str([1:length(membership)]'));  % {'1', '2', '3', ...}
+end
+if ~ exist('figTitle', 'var')
+    figTitle = [];
 end
 if ~ exist('drawFlag', 'var')
     drawFlag = 'draw';
@@ -131,6 +154,32 @@ disp([char(10), 'Function circleGraphPlot is called with inputs: ',...
 
 
 
+%% Compare labels to the specific anatomic ROI set 
+% if they match, the function can highlight the ROI structure automatically
+
+% expected set and order
+expectedLabels = {'lateralorbitofrontal L', 'medialorbitofrontal L', 'parsorbitalis L', 'parstriangularis L', 'parsopercularis L', 'rostralmiddlefrontal L', 'caudalmiddlefrontal L', 'superiorfrontal L', 'precentral L',...
+    'rostralanteriorcingulate L', 'caudalanteriorcingulate L', 'posteriorcingulate L', 'isthmuscingulate L',...
+    'transversetemporal L', 'superiortemporal L', 'middletemporal L', 'inferiortemporal L', 'entorhinal L', 'parahippocampal L', 'fusiform L', 'insula L',...
+    'supramarginal L', 'inferiorparietal L', 'superiorparietal L', 'postcentral L', 'paracentral L', 'precuneus L',...
+    'cuneus L', 'lingual L', 'pericalcarine L', 'lateraloccipital L',...
+    'lateraloccipital R', 'pericalcarine R', 'lingual R', 'cuneus R',...
+    'precuneus R', 'paracentral R', 'postcentral R', 'superiorparietal R', 'inferiorparietal R', 'supramarginal R',...
+    'insula R', 'fusiform R', 'parahippocampal R', 'entorhinal R', 'inferiortemporal R', 'middletemporal R', 'superiortemporal R', 'transversetemporal R',...
+    'isthmuscingulate R', 'posteriorcingulate R', 'caudalanteriorcingulate R', 'rostralanteriorcingulate R',...
+    'precentral R', 'superiorfrontal R', 'caudalmiddlefrontal R', 'rostralmiddlefrontal R', 'parsopercularis R', 'parstriangularis R', 'parsorbitalis R', 'medialorbitofrontal R', 'lateralorbitofrontal R',...
+    };
+shiftLabels = 15;
+expectedLabels = [expectedLabels(end-shiftLabels:end), expectedLabels(1:end-shiftLabels-1)]';
+
+% set flag if supplied arg "labels" match expected set of labels
+if isequal(expectedLabels, labels)
+    lobuleFlag = 1;
+else
+    lobuleFlag = 0;
+end
+
+
 %% Hard-coded params
 
 % RGB color for between-module edges
@@ -148,13 +197,99 @@ edgeAlpha = 0.3;
 % general node size setting
 nodeSize = 10;
 % graph plot layout
-graphLayout = 'circle';
+graphMainLayout = 'circle';
+% graphSubLayout = 'subspace';
+graphSubLayout = 'force';
 % figure (gcf) background color
 gcfColor = [1 1 1];
 % axes (gca) color in subplots
 gcaLinesColor = [1 1 1];
 % figure position and size in normalized units 
-gcfPos = [0.25, 0.04, 0.5, 0.96];
+gcfMainPos = [0.25, 0, 0.5, 1];
+gcfSubPos = [0, 0, 1, 1];
+% axes position relative to figure for main figure
+gcaPosInFig = [0.05, 0.05, 0.9, 0.9];
+% figure title texts
+mainFigTitle = ['All nodes and modules. ', figTitle];
+subFigTitle = ['Modules separately. ', figTitle];
+
+% properties for text box displaying trimming info
+if ~doubleTrim
+    trimmingText = ['Edges with weight > ', num2str(trimmingThr), ' are depicted'];
+elseif doubleTrim
+    trimmingText = ['Edges with weight > ', num2str(trimmingThr), ' (for within- and between-module edges) are depicted'];
+end
+trimmingBoxPos = [0.01, 0.01, 0.4, 0.03];
+
+% for subFig that contains the module-level graph plots, we define subplot
+% positions depending on module number
+% modules are plotted into subplots, the positions of subplots depend on
+% the number of modules
+switch modNo 
+    case 2  
+        subPlotPos = [0.05, 0.05, 0.35, 0.7;
+             0.55, 0.05, 0.35, 0.7];       
+    case 3
+         subPlotPos = [0.05, 0.55, 0.35, 0.35;
+             0.55, 0.55, 0.35, 0.35;
+             0.25, 0.05, 0.45, 0.35];          
+    case 4 
+         subPlotPos = [0.05, 0.55, 0.35, 0.35;
+             0.55, 0.55, 0.35, 0.35;
+             0.05, 0.05, 0.35, 0.35;
+             0.55, 0.05, 0.35, 0.35];       
+    case 5
+         subPlotPos = [0.05, 0.55, 0.25, 0.25;
+             0.32, 0.55, 0.25, 0.25;
+             0.65, 0.55, 0.25, 0.25;
+             0.05, 0.05, 0.35, 0.25;
+             0.55, 0.05, 0.35, 0.25];     
+    case 6
+         subPlotPos = [0.05, 0.55, 0.25, 0.25;
+             0.32, 0.55, 0.25, 0.25;
+             0.65, 0.55, 0.25, 0.25;
+             0.05, 0.05, 0.25, 0.25;
+             0.32, 0.05, 0.25, 0.25;
+             0.65, 0.05, 0.25, 0.25;];   
+end
+
+
+% if ROIs are grouped into lobules, we draw lines and annotations, set
+% their params
+if lobuleFlag
+    % params for drawing lines between lobules
+    % angles of lines in radians
+    lineAngles = [0.24, 0.665, pi/2, pi-0.665, pi-0.24, pi+0.55,... 
+        pi+1.15, pi*3/2, 2*pi-0.55, 2*pi-1.15];
+    lineL = 1.75;  % line length
+    lineRatio = 0.60;  % lines are not drawn completely, only their ends outside the main graph, lineRatio controls how much is invisible
+    xL = cos(lineAngles)*lineL;  % get end point coordinates from angles and length
+    yL = sin(lineAngles)*lineL;
+    xL = [xL*lineRatio; xL];  % add start points based on lineRatio
+    yL = [yL*lineRatio; yL];
+    % line properties
+    lineWidth = 1.5;
+    lineColor = [0 0 0];
+    lineStyle = '--';
+
+    % annotation / textbox properties
+    typeA = 'textbox';
+    % positions: one row per lobule label
+    posA = [0.39, 0.06, 0.1, 0.1;
+        0.20, 0.15, 0.1, 0.1;
+        0.09, 0.35, 0.1, 0.1;
+        0.08, 0.57, 0.1, 0.1;
+        0.30, 0.77, 0.1, 0.1; 
+        0.62, 0.77, 0.1, 0.1;
+        0.85, 0.57, 0.1, 0.1;
+        0.84, 0.35, 0.1, 0.1;
+        0.73, 0.15, 0.1, 0.1;
+        0.53, 0.06, 0.1, 0.1];
+    % lobule labels
+    textA = {'L Occipital', 'L Parietal', 'L Temporal', 'L Cingulate', 'L Frontal',... 
+        'R Frontal', 'R Cingulate', 'R Temporal', 'R Parietal', 'R Occipital'};
+    
+end
 
 
 %% Prepare connectivity, sort colors to modules
@@ -173,7 +308,7 @@ end
 % sort colors to nodes
 nodeColors = zeros(length(membership), 3);
 for i = 1:length(moduleIndices)
-    nodeColors(m==moduleIndices(i), :) = repmat(colorTriplets(i, :), [sum(m==moduleIndices(i)), 1]);
+    nodeColors(membership==moduleIndices(i), :) = repmat(colorTriplets(i, :), [sum(membership==moduleIndices(i)), 1]);
 end
 
 
@@ -208,6 +343,19 @@ edgeStyle = repmat(edgeTypes(1), [size(weights, 1), 1]);
 edgeStyle(betweenModEdgeIdx) = repmat(edgeTypes(2), [sum(betweenModEdgeIdx, 1), 1]);
 
 
+%% Define a subgraph for each module
+   
+% subgraphs are defined before removing any edges
+
+% subgraphs are stored in a cell array
+subGraphs = cell(modNo, 1);
+
+for i = 1:modNo
+    moduleNodes = labels(membership == moduleIndices(i));  % node indices (as binary vector) for given module
+    subGraphs{i} = subgraph(G, moduleNodes);
+end
+
+
 %% Trimming edges if necessary
 
 % if same threshold applies to within- and between-module edges
@@ -233,31 +381,19 @@ end
 edgeColors(edgesToTrim, :) = [];
 edgeWidth(edgesToTrim) = [];
 edgeStyle(edgesToTrim) = [];
-    
-
-%% Define a subgraph for each module
-   
-% each subgraph is stored in a cell array
-subGraphs = cell(modNo, 1);
-
-for i = 1:modNo
-    moduleNodes = labels(membership == moduleIndices(i));  % node indices (as binary vector) for given module
-    subGraphs{i} = subgraph(G, moduleNodes);
-end
 
 
 %% Plot main graph
 
-% enlarge figure to full screen
-set(gcf, 'Units', 'Normalized', 'OuterPosition', gcfPos);
-% simple white background
+% main graph plot figure
+mainFig = figure;
+
+% set figure size and background color
+set(gcf, 'Units', 'Normalized', 'OuterPosition', gcfMainPos);
 set(gcf, 'Color', gcfColor);
 
-% % positioned on the upper half of the figure, centered
-% subplot('position', [0.275 0.52 0.30 0.46]);
-
-% base graph plot
-baseH = G.plot('Layout', graphLayout,... 
+% graph plot
+baseH = G.plot('Layout', graphMainLayout,... 
     'LineWidth', edgeWidth,... 
     'EdgeColor', edgeColors,... 
     'EdgeAlpha', edgeAlpha,... 
@@ -265,19 +401,45 @@ baseH = G.plot('Layout', graphLayout,...
     'MarkerSize', nodeSize,...
     'LineStyle', edgeStyle);
 
-% set axes boundary line colors
+% title
+title(mainFigTitle);
+
+% lines and text boxes highlight the ROIs in each lobule in case of a
+% specific ROI set (labels)
+if lobuleFlag
+    %  draw separating lines between lobules
+    line(xL, yL, 'Color', lineColor, 'LineWidth', lineWidth, 'LineStyle', lineStyle);
+    % lobule labels as annotations (text boxes)
+    for a = 1:length(textA)
+        annotation(typeA, posA(a,:), 'String', textA{a}, 'EdgeColor', gcaLinesColor); 
+    end
+end
+
+% extra annotation displaying trimming info
+annotation('textbox', trimmingBoxPos, 'String', trimmingText, 'EdgeColor', gcaLinesColor);
+
+% set axes boundary line colors 
 set(gca,'XColor', gcaLinesColor,'YColor', gcaLinesColor);
+% set axes position relative to figure
+set(gca, 'Position', gcaPosInFig);
 
 
 %% Plot sub graphs
 
-for s = 1:length(subGraphs)
+% module-level graphs figure
+subFig = figure;
+
+% set figure size and background color
+set(gcf, 'Units', 'Normalized', 'OuterPosition', gcfSubPos);
+set(gcf, 'Color', gcfColor);
+
+for s = 1:modNo
     
     % positioned in lower half, one next to the other
-    subplot('position', [(0.92/modNo)*(s-1), 0, 0.92/modNo, 0.92/modNo]);
+    subplot('position', subPlotPos(s, :));
     
     % module subplot
-    subGraphs{s}.plot('Layout', graphLayout,... 
+    subGraphs{s}.plot('Layout', graphSubLayout,... 
     'LineWidth', subGraphs{s}.Edges.Weight*withinEdgeWidthMultip,... 
     'EdgeColor', colorTriplets(s, :),... 
     'EdgeAlpha', edgeAlpha,... 
@@ -290,22 +452,12 @@ for s = 1:length(subGraphs)
 
 end
 
+% title
+suptitle(subFigTitle);
+% % extra annotation displaying trimming info
+% annotation('textbox', trimmingBoxPos, 'String', trimmingText, 'EdgeColor', gcaLinesColor);
 
 
-
-
-% % highlight a module
-% % nodes
-% modNodes = labels(m==0);
-% highlight(H, modNodes, 'MarkerSize', 10, 'NodeColor', colorTriplets(2,:));
-% % edges
-% % get edge indices for connections inside the module
-% modG = subgraph(G, modNodes);
-% subgNodes = modG.Edges.EndNodes;
-% subgWeights = modG.Edges.Weight;
-% for subedge = 1:size(subgNodes, 1)
-%     highlight(H, subgNodes(subedge, 1), subgNodes(subedge, 2), 'LineWidth', subgWeights(subedge)*12, 'EdgeColor', colorTriplets(2,:));
-% end
-
+return
 
 
