@@ -15,6 +15,9 @@ function [mainFig, subFig] = circleGraphPlot(connMatrix, membership, colorTriple
 % both the module membership of each node and within-module edges with 
 % different colors. 
 % The second figure depicts the separate modules as subplots. 
+% Module layout calculation happens after edge trimming!! Switch the
+% positions of the trimming and subgraph extraction blocks if want to
+% preserve all edges for module layouts (and subplots).
 %
 % Figure details are fine-tuned for undirected EEG connectivity data. 
 % 
@@ -22,7 +25,7 @@ function [mainFig, subFig] = circleGraphPlot(connMatrix, membership, colorTriple
 % work with a specific set of labels (62 anatomic ROIs with specific
 % order), otherwise they are avoided.
 % 
-% Specific size and position settings are for screen with a resolution of 
+% Specific size and position settings are for 23" screen with a resolution
 % 1920 x 1080, no guarantee that figures look decent with anything else.
 %
 % FOR UNDIRECTED GRAPH!
@@ -32,7 +35,7 @@ function [mainFig, subFig] = circleGraphPlot(connMatrix, membership, colorTriple
 %               values (square matrix). Only upper triangle is used for 
 %               graph construction. 
 % membership      - Numeric vector containing the module membership of each
-%               node in the graph. Values must be in range 0:1:20 (zero is
+%               node in the graph. Values must be in range 0:1:11 (zero is
 %               a valid module identifier).
 % colorTriplets   - Numeric matrix with three columns, each row defines an
 %               RGB triplet for module (and within-module edge) coloring. 
@@ -77,8 +80,8 @@ if ~isvector(membership) || length(membership) ~= size(connMatrix, 1)
     error(['Input arg "membership" should be a vector with the same ',...
         'length as either dimension of "connMatrix"!']);
 end
-if any(~ismember(unique(membership), 0:20))
-    error('Input arg "membership" should contain values in range 0:20!');
+if any(~ismember(unique(membership), 0:11))
+    error('Input arg "membership" should contain values in range 0:11!');
 end
 if ~ismatrix(colorTriplets) || size(colorTriplets, 2) ~= 3
     error(['Input arg "colorTriplets" should be a matrix with three ',...
@@ -175,6 +178,7 @@ expectedLabels = [expectedLabels(end-shiftLabels:end), expectedLabels(1:end-shif
 % set flag if supplied arg "labels" match expected set of labels
 if isequal(expectedLabels, labels)
     lobuleFlag = 1;
+    disp([char(10), 'Supplied labels let us highlight the lobules with additional lines and annotations, will do so']);
 else
     lobuleFlag = 0;
 end
@@ -198,7 +202,7 @@ edgeAlpha = 0.3;
 nodeSize = 10;
 % graph plot layout
 graphMainLayout = 'circle';
-% graphSubLayout = 'subspace';
+% graphSubLayout = 'subspace';  % consider 'force' with 'WeightEffect' set to 'inverse'
 graphSubLayout = 'force';
 % figure (gcf) background color
 gcfColor = [1 1 1];
@@ -225,34 +229,7 @@ trimmingBoxPos = [0.01, 0.01, 0.4, 0.03];
 % positions depending on module number
 % modules are plotted into subplots, the positions of subplots depend on
 % the number of modules
-switch modNo 
-    case 2  
-        subPlotPos = [0.05, 0.05, 0.35, 0.7;
-             0.55, 0.05, 0.35, 0.7];       
-    case 3
-         subPlotPos = [0.05, 0.55, 0.35, 0.35;
-             0.55, 0.55, 0.35, 0.35;
-             0.25, 0.05, 0.45, 0.35];          
-    case 4 
-         subPlotPos = [0.05, 0.55, 0.35, 0.35;
-             0.55, 0.55, 0.35, 0.35;
-             0.05, 0.05, 0.35, 0.35;
-             0.55, 0.05, 0.35, 0.35];       
-    case 5
-         subPlotPos = [0.05, 0.55, 0.25, 0.25;
-             0.32, 0.55, 0.25, 0.25;
-             0.65, 0.55, 0.25, 0.25;
-             0.05, 0.05, 0.35, 0.25;
-             0.55, 0.05, 0.35, 0.25];     
-    case 6
-         subPlotPos = [0.05, 0.55, 0.25, 0.25;
-             0.32, 0.55, 0.25, 0.25;
-             0.65, 0.55, 0.25, 0.25;
-             0.05, 0.05, 0.25, 0.25;
-             0.32, 0.05, 0.25, 0.25;
-             0.65, 0.05, 0.25, 0.25;];   
-end
-
+subPlotPos = subPlotPositions(modNo);
 
 % if ROIs are grouped into lobules, we draw lines and annotations, set
 % their params
@@ -343,20 +320,7 @@ edgeStyle = repmat(edgeTypes(1), [size(weights, 1), 1]);
 edgeStyle(betweenModEdgeIdx) = repmat(edgeTypes(2), [sum(betweenModEdgeIdx, 1), 1]);
 
 
-%% Define a subgraph for each module
-   
-% subgraphs are defined before removing any edges
-
-% subgraphs are stored in a cell array
-subGraphs = cell(modNo, 1);
-
-for i = 1:modNo
-    moduleNodes = labels(membership == moduleIndices(i));  % node indices (as binary vector) for given module
-    subGraphs{i} = subgraph(G, moduleNodes);
-end
-
-
-%% Trimming edges if necessary
+%% Trimming edges
 
 % if same threshold applies to within- and between-module edges
 if ~doubleTrim && trimmingThr ~= 0
@@ -383,6 +347,19 @@ edgeWidth(edgesToTrim) = [];
 edgeStyle(edgesToTrim) = [];
 
 
+%% Define a subgraph for each module
+   
+% subgraphs are defined before removing any edges
+
+% subgraphs are stored in a cell array
+subGraphs = cell(modNo, 1);
+
+for i = 1:modNo
+    moduleNodes = labels(membership == moduleIndices(i));  % node indices (as binary vector) for given module
+    subGraphs{i} = subgraph(G, moduleNodes);
+end
+
+
 %% Plot main graph
 
 % main graph plot figure
@@ -393,7 +370,7 @@ set(gcf, 'Units', 'Normalized', 'OuterPosition', gcfMainPos);
 set(gcf, 'Color', gcfColor);
 
 % graph plot
-baseH = G.plot('Layout', graphMainLayout,... 
+G.plot('Layout', graphMainLayout,... 
     'LineWidth', edgeWidth,... 
     'EdgeColor', edgeColors,... 
     'EdgeAlpha', edgeAlpha,... 
@@ -440,12 +417,12 @@ for s = 1:modNo
     
     % module subplot
     subGraphs{s}.plot('Layout', graphSubLayout,... 
-    'LineWidth', subGraphs{s}.Edges.Weight*withinEdgeWidthMultip,... 
-    'EdgeColor', colorTriplets(s, :),... 
-    'EdgeAlpha', edgeAlpha,... 
-    'NodeColor', colorTriplets(s, :),...
-    'MarkerSize', nodeSize,...
-    'LineStyle', edgeStyle{1});
+        'LineWidth', subGraphs{s}.Edges.Weight*withinEdgeWidthMultip,... 
+        'EdgeColor', colorTriplets(s, :),... 
+        'EdgeAlpha', edgeAlpha,... 
+        'NodeColor', colorTriplets(s, :),...
+        'MarkerSize', nodeSize,...
+        'LineStyle', edgeStyle{1});
 
     % set axes boundary line colors
     set(gca,'XColor', gcaLinesColor,'YColor', gcaLinesColor);
@@ -461,3 +438,100 @@ suptitle(subFigTitle);
 return
 
 
+
+%% Helper function storing details for subplot positions for subFig
+
+function subPlotPos = subPlotPositions(modNo)
+
+switch modNo 
+    case 2  
+        subPlotPos = [0.05, 0.05, 0.35, 0.7;
+             0.55, 0.05, 0.35, 0.7];       
+    case 3
+         subPlotPos = [0.05, 0.55, 0.35, 0.35;
+             0.55, 0.55, 0.35, 0.35;
+             0.25, 0.05, 0.45, 0.35];          
+    case 4 
+         subPlotPos = [0.05, 0.55, 0.35, 0.35;
+             0.55, 0.55, 0.35, 0.35;
+             0.05, 0.05, 0.35, 0.35;
+             0.55, 0.05, 0.35, 0.35];       
+    case 5
+         subPlotPos = [0.05, 0.55, 0.25, 0.25;
+             0.32, 0.55, 0.25, 0.25;
+             0.65, 0.55, 0.25, 0.25;
+             0.05, 0.05, 0.35, 0.25;
+             0.55, 0.05, 0.35, 0.25];     
+    case 6
+         subPlotPos = [0.05, 0.55, 0.25, 0.25;
+             0.32, 0.55, 0.25, 0.25;
+             0.65, 0.55, 0.25, 0.25;
+             0.05, 0.05, 0.25, 0.25;
+             0.32, 0.05, 0.25, 0.25;
+             0.65, 0.05, 0.25, 0.25;];   
+    case 7
+         subPlotPos = [0.05, 0.66, 0.25, 0.25;
+             0.32, 0.66, 0.25, 0.25;
+             0.65, 0.66, 0.25, 0.25;
+             0.05, 0.33, 0.25, 0.25;
+             0.32, 0.33, 0.25, 0.25;
+             0.65, 0.33, 0.25, 0.25;
+             0.35, 0.05, 0.25, 0.25];      
+    case 8
+         subPlotPos = [0.05, 0.66, 0.25, 0.25;
+             0.32, 0.66, 0.25, 0.25;
+             0.65, 0.66, 0.25, 0.25;
+             0.05, 0.33, 0.25, 0.25;
+             0.32, 0.33, 0.25, 0.25;
+             0.65, 0.33, 0.25, 0.25;
+             0.20, 0.05, 0.25, 0.25;
+             0.60, 0.05, 0.25, 0.25];       
+    case 9
+         subPlotPos = [0.05, 0.66, 0.25, 0.25;
+             0.32, 0.66, 0.25, 0.25;
+             0.65, 0.66, 0.25, 0.25;
+             0.05, 0.33, 0.25, 0.25;
+             0.32, 0.33, 0.25, 0.25;
+             0.65, 0.33, 0.25, 0.25;
+             0.05, 0.05, 0.25, 0.25;
+             0.32, 0.05, 0.25, 0.25;
+             0.65, 0.05, 0.25, 0.25];  
+    case 10
+         subPlotPos = [0.02, 0.66, 0.20, 0.20;
+             0.25, 0.66, 0.20, 0.20;
+             0.50, 0.66, 0.20, 0.20;
+             0.75, 0.66, 0.20, 0.20;
+             0.02, 0.33, 0.20, 0.20;
+             0.25, 0.33, 0.20, 0.20;
+             0.50, 0.33, 0.20, 0.20;
+             0.75, 0.33, 0.20, 0.20;
+             0.20, 0.05, 0.20, 0.20;
+             0.60, 0.05, 0.20, 0.20];
+    case 11
+         subPlotPos = [0.02, 0.66, 0.20, 0.20;
+             0.25, 0.66, 0.20, 0.20;
+             0.50, 0.66, 0.20, 0.20;
+             0.75, 0.66, 0.20, 0.20;
+             0.02, 0.33, 0.20, 0.20;
+             0.25, 0.33, 0.20, 0.20;
+             0.50, 0.33, 0.20, 0.20;
+             0.75, 0.33, 0.20, 0.20;
+             0.10, 0.05, 0.20, 0.20;
+             0.40, 0.05, 0.20, 0.20;
+             0.70, 0.05, 0.20, 0.20];
+    case 12
+         subPlotPos = [0.02, 0.66, 0.20, 0.20;
+             0.25, 0.66, 0.20, 0.20;
+             0.50, 0.66, 0.20, 0.20;
+             0.75, 0.66, 0.20, 0.20;
+             0.02, 0.33, 0.20, 0.20;
+             0.25, 0.33, 0.20, 0.20;
+             0.50, 0.33, 0.20, 0.20;
+             0.75, 0.33, 0.20, 0.20;
+             0.02, 0.05, 0.20, 0.20;
+             0.25, 0.05, 0.20, 0.20;
+             0.50, 0.05, 0.20, 0.20;
+             0.75, 0.05, 0.20, 0.20];         
+end
+
+return
