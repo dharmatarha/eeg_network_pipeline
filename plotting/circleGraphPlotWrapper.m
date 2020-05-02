@@ -66,6 +66,16 @@ if ~ischar(moduleVar)
     error('Input arg "moduleVar" should be a string (variable name)!');
 end
 
+% user message
+disp([char(10), 'Function circleGraphPlotWrapper is called with inputs: ',...
+    char(10), 'File for the connectivity data: ', connFile,...
+    char(10), 'Variable to load from connectivity data file: ', connVar,...
+    char(10), 'File for module indices: ', moduleFile,...
+    char(10), 'Variable to load from module indices file: ', moduleVar,...
+    char(10), 'RGB color file ', colorFile,...
+    char(10), 'ROI/node labels file: ', roiFile,...
+    char(10), 'Target dir for saving figures: ', targetDir]);
+
 
 %% Load data + module indices + colors
 
@@ -91,6 +101,10 @@ if ~isequal(length(rois), size(connData, 1))
 end
 
 % user message about supplied data and module indices
+disp([char(10), 'Loaded connectivity data, with size ', num2str(connData),...
+    char(10), 'Loaded module indices, with size ', num2str(modIndices),...
+    char(10), 'Loaded RGB colors for module highlighting, with ', num2str(size(colorTriplets, 1)), ' RGB triplets',...
+    char(10), 'Loaded ROI/node labels, with ', num2str(length(labels)), ' elements.'])
 
 
 %% New ROI/node labels in special case
@@ -120,6 +134,13 @@ if isequal(c, labels)
     transformFlag = 1;  % transformation flag
 else
     transformFlag = 0;
+end
+
+% user message
+if transformFlag
+    disp([char(10), 'The label set enables lobule highlighting in main figures.']);
+else
+    disp([char(10), 'The label set does not enable lobule highlighting in main figures.']);
 end
 
 
