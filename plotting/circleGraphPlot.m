@@ -52,8 +52,8 @@ function [mainFig, subFig] = circleGraphPlot(connMatrix, membership, colorTriple
 %               array of numbers {'1', '2', ...}. 
 % figTitle        - String, displayed as title on the figures. 
 % drawFlag        - String, one of {'draw', 'nodraw'}. Flag for 
-%               displaying the plot (=1) or only returning the plot object 
-%               handle (0). Defaults to 1 (display plot).
+%               displaying the plot (='draw') or only returning the plot object 
+%               handle ('nodraw'). Defaults to 'draw' (display plot).
 %
 % Outputs:
 % mainFig       - Figure handle for the plot depicting the whole network
@@ -66,7 +66,7 @@ function [mainFig, subFig] = circleGraphPlot(connMatrix, membership, colorTriple
 %% Input checks
 
 % check number of args
-if nargin < 3 || nargin > 6
+if nargin < 3 || nargin > 7
     error(['Function circleGraphPlot requires mandatory input args "connMatrix", '... 
         '"membership" and "colorTriplets", while input args "trimmingThr", ',...
         '"labels", "figTitle" and "drawFlag" are optional!']);
@@ -106,7 +106,7 @@ if ~isempty(varargin)
             figTitle = varargin{v};            
         else
             error(['An input arg could not be parsed as any of "trimmingThr", ',...
-                '"labels" or "drawFlag"!']);
+                '"labels", "drawFlag" or "figTitle"!']);
         end
     end
 end
@@ -214,14 +214,16 @@ gcfSubPos = [0, 0, 1, 1];
 % axes position relative to figure for main figure
 gcaPosInFig = [0.05, 0.05, 0.9, 0.9];
 % figure title texts
-mainFigTitle = ['All nodes and modules. ', figTitle];
+mainFigTitle = ['Full module structure. ', figTitle];
 subFigTitle = ['Modules separately. ', figTitle];
 
 % properties for text box displaying trimming info
 if ~doubleTrim
     trimmingText = ['Edges with weight > ', num2str(trimmingThr), ' are depicted'];
 elseif doubleTrim
-    trimmingText = ['Edges with weight > ', num2str(trimmingThr), ' (for within- and between-module edges) are depicted'];
+    trimmingText = ['Edges with weight > ', num2str(trimmingThr(1)),...
+        ' and > ', num2str(trimmingThr(2)),...
+        ' (for within- and between-module edges, respectively) are depicted'];
 end
 trimmingBoxPos = [0.01, 0.01, 0.4, 0.03];
 
@@ -431,8 +433,8 @@ end
 
 % title
 suptitle(subFigTitle);
-% % extra annotation displaying trimming info
-% annotation('textbox', trimmingBoxPos, 'String', trimmingText, 'EdgeColor', gcaLinesColor);
+% extra annotation displaying trimming info
+annotation('textbox', trimmingBoxPos, 'String', trimmingText, 'EdgeColor', gcaLinesColor);
 
 
 return
