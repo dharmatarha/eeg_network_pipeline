@@ -227,8 +227,8 @@ for condIdx = 1:condNo
         titleText = [titleBase, ' Epoch ', num2str(epochIdx), ', cond ', num2str(condIdx)];     
         
         % save files name
-        saveFileMain = [targetDir, '/epoch', num2str(epochIdx), '_cond', num2str(condIdx), '_main.png'];
-        saveFileSub = [targetDir, '/epoch', num2str(epochIdx), '_cond', num2str(condIdx), '_sub.png'];
+        saveFileMain = [targetDir, '/cond', num2str(condIdx),'_epoch', num2str(epochIdx), '_main.png'];
+        saveFileSub = [targetDir, '/cond', num2str(condIdx), '_epoch', num2str(epochIdx), '_sub.png'];
         
         % transform connectivity and module data in case of special label set
         if transformFlag   
