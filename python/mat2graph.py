@@ -167,25 +167,27 @@ def plot_communities(g, partition, layout_edgeratio=0.2):
 
 def partitionwrapper(matfile,
                      roinamesfile,
-                     roinamesvar='roisShort',
+                     roinamesvar='rois',
                      arrayname='prunedConn',
+                     resolutionparam=1.0,
                      expshape=(62, 62, 40, 4),
                      n_partitioning=100):
     """
     Wrapper for community / modularity detection on EEG data using the Leiden algorithm.
-    Relies on other functions in mat2graph (mat2roinames, mat2graph) and
-    calls leidenalg functions on each network (on the connectivity network of each epoch).
+    Relies on other functions in mat2graph (mat2roinames, mat2graph).
+    Calls leidenalg functions on each network (on the connectivity network of each epoch).
 
-    matfile        -- Valid path to a .mat file, up to version -v7
-    roinamesfile   -- Path to .mat file containing ROI names
+    matfile         -- Valid path to a .mat file, up to version -v7
+    roinamesfile    -- Path to .mat file containing ROI names
             in a cell array
-    roinamesvar    -- String, name of variable (dict key) containing
+    roinamesvar     -- String, name of variable (dict key) containing
             the ROI names            
-    arrayname      -- Name of the array containing the adjacency
+    arrayname       -- Name of the array containing the adjacency
             matrices of interest, defaults to 'prunedConn'
-    expshape       -- Tuple containing the expected shape of the array
+    resolutionparam -- Resolution parameter passed on to 'RBConfigurationVertexPartition'
+    expshape        -- Tuple containing the expected shape of the array
             containing adjacency matrices, defaults to (62, 62, 40, 4)
-    n_partitioning -- No. of community detections to run on each network
+    n_partitioning  -- No. of community detections to run on each network
 
     Outputs:
     partitions     -- list of lists of leidenalg.VertexPartition objects, one for each network (epoch)
@@ -200,7 +202,7 @@ def partitionwrapper(matfile,
     # construct save file path
     pathparts = os.path.split(matfile)
     filename, fileext = pathparts[1].split(sep='.')
-    savefilename = pathparts[0] + '/' + filename + '_modules.' + fileext
+    savefilename = pathparts[0] + '/' + filename + '_modules_respar_' + str(int(round(resolutionparam*100))) + '.' + fileext
 
     # load connectivity matrices, define graphs
     graphs = mat2graph(matfile, arrayname=arrayname, expshape=expshape, vertexnames=roiList)
@@ -231,9 +233,10 @@ def partitionwrapper(matfile,
             # # more runs are used for each network
             for p in range(n_partitioning):
                 tmp = la.find_partition(g,
-                                        la.ModularityVertexPartition,
+                                        la.RBConfigurationVertexPartition,
                                         weights=g.es['weight'],
-                                        n_iterations=-1)
+                                        n_iterations=-1,
+                                        resolution_parameter=resolutionparam)
                 tmpPartitions.append(tmp)
                 modulValues[p] = tmp.modularity
 
@@ -256,13 +259,124 @@ def partitionwrapper(matfile,
     matdict['n_partitioning'] = np.asarray(n_partitioning)
     matdict['matfile'] = matfile
     matdict['roinamesfile'] = roinamesfile
+    matdict['resolutionParameter'] = resolutionparam
     savemat(savefilename, matdict)
 
     return partitions, memberships
 
 
+def partitionwrapper_multiplex(matfile,
+                     roinamesfile,
+                     roinamesvar='rois',
+                     arrayname='prunedConn',
+                     resolutionparam=1.0,
+                     expshape=(62, 62, 40, 4),
+                     n_partitioning=100):
+    """
+    Wrapper for community / modularity detection on EEG data using the
+    multiplex version of the Leiden algorithm with the
+    RBConfigurationVertexPartition quality function.
+    Relies on other functions in mat2graph (mat2roinames, mat2graph).
 
+    First it calls modularity detection on condition/stimulus-level ensembles
+    of epoch-networks, i.e. expshape[-2]-layer networks.
+    Second, it calls modularity detection on the level of the whole data set,
+    i.e. on one expshape[-2]*expshape[-1]-layer network.
+    Accordingly, the output "memberships" contains expshape[-2]+1 node membership vectors.
 
+    matfile         -- Valid path to a .mat file, up to version -v7
+    roinamesfile    -- Path to .mat file containing ROI names
+            in a cell array
+    roinamesvar     -- String, name of variable (dict key) containing
+            the ROI names
+    arrayname       -- Name of the array containing the adjacency
+            matrices of interest, defaults to 'prunedConn'
+    resolutionparam -- Resolution parameter passed on to 'RBConfigurationVertexPartition'
+    expshape        -- Tuple containing the expected shape of the array
+            containing adjacency matrices, defaults to (62, 62, 40, 4)
+    n_partitioning  -- No. of community detections to run on each network
 
+    Outputs:
+    memberships    -- numpy array of membership indexes of graph vertices, its shape is
+    (expshape[0], expshape[-2], expshape[-1]). Membership indexes are also saved
+    out to the directory of "matfile" with the name of "matfile" appended with "_modules"
+    """
 
+    # load roi names
+    roiList = mat2roinames(roinamesfile, roinamesvar=roinamesvar)
 
+    # construct save file path
+    pathparts = os.path.split(matfile)
+    filename, fileext = pathparts[1].split(sep='.')
+    savefilename = pathparts[0] + '/' + filename + '_modulesMultiplex_respar_' + str(int(round(resolutionparam*100))) + '.' + fileext
+
+    # load connectivity matrices, define graphs
+    graphs = mat2graph(matfile, arrayname=arrayname, expshape=expshape, vertexnames=roiList)
+
+    # init output variables
+    memberships = np.zeros((expshape[0], expshape[-1]+1))
+
+    # calculate modularity on condition-level network ensembles
+    for stim in range(len(graphs)):
+        # user message
+        print('\n\nCalculating for stim/cond no. ' + str(stim))
+
+        # list of graphs
+        g = graphs[stim]
+
+        # lists holding partition results
+        improvValues = np.zeros((n_partitioning, 1))  # will hold improvement values from each partitioning run
+        membershipVectors = []
+
+        # as community detection is somewhat random (and maximization is not guaranteed),
+        # # more runs are used for condition-level multiplex run
+        for p in range(n_partitioning):
+            membership, impr = la.find_partition_multiplex(g,
+                                    la.RBConfigurationVertexPartition,
+                                    weights='weight',
+                                    n_iterations=-1,
+                                    resolution_parameter=resolutionparam)
+            membershipVectors.append(membership)
+            improvValues[p] = impr
+
+        # find maximal improvement and corresponding node memberships
+        idx = np.where(improvValues == improvValues.max())
+        memberships[:, stim] = np.asarray(membershipVectors[idx[0][0]])
+
+    # user message
+    print('\n\nDone with condition-level partitions, moving to all-epochs network ensemble modularity')
+
+    # calculate modularity on an ensemble of all epoch-level networks
+    g = [graph for sublist in graphs for graph in sublist]
+
+    # lists holding partition results
+    improvValues = np.zeros((n_partitioning, 1))  # will hold improvement values from each partitioning run
+    membershipVectors = []
+
+    # as community detection is somewhat random (and maximization is not guaranteed),
+    # # more runs are used for condition-level multiplex run
+    for p in range(n_partitioning):
+        membership, impr = la.find_partition_multiplex(g,
+                                                       la.RBConfigurationVertexPartition,
+                                                       weights='weight',
+                                                       n_iterations=-1,
+                                                       resolution_parameter=resolutionparam)
+        membershipVectors.append(membership)
+        improvValues[p] = impr
+
+    # find maximal improvement and corresponding node memberships
+    idx = np.where(improvValues == improvValues.max())
+    memberships[:, -1] = np.asarray(membershipVectors[idx[0][0]])
+
+    # save memberships to .mat file
+    matdict = {}  # arrays and strings are to be stored in a dict for .mat saving
+    matdict['memberships'] = memberships
+    matdict['arrayname'] = arrayname
+    matdict['expshape'] = np.asarray(expshape)
+    matdict['n_partitioning'] = np.asarray(n_partitioning)
+    matdict['matfile'] = matfile
+    matdict['roinamesfile'] = roinamesfile
+    matdict['resolutionParameter'] = resolutionparam
+    savemat(savefilename, matdict)
+
+    return memberships
