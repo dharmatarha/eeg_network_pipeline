@@ -50,7 +50,8 @@ function [mainFig, subFig] = circleGraphPlot(connMatrix, membership, colorTriple
 %               [0:0.01:0.9].
 % labels          - Cell array of node labels / names. Defaults to a cell
 %               array of numbers {'1', '2', ...}. 
-% figTitle        - String, displayed as title on the figures. 
+% figTitle        - String, displayed as title on the figures. Defaults to
+%               [] (none).
 % drawFlag        - String, one of {'draw', 'nodraw'}. Flag for 
 %               displaying the plot (='draw') or only returning the plot object 
 %               handle ('nodraw'). Defaults to 'draw' (display plot).
@@ -181,6 +182,7 @@ if isequal(expectedLabels, labels)
     disp([char(10), 'Supplied labels let us highlight the lobules with additional lines and annotations, will do so']);
 else
     lobuleFlag = 0;
+    disp([char(10), 'Cannot apply lobule-highlighting for given ROI/node label set']);
 end
 
 
