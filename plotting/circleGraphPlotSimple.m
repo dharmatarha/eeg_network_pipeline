@@ -1,4 +1,4 @@
-function [mainFig, subFig] = circleGraphPlotSimple(connMatrix, varargin)
+function mainFig = circleGraphPlotSimple(connMatrix, varargin)
 %% Plotting network connectivity with module-structure in a circle layout
 %
 % USAGE: [mainFig, subFig] = circleGraphPlot(connMatrix, 
@@ -60,19 +60,15 @@ end
 if ~ismatrix(connMatrix) || size(connMatrix, 1) ~=size (connMatrix, 2)
     error('Input arg "connMatrix" should be a square matrix!');
 end
-if ~ismatrix(colorTriplets) || size(colorTriplets, 2) ~= 3
-    error(['Input arg "colorTriplets" should be a matrix with three ',...
-        'columns, with each row specifying an RGB color!']);
-end
 
 % check optional arguments, parse them
 if ~isempty(varargin)
     for v = 1:length(varargin)
-        if isnumeric(varargin{v}) && length(varargin{v})==1 && ismember(trimmingThr(t), 0:0.01:0.9)
+        if isnumeric(varargin{v}) && length(varargin{v})==1 && ismember(varargin{v}, 0:0.01:0.9)
             trimmingThr = varargin{v};
         elseif isnumeric(varargin{v}) && length(varargin{v})==3
             colorTriplet = varargin{v};
-        elseif iscell(varargin{v}) && length(varargin{v}) == size(connmatrix, 1)
+        elseif iscell(varargin{v}) && length(varargin{v}) == size(connMatrix, 1)
             labels = varargin{v};
         elseif ischar(varargin{v}) && ismember(varargin{v}, {'draw', 'nodraw'})
             drawFlag = varargin{v};
@@ -156,7 +152,7 @@ end
 
 % base multiplier for the width of all edges (they are based on
 % connectivity strength which is < 1)
-edgeWidthMultip = 5;
+edgeWidthMultip = 6;
 % edge line styles for within- and between-module edges
 %edgeTypes = {'-', 'none'};
 edgeType = '-';
