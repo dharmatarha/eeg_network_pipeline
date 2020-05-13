@@ -68,7 +68,7 @@ plvRes = nan(channelNo, channelNo);
 % go through channels/ROIs
 for channelOne = 1:channelNo-1
     % fill a matrix with repetitions of the data from current channel/ROI
-    d1 = repmat(epochData(channelOne, :), [62-channelOne, 1]);
+    d1 = repmat(epochData(channelOne, :), [channelNo-channelOne, 1]);
     % calculate plv on matrices (= multiple channel pairings)
     plvRes(channelOne, channelOne+1:end) = abs(sum(exp(1i*(d1-epochData(channelOne+1:end, :))), 2)/sampleNo);
     
