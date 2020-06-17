@@ -49,7 +49,7 @@ function edgePruning(freq, varargin)
 %       (no decimation). NOTE THAT THERE IS NO ADDITIONAL FILTERING STEP 
 %       INCLUDED, BEWARE OF ALIASING EFFECTS
 % surrNo    - Number of surrogate data sets generated for statistical
-%       testing of edge values. Num value, one of 1:10^5, defaults 
+%       testing of edge values. Num value, one of 100:100:20000, defaults 
 %       to 10^4. 
 % 
 %  
@@ -77,7 +77,7 @@ if ~isempty(varargin)
             method = varargin{v};     
         elseif isnumeric(varargin{v}) && ~exist('dRate', 'var') && ismember(varargin{v}, 1:20)
             dRate = varargin{v};
-        elseif isnumeric(varargin{v}) && ~exist('surrNo', 'var') && ismember(varargin{v}, 1:10^5)
+        elseif isnumeric(varargin{v}) && ~exist('surrNo', 'var') && ismember(varargin{v}, 100:100:20000)
             surrNo = varargin{v};
         else
             error(['There are either too many input args or they are not ',...
