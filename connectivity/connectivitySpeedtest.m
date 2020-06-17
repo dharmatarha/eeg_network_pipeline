@@ -5,14 +5,14 @@ function [elapsedTime, connResults, pairingsNo] = connectivitySpeedtest(channelN
 % USAGE: [elapsedTime, connResults, pairingsNo] = connectivitySpeedtest(channelNo, epochL, measure)
 %
 % The function generates random complex data as specified in the inputs and
-% then calculates PLI, PLV or wPLI across all unique channel pairings. 
+% then calculates PLI, PLV, iPLV or wPLI across all unique channel pairings. 
 % Generated data has size of [channelNo, epochL]
 %
 % Input(s):
 % channelNo     - number of channels to generate random phase data for
 % epochL        - epoch length in samples 
 % measure       - string specifying the connectivity measure:
-%               'PLI', 'PLV' or 'wPLI'
+%               'PLI', 'PLV', 'iPLV' or 'wPLI'
 %
 % Output(s):
 % elapsedTime   - time it took for the function to finish
@@ -34,6 +34,12 @@ function [elapsedTime, connResults, pairingsNo] = connectivitySpeedtest(channelN
 % Mormann et al., 2000. Mean phase coherence as a measure for phase 
 %   synchronization and its application to the EEG of epilepsy patients. 
 %   Physica D.
+%
+% iPLV:
+% Palva, S., & Palva, J. M., 2012. Discovering oscillatory interaction 
+%   networks with M/EEG: challenges and breakthroughs. Trends in cog. sci.
+% Palva et al., 2018. Ghost interactions in MEG/EEG source space: A note 
+%   of caution on inter-areal coupling measures. Neuroimage.
 %
 % wPLI:
 % Vinck et al., 2011. An improved index of phase-synchronization for 
@@ -59,8 +65,8 @@ end
 if ~ismember(epochL, 10:10:10^9)
     error('Are you sure about input arg "epochL"? Prefer integer in the 10:10:10^9 range...');
 end
-if ~ismember(measure, {'PLI', 'PLV', 'wPLI'})
-    error('Input arg "measure" should be one of the following: "PLI", "PLV" or "wPLI"');
+if ~ismember(measure, {'PLI', 'PLV', 'iPLV', 'wPLI'})
+    error('Input arg "measure" should be one of the following: "PLI", "PLV", "iPLV" or "wPLI"');
 end
 
 % user message
@@ -74,7 +80,7 @@ disp([char(10), 'Called connectivitySpeedtest with input args:',...
 
 % generate complex data with real and imaginary parts both between -1:1 
 data = (rand(epochL, channelNo)-0.5)*2*1i+(rand(epochL, channelNo)-0.5)*2;
-% get phase for PLI and PLV calculations
+% get phase for PLI, PLV and iPLV calculations
 phaseData = angle(data);
 
 % preallocate results matrix
@@ -86,22 +92,14 @@ disp('Generated random data, calculating connectivity for all unique channel pai
 startTime = tic;
 
 
-%% Loop through channel pairings, calculate PLV
+%% Loop through channel pairings, calculate PLI/PLV/iPLV/wPLI
 
-pastPairings = nan(channelNo*(channelNo-1)/2, 2);
-counter = 0;
-
-for channelOne = 1:channelNo
-    
+for channelOne = 1:channelNo  
     for channelTwo = 1:channelNo
         
-        % only calculate PLV if channel numbers do not match and have not
-        % been encountered before
-        if channelOne ~= channelTwo && ~ismember([channelOne, channelTwo], pastPairings, 'rows') && ~ismember([channelTwo, channelOne], pastPairings, 'rows')
-            
-            % remember pairing, adjust counter
-            counter = counter+1;
-            pastPairings(counter, :) = [channelOne, channelTwo];
+        % only calculate connectivity for upper triangle of connResults
+        % matrix
+        if channelOne < channelTwo
             
             % check connectivity measure type
             switch measure
@@ -116,6 +114,11 @@ for channelOne = 1:channelNo
                     % We use the Mormann et al. version here:
                     connResults(channelOne, channelTwo) = abs(sum(exp(1i*(phaseData(:, channelOne)-phaseData(:, channelTwo))))/epochL);
 
+                case 'iPLV'
+                    % iPLV
+                    % Simply the imaginary part of PLV:
+                    connResults(channelOne, channelTwo) = abs(imag(sum(exp(1i*(phaseData(:, channelOne)-phaseData(:, channelTwo))))/epochL));                    
+                    
                 case 'wPLI'
                     % weighted PLI
                     % Note that the Vinck et al. paper defines wPLI based
@@ -144,7 +147,7 @@ end  % channelOne
 %% Finish, return 
 
 elapsedTime = toc(startTime); 
-pairingsNo = counter;
+pairingsNo = channelNo*(channelNo-1)/2;
 
 disp(['Done!', ...
     char(10), 'Overall time elapsed: ', num2str(round(elapsedTime, 4)), ' secs',...
