@@ -46,24 +46,15 @@ end
 
 % number of ROIs
 roiNo = size(realConnData, 1);
-% variable for storing ROI pairings we already calculated P value for
-pastPairings = nan(roiNo*(roiNo-1)/2, 2);
-% ROI pairing counter
-counter = 0;
 % variable for storing calculated p-values
 pValues = nan(roiNo);
 
-for roiOne = 1:roiNo
-    
+for roiOne = 1:roiNo   
     for roiTwo = 1:roiNo
         
-        % only calculate P value if ROI numbers do not match and have not
-        % been encountered before
-        if roiOne ~= roiTwo && ~ismember([roiOne, roiTwo], pastPairings, 'rows') && ~ismember([roiTwo, roiOne], pastPairings, 'rows')
-            
-            % remember pairing, adjust counter
-            counter = counter+1;
-            pastPairings(counter, :) = [roiOne, roiTwo];
+        % only calculate P value for the upper triangle of the roiNo*roiNo
+        % matrix
+        if roiOne < roiTwo  
             
             pValues(roiOne, roiTwo) = estimatedP(squeeze(realConnData(roiOne, roiTwo)), squeeze(surrConnData(:, roiOne, roiTwo)), 1);
             

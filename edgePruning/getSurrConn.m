@@ -1,18 +1,24 @@
-function [surrConnData] = getSurrConn(realData, surrNo)
+function [surrConnData] = getSurrConn(realData, varargin)
 %% Generate surrogate connectivity data from real time series data
 % 
-% USAGE: surrConnData = getSurrConn(realData, surrNo=10000)
+% USAGE: surrConnData = getSurrConn(realData, surrNo=10^4, method='iplv')
 %
 % Generates surrogate connectivity data from the input vector/matrix using 
 % phase scrambling (phase randomization) and calculates connectivity using
-% the Phase Locking Value (PLV).
+% the specified method (one of {'pli', 'plv', 'iplv'}).
 % It works either with row vector input (single variable / time series) or 
 % a matrix where each row is treated as a variable / time series.
 %
-% Input: 
+% Mandatory input: 
 % realData         - Numerical matrix (real), input data, each row is a
 %                   time series.
-% surrNo           - Number of surrogates. Defaults to 10000.
+%
+% Optional inputs:
+% surrNo           - Numberical value, one of 1:10^5. Defines number of 
+%                   surrogates. Defaults to 10^4.
+% method           - String, one of {'plv', 'iplv', 'pli'}. Specifies a 
+%                   connectivity measure compatible with phase data. 
+%                   Defaults to 'iplv'.
 %
 % Output:
 % surrConnData     - Numerical matrix (real) with connectivity values
@@ -22,16 +28,26 @@ function [surrConnData] = getSurrConn(realData, surrNo)
 
 %% Input checks
 
-if nargin == 1
-    surrNo = 10000;
-elseif nargin ~= 2
-    error('Function getSurrConn expects input args "realData" and "numberOfSurrogates"!');
+if ~ismember(nargin, 1:3)
+    error('Function getSurrConn expects input args "realData" (mandatory), "surrNo" (optional) and "method" (optional)!');
 end
 if ~ismatrix(realData) || ~isreal(realData)
-    error('Function getSurrConn expects a numerical matrix of reals as input!');
+    error('Function getSurrConn expects a numerical matrix of reals as input arg "realData"!');
 end
-if ~ismember(surrNo, 1:10^5)
-    error('Input arg "surrNo" is expected to be between 1:10e5!');
+if ~isempty(varargin)
+    for v = 1:length(varargin)
+        if ~exist('method', 'var') && ismember(varargin{v}, {'pli', 'iplv', 'plv'})
+            method = varargin{v};
+        elseif ~exist('surrNo', 'var') && ismember(varargin{v}, 1:10^5)
+            surrNo = varargin{v};
+        else
+            error(['There are either too many input args or they are not ',...
+                'mapping nicely to args "surrNo" and "method"!']);
+        end
+    end
+else
+    surrNo = 10^4;
+    method = 'iplv';
 end
 
 % rows are variables - give a warning if there seems to be more
@@ -49,12 +65,20 @@ roiNo = size(realData, 1);
 % variable for storing surrogate connectivity results
 surrConnData = nan(surrNo, roiNo, roiNo);
 
-% loop through surrogate data sets: generate, turn to phases, calculate
+% loop through surrogate data sets: generate surrogate, turn to phases, calculate
 % connectivity
 for surrogateNumber = 1 : surrNo
-    yPhaseRand = phaseScramble(realData);
-    surrogatePhaseData = timeSeriesToPhase(yPhaseRand);
-    surrConnData(surrogateNumber, :, :) = plv(surrogatePhaseData, 0);
+    yPhaseRand = phaseScramble(realData);  % returns phase-scrambled version of input data
+    surrogatePhaseData = timeSeriesToPhase(yPhaseRand);  % extracts instantaneous phase from analyticial signal
+    % connectivity measure is specified by input arg "method"
+    switch method
+        case 'pli'
+            surrConnData(surrogateNumber, :, :) = pli(surrogatePhaseData, 0);
+        case 'plv'
+            surrConnData(surrogateNumber, :, :) = plv(surrogatePhaseData, 0);
+        case 'iplv'
+            surrConnData(surrogateNumber, :, :) = iplv(surrogatePhaseData, 0);
+    end
 end
 
 

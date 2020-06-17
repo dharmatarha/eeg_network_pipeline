@@ -2,13 +2,14 @@ function edgePruning(freq, varargin)
 
 %% Select significant edges compared to a surrogate null model
 %
-% USAGE: edgePruning(freq, dirName = pwd, subjects = {'s02', 's03', ...}, method = 'plv', dRate = 1, surrNo = 10000)
+% USAGE: edgePruning(freq, dirName = pwd, subjects = {'s02', 's03', ...}, method = 'iplv', dRate = 1, surrNo = 10000)
 %
 % Calculates p-values of edges in the connectivity matrix using
 % a phase scrambling based surrogate null model. USES PARFOR!
 %
-% Connectivity is measured by calling functions (plv or pli) defined 
-% outside this script. IMPORTANT: Only supports 'plv' as of now.
+% Connectivity is measured by calling functions (plv, iplv or pli) defined 
+% outside this script. IMPORTANT: We only support phase-based
+% connectivity-measures as of now.
 %
 % Results are saved into the provided
 % directory (or into current working directory), named
@@ -39,7 +40,7 @@ function edgePruning(freq, varargin)
 %           ,'s11','s12','s13','s14','s15','s16','s17','s18','s19','s20',...
 %           's21','s22','s23','s24','s25','s26','s27','s28'}
 % method    - Connectivity measure compatible with phase data, one of 
-%       {'plv', 'pli'}. Defaults to 'plv'.
+%       {'plv', 'iplv', 'pli'}. Defaults to 'iplv'.
 % dRate     - Decimation rate. We usually work with bandpass-filtered data
 %       that nevertheless retains the original (1000 or 500 Hz) sampling
 %       rate. For efficiency, we can decimate this data by providing a
@@ -48,8 +49,8 @@ function edgePruning(freq, varargin)
 %       (no decimation). NOTE THAT THERE IS NO ADDITIONAL FILTERING STEP 
 %       INCLUDED, BEWARE OF ALIASING EFFECTS
 % surrNo    - Number of surrogate data sets generated for statistical
-%       testing of edge values. Integer, one of [100:100:20000], defaults 
-%       to 10000. 
+%       testing of edge values. Num value, one of 1:10^5, defaults 
+%       to 10^4. 
 % 
 %  
 
@@ -72,11 +73,11 @@ if ~isempty(varargin)
             subjects = varargin{v};
         elseif ischar(varargin{v}) && ~exist('dirName', 'var') && exist(varargin{v}, 'dir')
             dirName = varargin{v};
-        elseif ischar(varargin{v}) && ~exist('method', 'var') && ismember(varargin{v}, {'pli', 'plv'})
+        elseif ischar(varargin{v}) && ~exist('method', 'var') && ismember(varargin{v}, {'pli', 'iplv', 'plv'})
             method = varargin{v};     
         elseif isnumeric(varargin{v}) && ~exist('dRate', 'var') && ismember(varargin{v}, 1:20)
             dRate = varargin{v};
-        elseif isnumeric(varargin{v}) && ~exist('surrNo', 'var') && ismember(varargin{v}, 100:100:20000)
+        elseif isnumeric(varargin{v}) && ~exist('surrNo', 'var') && ismember(varargin{v}, 1:10^5)
             surrNo = varargin{v};
         else
             error(['There are either too many input args or they are not ',...
@@ -95,13 +96,13 @@ if ~exist('subjects', 'var')
      's21','s22','s23','s24','s25','s26','s27','s28'};
 end
 if ~exist('method', 'var')
-    method = 'plv';
+    method = 'iplv';
 end
 if ~exist('dRate', 'var')
     dRate = 1;
 end
 if ~exist('surrNo', 'var')
-    surrNo = 10000;
+    surrNo = 10^4;
 end
 
 % user message
@@ -227,32 +228,29 @@ parfor subIdx = 1:subNo
             % get real-valued time series data from polar analytic
             [realData, ~] = pol2cart(squeeze(phaseData(:, :, epochIdx, stimIdx)), squeeze(envData(:, :, epochIdx, stimIdx))); 
             
+            % calculate real connectivity results
             % measure depends on the arg method
             switch method    
                 case 'plv'
-                    
-                    % calculate real connectivity results
-                    realConn(:, :, epochIdx, stimIdx) = plv(squeeze(phaseData(:, :, epochIdx, stimIdx)), 0);
-                    
-                    % generate surrogate datasets and calculate
-                    % connectivity matrices for them
-                    surrConnData = getSurrConn(realData, surrNo);
-                    % store the mean
-                    meanSurrConn(:, :, epochIdx, stimIdx) = squeeze(mean(surrConnData, 1));
-                    
-                    % compare the real and surrogate connectivity matrices,
-                    % estimate p-values for each value
-                    pValues(:, :, epochIdx, stimIdx) = surrConnStats(squeeze(realConn(:, :, epochIdx, stimIdx)), surrConnData);
-                    
-                    % edge pruning based on pValues
-                    prunedConn(:, :, epochIdx, stimIdx) = pruningFunction(squeeze(pValues(:, :, epochIdx, stimIdx)), squeeze(realConn(:, :, epochIdx, stimIdx)));
-
+                    realConn(:, :, epochIdx, stimIdx) = plv(squeeze(phaseData(:, :, epochIdx, stimIdx)), 0);  % arg "0" is for verbality - suppress outputs to command line
                 case 'pli'
-                    % NOT DONE YET
-                    disp('PLI is not really supported here yet....');
-%                     connectivityRes(subIdx, stimIdx, epochIdx, :, :) = pli(squeeze(EEG.data(:, :, epochIdx, stimIdx)), 0);  % suppress messages from pli function
-                    
+                    realConn(:, :, epochIdx, stimIdx) = pli(squeeze(phaseData(:, :, epochIdx, stimIdx)), 0);  % arg "0" is for verbality - suppress outputs to command line
+                case 'iplv'
+                    realConn(:, :, epochIdx, stimIdx) = iplv(squeeze(phaseData(:, :, epochIdx, stimIdx)), 0);  % arg "0" is for verbality - suppress outputs to command line
             end
+                    
+            % generate surrogate datasets and calculate
+            % connectivity matrices for them
+            surrConnData = getSurrConn(realData, surrNo, method);
+            % store the mean
+            meanSurrConn(:, :, epochIdx, stimIdx) = squeeze(mean(surrConnData, 1));
+                    
+            % compare the real and surrogate connectivity matrices,
+            % estimate p-values for each value
+            pValues(:, :, epochIdx, stimIdx) = surrConnStats(squeeze(realConn(:, :, epochIdx, stimIdx)), surrConnData);
+
+            % edge pruning based on pValues
+            prunedConn(:, :, epochIdx, stimIdx) = pruningFunction(squeeze(pValues(:, :, epochIdx, stimIdx)), squeeze(realConn(:, :, epochIdx, stimIdx)));            
             
         end  % epochIdx for loop
     end  % stimIdx for loop
