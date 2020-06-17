@@ -2,13 +2,13 @@ function angleConnectivityWrapper(freq, varargin)
 
 %% Calculate connectivity matrices based on angle (phase) data
 %
-% USAGE: angleConnectivityWrapper(freq, dirName = pwd, subjects = {'s02', 's03', ...}, method = 'plv')
+% USAGE: angleConnectivityWrapper(freq, dirName = pwd, subjects = {'s02', 's03', ...}, method = 'iplv')
 %
 % Calculates connectivity matrices across all channels/ROIs for phase data. 
 % Connectivity is calculated on an individual level, and also averaged
 % across subjects at the end.
 %
-% Connectivity is measured by calling functions (plv or pli) defined 
+% Connectivity is measured by calling functions (plv, iplv or pli) defined 
 % outside this script.
 %
 % Results are saved into the provided
@@ -40,7 +40,7 @@ function angleConnectivityWrapper(freq, varargin)
 %           ,'s11','s12','s13','s14','s15','s16','s17','s18','s19','s20',...
 %           's21','s22','s23','s24','s25','s26','s27','s28'}
 % method    - Connectivity measure compatible with phase data, one of 
-%           {'plv', 'pli'}. Defaults to 'plv'.
+%           {'plv', 'iplv', 'pli'}. Defaults to 'iplv'.
 % 
 %  
 
@@ -63,7 +63,7 @@ if ~isempty(varargin)
             subjects = varargin{v};
         elseif ischar(varargin{v}) && ~exist('dirName', 'var') && exist(varargin{v}, 'dir')
             dirName = varargin{v};
-        elseif ischar(varargin{v}) && ~exist('method', 'var') && ismember(varargin{v}, {'pli', 'plv'})
+        elseif ischar(varargin{v}) && ~exist('method', 'var') && ismember(varargin{v}, {'pli', 'plv', 'iplv'})
             method = varargin{v};           
         else
             error(['There are either too many input args or they are not ',...
@@ -82,7 +82,7 @@ if ~exist('subjects', 'var')
      's21','s22','s23','s24','s25','s26','s27','s28'};
 end
 if ~exist('method', 'var')
-    method = 'plv';
+    method = 'iplv';
 end
 
 % user message
@@ -158,6 +158,8 @@ for subIdx = 1:subNo
             switch method    
                 case 'plv'
                     connectivityRes(subIdx, stimIdx, epochIdx, :, :) = plv(squeeze(EEG.data(:, :, epochIdx, stimIdx)), 0);  % suppress messages from plv function
+                case 'iplv'
+                    connectivityRes(subIdx, stimIdx, epochIdx, :, :) = iplv(squeeze(EEG.data(:, :, epochIdx, stimIdx)), 0);  % suppress messages from iplv function    
                 case 'pli'
                     connectivityRes(subIdx, stimIdx, epochIdx, :, :) = pli(squeeze(EEG.data(:, :, epochIdx, stimIdx)), 0);  % suppress messages from pli function
             end
