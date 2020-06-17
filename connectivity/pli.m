@@ -61,30 +61,14 @@ end
 
 % preallocate results variable
 pliRes = nan(channelNo, channelNo);
-% variable for storing channel pairings we already calculated PLI for
-pastPairings = nan(channelNo*(channelNo-1)/2, 2);
-% channel pairing counter
-counter = 0;
 
-% loops over channels
-for channelOne = 1:channelNo
-    for channelTwo = 1:channelNo
-        
-        % only calculate PLI if channel numbers do not match and have not
-        % been encountered before
-        if channelOne ~= channelTwo && ~ismember([channelOne, channelTwo], pastPairings, 'rows') && ~ismember([channelTwo, channelOne], pastPairings, 'rows')
-            
-            % remember pairing, adjust counter
-            counter = counter+1;
-            pastPairings(counter, :) = [channelOne, channelTwo];
-            
-            % We use the Mormann et al. version here:
-            pliRes(channelOne, channelTwo) = abs(mean(sign(epochData(channelOne, :)-epochData(channelTwo, :))));            
-            
-        end  % pairings if-then
-        
-    end  % channelTwo for loop  
-end  % channelOne for loop
+% go through channels/ROIs
+for channelOne = 1:channelNo-1
+    % fill a matrix with repetitions of the data from current channel/ROI
+    d1 = repmat(epochData(channelOne, :), [channelNo-channelOne, 1]);
+    % calculate pli on matrices (= multiple channel pairings)
+    pliRes(channelOne, channelOne+1:end) = abs(mean(sign(d1-epochData(channelOne+1:end, :)), 2));
+end
 
 % user message
 if v
