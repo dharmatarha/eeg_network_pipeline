@@ -1,8 +1,8 @@
-function anovaRes = group_cmp2GroupMeanPruned(groupData, prunedMask, metric)
+function [anovaRes, connSim] = group_cmp2GroupMeanPruned(groupData, prunedMask, metric)
 %% Group-level stats for individual vs leave-one-out group connectivity comparisons
 % Version for pruned connectivity matrices.
 %
-% USAGE anovaRes = group_cmp2GroupMeanFull(groupData, prunedMask, metric='corr')
+% USAGE [anovaRes, connSim] = group_cmp2GroupMeanFull(groupData, prunedMask, metric='corr')
 %
 % Same as cmp2GroupMeanFull.m but working on the group-level: it calculates
 % the within-epoch and across-epoch connectivity similarities between
