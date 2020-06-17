@@ -54,9 +54,7 @@ else
 end
 
 %% Determine data dimensions  
-numberOfStories = size(prunedConnectivity, 4);
-numberOfEpochs = size(prunedConnectivity, 3);
-numberOfChannels = size(prunedConnectivity, 1);
+[numberOfChannels, ~, numberOfEpochs, numberOfStories] = size(prunedConnectivity);
 
 B = cell(numberOfStories, numberOfChannels*numberOfEpochs, numberOfChannels*numberOfEpochs);
 
@@ -71,12 +69,8 @@ for storyIndex = 1 : numberOfStories
         surrogateMatrix = squeeze(meanSurrogateData(:, :, epochIndex, storyIndex));
         
         % Keep only connections in both measured and surrogate matrices, where measured connectivity exists
-        for elementIndex = 1 : numel(connectivityMatrix)
-            if isnan(connectivityMatrix(elementIndex))
-                connectivityMatrix(elementIndex) = 0;
-                surrogateMatrix(elementIndex) = 0;
-            end
-        end
+        surrogateMatrix(isnan(connectivityMatrix)) = 0;
+        connectivityMatrix(isnan(connectivityMatrix)) = 0;
         
         % Normalize measured and surrogate connectivity matrices
         normalizedConnectivityMatrix = normalizeMatrix(connectivityMatrix);
