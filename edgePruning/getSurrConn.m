@@ -36,9 +36,9 @@ if ~ismatrix(realData) || ~isreal(realData)
 end
 if ~isempty(varargin)
     for v = 1:length(varargin)
-        if ~exist('method', 'var') && ismember(varargin{v}, {'pli', 'iplv', 'plv'})
+        if ischar(varargin{v}) && ~exist('method', 'var') && ismember(varargin{v}, {'pli', 'iplv', 'plv'})
             method = varargin{v};
-        elseif ~exist('surrNo', 'var') && ismember(varargin{v}, 1:10^5)
+        elseif isnumeric(varargin{v}) && ~exist('surrNo', 'var') && ismember(varargin{v}, 1:10^5)
             surrNo = varargin{v};
         else
             error(['There are either too many input args or they are not ',...

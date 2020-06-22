@@ -53,10 +53,14 @@ else
     omega = 1;
 end
 
-%% Determine data dimensions  
-[numberOfChannels, ~, numberOfEpochs, numberOfStories] = size(prunedConnectivity);
 
-B = cell(numberOfStories, numberOfChannels*numberOfEpochs, numberOfChannels*numberOfEpochs);
+%% Determine data dimensions  
+
+[numberOfChannels, ~, numberOfEpochs, numberOfStories] = size(prunedConnectivity);
+% preallocate the cell array holding one multi-layer matrix per story /
+% stimulus
+B = cell(numberOfStories, 1);
+
 
 %% Calculate one multilayer modularity matrix for each story
 for storyIndex = 1 : numberOfStories
@@ -80,7 +84,7 @@ for storyIndex = 1 : numberOfStories
         
         % If the intra-layer modularity matrix is not symmetric, symmetrization is forced
         if nnz(intraLayerModularityMatrix-intraLayerModularityMatrix')
-            intraLayerModularityMatrix = (intraLayerModularityMatrix + intraLayerModularityMatrix')/2; disp('WARNING: Forced symmetric intra-layer modularity matrix ')
+            intraLayerModularityMatrix = (intraLayerModularityMatrix + intraLayerModularityMatrix')/2; %disp('WARNING: Forced symmetric intra-layer modularity matrix ')
         end
         
         intraLayerModularityTensor{epochIndex} = intraLayerModularityMatrix;
