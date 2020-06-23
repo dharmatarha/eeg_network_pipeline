@@ -1,7 +1,7 @@
-function B = calcMultiModMatrix(realConn, nullConn, varargin)
+function multiLayerConn = getMultiLayerConnMatrix(realConn, nullConn, varargin)
 %% Get multilayer connectivity matrix from a set of 2D connectivity matrices
 %
-% USAGE: B = calcMultiModMatrix(realConn, nullConn, gamma = 1, omega = 1)
+% USAGE: multiLayerConn = getMultiLayerConnMatrix(realConn, nullConn, gamma = 1, omega = 1)
 %
 % Calculates the multilayer modularity matrix of 3D connectivity data 
 % (realConn - usually a set of connectivity matrices, each corresponding 
@@ -20,13 +20,11 @@ function B = calcMultiModMatrix(realConn, nullConn, varargin)
 % 
 % Mandatory inputs:
 % realConn  -       3D numeric array, contains a set of connectivity matrices.
-%                   Its dimensions are 
-%                   (nodeNo, nodeNo, epochNo).
+%                   Its dimensions are (nodeNo, nodeNo, epochNo).
 % nullConn   -      2D or 3D numeric array, contains null (e.g. surrogate) 
 %                   connectivity matrix / matrices. If 2D, the same null
 %                   matrix is used for all real connectivity matrices.
-%                   Its dimensions are 
-%                   (nodeNo, nodeNo (, epochNo)).
+%                   Its dimensions are (nodeNo, nodeNo (, epochNo)).
 %
 % Optional inputs:
 % gamma               - Numeric value, spatial resolution parameter.
@@ -37,11 +35,10 @@ function B = calcMultiModMatrix(realConn, nullConn, varargin)
 %
 % Output:
 % B                   - 2D numeric matrix, sized
-%                     (nodeNo*epochNo,
-%                     nodeNo*epochNo). Multilayer
-%                     connectivity matrix, where connectivity value between node "n1" from
-%                     epoch "e1" and node "n2" from epoch "e2" is stored at 
-%                     (numberOfChannels*(e1-1)+n1,
+%                     (nodeNo*epochNo, nodeNo*epochNo). 
+%                     Multilayer connectivity matrix, where connectivity 
+%                     value between node "n1" from epoch "e1" and node 
+%                     "n2" from epoch "e2" is stored at (numberOfChannels*(e1-1)+n1,
 %                     numberOfChannels*(e2-1)+m2). Off-diagonal submatrices
 %                     represent inter-layer connectivity values (see
 %                     omega).
@@ -127,16 +124,16 @@ end
 %% Get multilayer connectivity as one 2D matrix, add omega
 
 % Allocate sparse matrix for the multilayer (output) matrix
-B = spalloc(nodeNo*epochNo, nodeNo*epochNo, nodeNo*nodeNo*epochNo+2*nodeNo*epochNo);
+multiLayerConn = spalloc(nodeNo*epochNo, nodeNo*epochNo, nodeNo*nodeNo*epochNo+2*nodeNo*epochNo);
 
 % Iterate over all layers
 for s = 1:epochNo
     indx = [1:nodeNo] + (s-1)*nodeNo;
     % Diagonal blocks are the intra-layer modularity matrices
-    B(indx, indx) = squeeze(intraLayerConnArr(s, :, :));
+    multiLayerConn(indx, indx) = squeeze(intraLayerConnArr(s, :, :));
 end
 % Off-diagonal blocks contain inter-layer connections
-B = B + omega*spdiags(ones(nodeNo*epochNo,2), [-nodeNo, nodeNo], nodeNo*epochNo, nodeNo*epochNo);
+multiLayerConn = multiLayerConn + omega*spdiags(ones(nodeNo*epochNo,2), [-nodeNo, nodeNo], nodeNo*epochNo, nodeNo*epochNo);
 
 
 end
