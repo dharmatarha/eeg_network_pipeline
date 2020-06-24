@@ -104,7 +104,8 @@ qSD = zeros(gNo, oNo);
 zrandMean = zeros(gNo, oNo);
 zrandSD = zeros(gNo, oNo);
 % persistence
-pers = zeros(gNo, oNo);
+persMean = zeros(gNo, oNo);
+persSD = zeros(gNo, oNo);
 % consensus similarity - warning if result would be over 1GB, error if over
 % 4GB
 if (nodeNo*epochNo*gNo*oNo*8) >= 10^9 && (nodeNo*epochNo*gNo*oNo*8) < 4*10^9
@@ -182,7 +183,7 @@ parfor gIdx = 1:gNo
         tmp = tmp(:);  % vectorize
         tmp(tmp==0)=[];  % delete the values corresponding to lower triangle and diagonal
         zrandMean(gIdx, oIdx) = mean(tmp);
-        zrandMean(gIdx, oIdx) = std(tmp);
+        zrandSD(gIdx, oIdx) = std(tmp);
 
         % persistence
         persTmp = zeros(rep, 1);
@@ -192,8 +193,8 @@ parfor gIdx = 1:gNo
             tmp = reshape(tmp, [nodeNo, epochNo]); 
             persTmp(j) = sum(sum(tmp(:,2:end) == tmp(:, 1:end-1)));
         end
-        persMean = mean(persTmp);
-        persSD = std(persTmp);
+        persMean(gIdx, oIdx) = mean(persTmp);
+        persSD(gIdx, oIdx) = std(persTmp);
         
         % elapsed time for (gamma, omega) loop
         paramPairLoopTime(gIdx, oIdx) = toc(loopClock);
