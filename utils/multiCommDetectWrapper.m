@@ -45,7 +45,7 @@ if nargin ~= 5
     error(['Function multiCommDetectWrapper requires input args "realConN", '... 
         '"nullConn", "gammaValues", omegaValues" and "rep"!']);
 end
-% each arg separately
+% check each arg
 if ~isnumeric(realConn) || length(size(realConn)) ~= 3 || size(realConn, 1) ~= size(realConn, 2)
     error(['Input arg "realConN" should be a 3D numeric array with the first ',...
         'two dimensions having euqal size (nodeNo*nodeNo*epochNo)!']);
@@ -65,15 +65,6 @@ if ~isnumeric(omegaValues) || ~isvector(omegaValues)
 end
 if ~isnumeric(rep) || numel(rep) ~= 1 || ~ismember(rep, 10:1:10^4)
     error('Input arg "rep" should be a value in range 10:1:10^4!');
-end
-
-% ensure row vectors for gammaValues and omegaValues (we will iterate over
-% them in for loops)
-if iscolumn(gammaValues) 
-    gammaValues = gammaValues';
-end
-if iscolumn(omegaValues) 
-    omegaValues = omegaValues';
 end
 
 % user message
@@ -100,7 +91,7 @@ commNoSD = zeros(gNo, oNo);
 % Q
 qMean = zeros(gNo, oNo);
 qSD = zeros(gNo, oNo);
-% partition distance (z-rand)
+% partition distance (z-rand, rand, add rand)
 zrandMean = zeros(gNo, oNo);
 zrandSD = zeros(gNo, oNo);
 % persistence
