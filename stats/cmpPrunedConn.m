@@ -82,8 +82,8 @@ function [permRes, withinCondPermRes, connSim] = cmpPrunedConn(connData, varargi
 %% Input checks
 
 % number of args
-if ~ismember(nargin, 1:4)
-    error('Wrong number of input args - "connData" is needed while "metric", "permNo" and "permStat" are optional!');
+if ~ismember(nargin, 1:5)
+    error('Wrong number of input args - "connData" is needed while "metric", "permNo", "permStat" and "maskThr" are optional!');
 end
 % loop through varargin to sort out input args
 if nargin > 1

@@ -174,12 +174,12 @@ for subIdx = 1:subNo
 end
     
 % reshape data for random-effects model (anovan)
-tmpSame = reshape(sameEpochSim, [prod(size(sameEpochSim)), 1]);
-tmpDiff = reshape(diffEpochSim, [prod(size(diffEpochSim)), 1]);
+tmpSame = reshape(sameEpochSim, [numel(sameEpochSim), 1]);
+tmpDiff = reshape(diffEpochSim, [numel(diffEpochSim), 1]);
 yData = [tmpSame; tmpDiff];
 
 % grouping variables
-sameVSdiff = [zeros(prod(size(sameEpochSim)), 1); ones(prod(size(diffEpochSim)), 1)];  % same-epoch vs different-epoch pairings
+sameVSdiff = [zeros(numel(sameEpochSim), 1); ones(numel(diffEpochSim), 1)];  % same-epoch vs different-epoch pairings
 tmpSize1 = size(sameEpochSim, 1);
 tmpSize2 = size(diffEpochSim, 1);
 for subIdx = 1:subNo
