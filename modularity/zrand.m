@@ -1,5 +1,20 @@
 function [zRand] = zrand(part1,part2)
-% function [zRand,SR,SAR,VI] = zrand(part1,part2)
+% Function to calculate zRand partition similarity score
+%
+% USAGE: [zRand,SR,SAR,VI] = zrand(part1,part2)
+%
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Downloaded from the Network Community Toolbox in 07/2020:
+% http://commdetect.weebly.com/
+%
+% Reference to cite:
+% Comparing community structure to characteristics in online collegiate 
+% social networks, A. L. Traud, E. D. Kelsic, P. J. Mucha and M. A. Porter, 
+% SIAM Review 53, 526-543 (2011).
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% 
 
 if size(part1,1)==1
     part1=part1';
