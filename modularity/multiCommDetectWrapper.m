@@ -1,7 +1,14 @@
-function multiCommDetectWrapper(realConn, nullConn, gammaValues, omegaValues, rep)
+function multiCommDetectWrapper(realConn, nullConn, gammaValues, omegaValues, varargin)
 %% Wrapper for calling genlouvain on a multilayer connectivity matrix repeatedly
 %
-% USAGE: multiCommDetectWrapper(multiLayerConn, gammaValues, omegaValues)
+% USAGE: multiCommDetectWrapper(realConn, 
+%                               nullConn, 
+%                               gammaValues, 
+%                               omegaValues, 
+%                               rep=100, 
+%                               method='iterated', 
+%                               randmove='moverandw', 
+%                               postprocess='postprocess-ordinal-multilayer')
 %
 % The function explores a range of resolution parameters (spatial and
 % temporal, that is, gamma and omega, respectively) for a multilayer
