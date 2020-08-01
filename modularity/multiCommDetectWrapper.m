@@ -1,29 +1,30 @@
-function multiCommDetectWrapper(realConn, nullConn, gammaValues, omegaValues, varargin)
-%% Wrapper for calling genlouvain on a multilayer connectivity matrix repeatedly
+function multiCommDetectRes = multiCommDetectWrapper(realConn, nullConn, gammaValues, omegaValues, varargin)
+%% Wrapper for repeated multilayer community detection on a connectivity data set
 %
-% USAGE: multiCommDetectWrapper(realConn, 
-%                               nullConn, 
-%                               gammaValues, 
-%                               omegaValues, 
-%                               rep=100, 
-%                               method='iterated', 
-%                               randmove='moverandw', 
-%                               postprocess='postprocess-ordinal-multilayer')
+% USAGE: multiCommDetectRes = multiCommDetectWrapper(realConn, 
+%                                                   nullConn, 
+%                                                   gammaValues, 
+%                                                   omegaValues, 
+%                                                   rep=100, 
+%                                                   outputFile=[],
+%                                                   rawOutput= 'rawOutputNo',
+%                                                   method='iterated', 
+%                                                   randmove='moverandw', 
+%                                                   postprocess='postprocess-ordinal-multilayer')
 %
 % The function explores a range of resolution parameters (spatial and
 % temporal, that is, gamma and omega, respectively) for a multilayer
-% (usually temporal) connectivity data set. It calls the functions 
-% getMultiLayerConnMatrix.m, genlouvain.m (from GenLouvain toolbox), 
-% consensus_similarity.m and zrand.m (both from Network Community Toolbox) 
-% repeatedly.
+% (usually temporal) connectivity data set. The number of repetitions, the
+% genlouivan method details and output handling can all be controlled with 
+% input args. The function by default returns a struct with a range of 
+% measures describing the partitions for each (gamma, omega) pairing. It 
+% also returns the consensus similarity partitions (one partition per 
+% (gamma, omega) pair).
 %
-% The function does not save or return all the partitions generated.
-% Instead it calculates a number of statistics for each gamma-omega
-% pairing: mean and std of no. of communities; mean and std of Q; estimates
-% for mean and std of partition-distance (z-rand score); mean and std of
-% persistence;
-% It also calculates and returns the consensus similarity partitions (one
-% partition per (gamma, omega) pair)
+% The function requires the GenLouvain toolbox, functions 
+% consensus_similarity.m and zrand.m from the Network Community Toolbox, 
+% and our getMultiLayerConnMatrix.m and calcMultiModMatrix.m functions.
+%
 % 
 % Mandatory inputs:
 % realConn    - 3D numeric array, contains a set of connectivity matrices.
@@ -37,11 +38,32 @@ function multiCommDetectWrapper(realConn, nullConn, gammaValues, omegaValues, va
 % omegaValues - Numeric vector, range of temporal resolution parameters 
 %               (inter-layer edge weights) to explore 
 %               (e.g. logspace(-4, -3, 100)). Omega determines uniform
-%               within-node inter-layer connections (all inter-layer
-%               edges have the same weight). 
+%               within-node inter-layer connections, that is, all 
+%               inter-layer edges have the same weight. 
+%
+% Optional inputs:
 % rep         - Numeric value, number of repetitions for running
 %               genlouvain.m with given gamma and omega. Must be a positive
 %               integer in the range [10:10^4];
+% outputFile  - Char array, path of a file to save the outputs into.
+%               Defaults to [], that is, no output file.
+% rawOutput   - Char array, one of {'rawOutputYes', 'rawOutputNo'}.
+%               Controls if the exact partitions from all repetitions are
+%               included in the output. There is a built-in hard upper cap 
+%               of 2 GB though - if the partitions are estimated to require 
+%               >2 GB memory, they are not kept internally and are not 
+%               returned in the output struct. Defaults to 'rawOutputNo'. 
+% method      - Char array, one of {'iterated', 'singleRun'}. Controls if
+%               a single run of the genlouvain algorithm is called or if
+%               the iterated version (genlouvain.m or
+%               iterated_genlouvain.m). 
+% randmove    - Char array, one of {'}
+% postprocess - 
+%
+%
+% Output:
+% 
+%
 %
 
 
