@@ -1,16 +1,16 @@
-function multiCommDetectRes = multiCommDetectWrapper(realConn, nullConn, gammaValues, omegaValues, varargin)
+function res = multiCommDetectWrapper(realConn, nullConn, gammaValues, omegaValues, varargin)
 %% Wrapper for repeated multilayer community detection on a connectivity data set
 %
-% USAGE: multiCommDetectRes = multiCommDetectWrapper(realConn, 
-%                                                   nullConn, 
-%                                                   gammaValues, 
-%                                                   omegaValues, 
-%                                                   rep=100, 
-%                                                   outputFile=[],
-%                                                   rawOutput= 'rawOutputNo',
-%                                                   method='iterated', 
-%                                                   randmove='moverandw', 
-%                                                   postprocess='postprocess-ordinal-multilayer')
+% USAGE: res = multiCommDetectWrapper(realConn, 
+%                                     nullConn, 
+%                                     gammaValues, 
+%                                     omegaValues, 
+%                                     rep=100, 
+%                                     outputFile=[],
+%                                     rawOutput= 'rawOutputNo',
+%                                     method='iterated', 
+%                                     randmove='moverandw', 
+%                                     postprocess=[])
 %
 % The function explores a range of resolution parameters (spatial and
 % temporal, that is, gamma and omega, respectively) for a multilayer
@@ -24,6 +24,9 @@ function multiCommDetectRes = multiCommDetectWrapper(realConn, nullConn, gammaVa
 % The function requires the GenLouvain toolbox, functions 
 % consensus_similarity.m and zrand.m from the Network Community Toolbox, 
 % and our getMultiLayerConnMatrix.m and calcMultiModMatrix.m functions.
+%
+% PARFOR!!! Check your parallel computing settings before calling the
+% function, as it runs with default parfor settings.
 %
 % 
 % Mandatory inputs:
@@ -43,57 +46,181 @@ function multiCommDetectRes = multiCommDetectWrapper(realConn, nullConn, gammaVa
 %
 % Optional inputs:
 % rep         - Numeric value, number of repetitions for running
-%               genlouvain.m with given gamma and omega. Must be a positive
-%               integer in the range [10:10^4];
+%               the Louvain algorithm with given (gamma, omega) pair. 
+%               Must be a positive integer in the range [10:10^4]. Defaults
+%               to 100.
 % outputFile  - Char array, path of a file to save the outputs into.
 %               Defaults to [], that is, no output file.
 % rawOutput   - Char array, one of {'rawOutputYes', 'rawOutputNo'}.
 %               Controls if the exact partitions from all repetitions are
 %               included in the output. There is a built-in hard upper cap 
-%               of 2 GB though - if the partitions are estimated to require 
+%               of 2 GB though: if the partitions are estimated to require 
 %               >2 GB memory, they are not kept internally and are not 
-%               returned in the output struct. Defaults to 'rawOutputNo'. 
-% method      - Char array, one of {'iterated', 'singleRun'}. Controls if
-%               a single run of the genlouvain algorithm is called or if
+%               returned in the output struct. In practice, returning all 
+%               partitions can only be done form small networks and few 
+%               repetitions.Defaults to 'rawOutputNo'. 
+% method      - Char array, one of {'iterated', 'single'}. Controls if
+%               a single run of the Louvain algorithm is called or
 %               the iterated version (genlouvain.m or
-%               iterated_genlouvain.m). 
-% randmove    - Char array, one of {'}
-% postprocess - 
+%               iterated_genlouvain.m from the GenLouvain toolbox). 
+% randmove    - Char array, one of {'move', 'moverand', 'moverandw'}. Gets
+%               passed on to genlouvain.m/iterated_genlouvain.m as randmove
+%               input arg. Defaults to 'moverandw'.
+% postprocess - Char array, one of {'postprocess_ordinal_multilayer',
+%               'postprocess_categorical_multilayer'}. Postprocessing 
+%               method for iterative_genlouvain.m, gets passed on to that 
+%               function as a function handle. If left empty, there is no 
+%               postprocessing. Defaults to [] (no postprocessing). Set to 
+%               [] if called with method=='single'.
 %
 %
 % Output:
-% 
+% res         - Struct with the following fields:
+%    commNoMean - Numeric matrix sized (numel(gammaValues), numel(omegaValues)). 
+%           Mean number of communities for all (gamma, omega) pairs 
+%           (averaged over repetitions).  
+%    commNoSD   - Numeric matrix sized (numel(gammaValues), numel(omegaValues)). 
+%           Standard deviation of number of communities for given 
+%           (gamma, omega) pair. 
+%    qMean      - Numeric matrix sized (numel(gammaValues), numel(omegaValues)). 
+%           Mean quality for all (gamma, omega) pairs.
+%    qSD      - Numeric matrix sized (numel(gammaValues), numel(omegaValues)). 
+%           Standard deviation of quality for all (gamma, omega) pairs.
+%    zrandMean  - Numeric matrix sized (numel(gammaValues), numel(omegaValues)). 
+%           Mean partition similarity (z-Rand score) for all (gamma, omega) pairs.
+%    zrandSD    - Numeric matrix sized (numel(gammaValues), numel(omegaValues)). 
+%           Standard deviation of partition similarity (z-Rand score) for 
+%           all (gamma, omega) pairs.
+%    persMean   - Numeric matrix sized (numel(gammaValues), numel(omegaValues)). 
+%           Mean persistence for all (gamma, omega) pairs. Persistence is
+%           defined as the number of occasions when a node (vertex) does
+%           not change its community membership from one layer to the next.
+%    persSD     - Numeric matrix sized (numel(gammaValues), numel(omegaValues)). 
+%           Standard deviation of persistence for all (gamma, omega) pairs.
+%    consSim    - Uint16 numeric tensor sized 
+%           (numel(gammaValues), numel(omegaValues), node no. X epoch no.).
+%           Contains the consensus similarity partition for all (gamma,
+%           omega) pairs. Warning is given if it would exceed 1 GB, not
+%           calculated or included if it would exceed 2 GB.
+%    part       - Uint16 numeric tensor sized
+%           (numel(gammaValues), numel(omegaValues), rep, node no. X epoch no.).   
+%           Contains all the partitions from all repetitions for all
+%           (gamma, omega) pairs. Warning is given if it would exceed 1 GB, 
+%           not calculated or included if it would exceed 2 GB. In 
+%           practice, it is only returned for small networks and few
+%           repetitions.
 %
+% Note:
+% (1) Notice that res.consSim (and res.part if requested) are uint16, so
+% can only store positive integers up to 2^16-1. This is fine for
+% partitions for all of our use cases - if it does not fit your application
+% surely other things would break down as well...
+% (2) Fields "consSim" and "part" of the output variable might reach the
+% size of 2-2 GB in certain cases. Keep that in mind. 
 %
-
 
 %% Input checks
 
 % overall number of args
-if nargin ~= 5
+if ~ismembertol(nargin, 4:10)
     error(['Function multiCommDetectWrapper requires input args "realConN", '... 
-        '"nullConn", "gammaValues", omegaValues" and "rep"!']);
+        '"nullConn", "gammaValues" and "omegaValues" while input args "rep", '...
+        '"outputFile", rawOutput", "method", "randmove" and "postprocess" ',...
+        'are optional!']);
 end
-% check each arg
+% check mandatory args
 if ~isnumeric(realConn) || length(size(realConn)) ~= 3 || size(realConn, 1) ~= size(realConn, 2)
     error(['Input arg "realConN" should be a 3D numeric array with the first ',...
         'two dimensions having euqal size (nodeNo*nodeNo*epochNo)!']);
 end
-if ~isnumeric(nullConn) || ~ismember(length(size(nullConn)), 2:3)  || size(nullConn, 1) ~= size(nullConn, 2)
+if ~isnumeric(nullConn) || ~ismembertol(length(size(nullConn)), 2:3)  || size(nullConn, 1) ~= size(nullConn, 2)
     error(['Input arg "nullConN" should be a 2D or 3D numeric array with the first ',...
         'two dimensions having euqal size (nodeNo*nodeNo(*epochNo))!']);
 end
 if size(realConn, 1) ~= size(nullConn, 1)
-    error('Input args "realConn" and "nullConN" have different size on first dimension!');
+    error('Input args "realConn" and "nullConN" have different sizes on first dimension!');
+end
+if length(size(nullConn)) == 3 && ~isequal(size(realConn), size(nullConn))
+    error('Input arg "nulConn" is 3D but its size does not equal the size of "realConn"!');
 end
 if ~isnumeric(gammaValues) || ~isvector(gammaValues)
-    error('Input arg "gammaValues" should a numeric vector!');
+    error('Input arg "gammaValues" should be a numeric vector!');
 end
 if ~isnumeric(omegaValues) || ~isvector(omegaValues)
-    error('Input arg "omegaValues" should a numeric vector!');
+    error('Input arg "omegaValues" should be a numeric vector!');
 end
-if ~isnumeric(rep) || numel(rep) ~= 1 || ~ismember(rep, 10:1:10^4)
-    error('Input arg "rep" should be a value in range 10:1:10^4!');
+% check optional args
+if ~isempty(varargin)
+    for v = 1:length(varargin)
+        % rep
+        if isnumeric(varargin{v}) && numel(varargin{v})==1 && ismembertol(varargin{v}, 10:1:10^4) && ~exist('rep', 'var')
+            rep = varargin{v};
+        % rawOutput
+        elseif ischar(varargin{v}) && ismember(varargin{v}, {'rawOutputYes', 'rawOutputNo'}) && ~exist('rawOutput', 'var')
+            rawOutput = varargin{v};
+        % method    
+        elseif ischar(varargin{v}) && ismember(varargin{v}, {'iterated', 'single'}) && ~exist('method', 'var') 
+            method = varargin{v};
+        % randmove   
+        elseif ischar(varargin{v}) && ismember(varargin{v}, {'move', 'moverand', 'moverandw'}) && ~exist('randmove', 'var') 
+            randmove = varargin{v};
+        % postprocess    
+        elseif ischar(varargin{v}) && ismember(varargin{v}, {'postprocess_ordinal_multilayer', 'postprocess_categorical_multilayer'}) && ~exist('postprocess', 'var') 
+            postprocess = varargin{v};
+        % outputFile
+        elseif ischar(varargin{v}) && ~exist('outputFile', 'var')
+            outputFile = varargin{v};
+        else
+            error('At least one input arg could not be mapped to any optional input arg nicely!');
+        end
+    end
+end
+% assign default values
+if ~exist('rep', 'var')
+    rep = 100;
+end
+if ~exist('rawOutput', 'var')
+    rawOutput = 'rawOutputNo';
+end
+if ~exist('method', 'var')
+    method = 'iterated';
+end
+if ~exist('randmove', 'var')
+    randmove = 'moverandw';
+end
+if ~exist('postprocess', 'var')
+    postprocess = [];
+end
+if ~exist('outputFile', 'var')
+    outputFile = [];    
+else  % try saving a variable to the given file path
+    tmp = 0; 
+    try
+        save(outputFile, 'tmp');
+    catch ME
+        disp(['Failed when tested outputFile: ', outputFile,...
+            ' as a valid save target!']);
+        rethrow(ME);
+    end
+end
+
+% further checks / transformations
+% set postprocess to empty if method=='single', otherwise turn it into
+% function handle
+if strcmp(method, 'single')
+    postprocess = [];
+elseif (strcmp(method, 'iterative')
+    if strcmp(postprocess, 'postprocess_ordinal_multilayer')
+        postprocess = @postprocess_ordinal_multilayer;
+    elseif strcmp(postprocess, 'postprocess_categorical_multilayer')
+        postprocess = @postprocess_categorical_multilayer;
+    end
+end
+% turn rawOutput into boolean var
+if strcmp(rawOutput, 'rawOutputYes')
+    rawOutput = true;
+elseif strcmp(rawOutput, 'rawOutputNo')
+    rawOutput = false;
 end
 
 % user message
@@ -104,36 +231,78 @@ disp([char(10), 'Called multiCommDetectWrapper function with input args: ', ...
     ' values between ', num2str(min(gammaValues)), ' (min) and ', num2str(max(gammaValues)), ' (max)', ...
     char(10), 'Range of omega values: ', num2str(length(omegaValues)), ...
     ' values between ', num2str(min(omegaValues)), ' (min) and ', num2str(max(omegaValues)), ' (max)', ...
-    char(10), 'No. of louvain runs for each (gamma, omega): ', num2str(rep)]);
+    char(10), 'No. of louvain runs for each (gamma, omega): ', num2str(rep),...
+    char(10), 'Output file: ', outputFile,...
+    char(10), 'Raw partitions in output: ', num2str(rawOutput),...
+    char(10), 'Louvain method (single vs iterative): ', method,...
+    char(10), 'Node selection method for Louvain algorithm: ', randmove,...
+    char(10), 'Postprocessing included (valid only if iterative Louvain is requested): ', postprocess,...
+    char(10)]);
 
 
-%% Preallocate results arrays
+%% Check the size of potentially large outputs (res.consSim & res.part)
 
 % helpful shorthands
 gNo = length(gammaValues);
 oNo = length(omegaValues);
 [nodeNo, ~, epochNo] = size(realConn);
 
-% no. of communities
-commNoMean = zeros(gNo, oNo);
-commNoSD = zeros(gNo, oNo);
-% Q
-qMean = zeros(gNo, oNo);
-qSD = zeros(gNo, oNo);
-% partition distance (z-rand, rand, add rand)
-zrandMean = zeros(gNo, oNo);
-zrandSD = zeros(gNo, oNo);
-% persistence
-persMean = zeros(gNo, oNo);
-persSD = zeros(gNo, oNo);
-% consensus similarity - warning if result would be over 1GB, error if over
-% 4GB
-if (nodeNo*epochNo*gNo*oNo*8) >= 10^9 && (nodeNo*epochNo*gNo*oNo*8) < 4*10^9
-    warning('Output consSim will be over 1GB (but below 4GB)!');
-elseif (nodeNo*epochNo*gNo*oNo*8) >= 4*10^9
-    error('Output consSim would be over 4GB - might be a mistake? Erroring out as a precaution!');
+% flag for calculating (and storing) consensus similarity partitions
+consSimFlag = false;
+% check size of consensus similarity partitions. Set flag to true if 
+% size <= 2 GB, warning if >1GB. Assume uint16 (2 bytes per value)
+if (nodeNo*epochNo*gNo*oNo*2) <= 2*10^9
+    consSimFlag = true;
+    if (nodeNo*epochNo*gNo*oNo*2) >= 10^9
+        warning([char(10), 'Output res.consSim will be over 1 GB (but below 2 GB)!']);
+    else
+        disp([char(10), 'Output res.consSim remains under 1 GB.']);
+    end
+else
+    warning([char(10), 'Output res.consSim would exceed 2 GB, will not be calculated and returned!']);
 end
-consSim = zeros(gNo, oNo, nodeNo*epochNo);
+
+% check size of all partitions only if rawOutput was requested
+% assume uint16 (2 bytes per value)
+if rawOutput
+    if (nodeNo*epochNo*gNo*oNo*rep*2) <= 2*10^9
+        if (nodeNo*epochNo*gNo*oNo*rep*2) >= 10^9
+            warning([char(10), 'Output res.part will be over 1 GB (but below 2 GB)!']);
+        else
+            disp([char(10), 'Output res.part remains under 1 GB.']);
+        end
+    else
+        warning([char(10), 'Output res.part would exceed 2 GB, will not be calculated and returned!']);
+        rawOutput = false;
+    end
+end
+
+
+%% Preallocate results arrays
+
+% declare output var
+res = struct;
+% its fields:
+% no. of communities
+res.commNoMean = zeros(gNo, oNo);
+res.commNoSD = zeros(gNo, oNo);
+% Q
+res.qMean = zeros(gNo, oNo);
+res.qSD = zeros(gNo, oNo);
+% partition distance (z-rand)
+res.zrandMean = zeros(gNo, oNo);
+res.zrandSD = zeros(gNo, oNo);
+% persistence
+res.persMean = zeros(gNo, oNo);
+res.persSD = zeros(gNo, oNo);
+% consensus similarity - only if passed the size check
+if consSimFlag
+    res.consSim = zeros(gNo, oNo, nodeNo*epochNo, 'uint16');
+end
+% raw partition data - only if requested and passed the size check
+if rawOutput
+    res.part = zeros(gNo, oNo, rep, nodeNo*epochNo, 'uint16');
+end
 
 % measure elapsed time per (gamma, omega) loop
 paramPairLoopTime = zeros(gNo, oNo);
@@ -175,7 +344,7 @@ parfor gIdx = 1:gNo
             % set no specific limit; suppress output; do not force randord;
             % select random quality-increasing moves with weights given by
             % change in Q; 
-            [repS(:, r), repQ(r)] = iterated_genlouvain(multiLayerConn, [], 0, [], 'moverandw');
+            [repS(:, r), repQ(r)] = iterated_genlouvain(multiLayerConn, [], 0, [], method), [], postprocess);
             
         end
         
