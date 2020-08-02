@@ -1,16 +1,16 @@
-function res = multiCommDetectWrapper(realConn, nullConn, gammaValues, omegaValues, varargin)
+function [res, paramPairLoopTime] = multiCommDetectWrapper(realConn, nullConn, gammaValues, omegaValues, varargin)
 %% Wrapper for repeated multilayer community detection on a connectivity data set
 %
-% USAGE: res = multiCommDetectWrapper(realConn, 
-%                                     nullConn, 
-%                                     gammaValues, 
-%                                     omegaValues, 
-%                                     rep=100, 
-%                                     outputFile=[],
-%                                     rawOutput= 'rawOutputNo',
-%                                     method='iterated', 
-%                                     randmove='moverandw', 
-%                                     postprocess=[])
+% USAGE: [res, paramPairLoopTime] = multiCommDetectWrapper(realConn, 
+%                                           nullConn, 
+%                                           gammaValues, 
+%                                           omegaValues, 
+%                                           rep=100, 
+%                                           outputFile=[],
+%                                           rawOutput= 'rawOutputNo',
+%                                           method='iterated', 
+%                                           randmove='moverandw', 
+%                                           postprocess=[])
 %
 % The function explores a range of resolution parameters (spatial and
 % temporal, that is, gamma and omega, respectively) for a multilayer
@@ -103,14 +103,18 @@ function res = multiCommDetectWrapper(realConn, nullConn, gammaValues, omegaValu
 %           omega) pairs. Warning is given if it would exceed 1 GB, not
 %           calculated or included if it would exceed 2 GB.
 %    part       - Uint16 numeric tensor sized
-%           (numel(gammaValues), numel(omegaValues), rep, node no. X epoch no.).   
+%           (numel(gammaValues), numel(omegaValues), node no. X epoch no., rep).   
 %           Contains all the partitions from all repetitions for all
 %           (gamma, omega) pairs. Warning is given if it would exceed 1 GB, 
 %           not calculated or included if it would exceed 2 GB. In 
 %           practice, it is only returned for small networks and few
 %           repetitions.
+% paramPairLoopTime     - Numeric matrix, sized (numel(gammaValues),
+%                         numel(omegaValues)). Each value is the time the
+%                         function took to calculate results for given
+%                         (gamma, omega) pair.
 %
-% Note:
+% Notes:
 % (1) Notice that res.consSim (and res.part if requested) are uint16, so
 % can only store positive integers up to 2^16-1. This is fine for
 % partitions for all of our use cases - if it does not fit your application
@@ -197,8 +201,9 @@ else  % try saving a variable to the given file path
     tmp = 0; 
     try
         save(outputFile, 'tmp');
+        delete(outputFile);
     catch ME
-        disp(['Failed when tested outputFile: ', outputFile,...
+        disp([char(10), 'Failed when tested outputFile: ', outputFile,...
             ' as a valid save target!']);
         rethrow(ME);
     end
@@ -209,7 +214,7 @@ end
 % function handle
 if strcmp(method, 'single')
     postprocess = [];
-elseif (strcmp(method, 'iterative')
+elseif strcmp(method, 'iterative')
     if strcmp(postprocess, 'postprocess_ordinal_multilayer')
         postprocess = @postprocess_ordinal_multilayer;
     elseif strcmp(postprocess, 'postprocess_categorical_multilayer')
@@ -280,28 +285,25 @@ end
 
 %% Preallocate results arrays
 
-% declare output var
-res = struct;
-% its fields:
 % no. of communities
-res.commNoMean = zeros(gNo, oNo);
-res.commNoSD = zeros(gNo, oNo);
+commNoMean = zeros(gNo, oNo);
+commNoSD = zeros(gNo, oNo);
 % Q
-res.qMean = zeros(gNo, oNo);
-res.qSD = zeros(gNo, oNo);
+qMean = zeros(gNo, oNo);
+qSD = zeros(gNo, oNo);
 % partition distance (z-rand)
-res.zrandMean = zeros(gNo, oNo);
-res.zrandSD = zeros(gNo, oNo);
+zrandMean = zeros(gNo, oNo);
+zrandSD = zeros(gNo, oNo);
 % persistence
-res.persMean = zeros(gNo, oNo);
-res.persSD = zeros(gNo, oNo);
+persMean = zeros(gNo, oNo);
+persSD = zeros(gNo, oNo);
 % consensus similarity - only if passed the size check
 if consSimFlag
-    res.consSim = zeros(gNo, oNo, nodeNo*epochNo, 'uint16');
+    consSim = zeros(gNo, oNo, nodeNo*epochNo, 'uint16');
 end
 % raw partition data - only if requested and passed the size check
 if rawOutput
-    res.part = zeros(gNo, oNo, rep, nodeNo*epochNo, 'uint16');
+    part = zeros(gNo, oNo, nodeNo*epochNo, rep, 'uint16');
 end
 
 % measure elapsed time per (gamma, omega) loop
@@ -328,6 +330,7 @@ parfor gIdx = 1:gNo
         % clock for measuring per-loop time
         loopClock = tic;
         
+        
         %% Louvain!
         
         % construct multilayer connectivity matrix from realConn and
@@ -338,13 +341,21 @@ parfor gIdx = 1:gNo
         repS = zeros(nodeNo*epochNo, rep);
         repQ = zeros(rep, 1);
         
-        % call iterated genlouvain "rep" times
+        % call genlouvain "rep" times
         for r = 1:rep
             
+            % GenLouvain specs:
             % set no specific limit; suppress output; do not force randord;
-            % select random quality-increasing moves with weights given by
-            % change in Q; 
-            [repS(:, r), repQ(r)] = iterated_genlouvain(multiLayerConn, [], 0, [], method), [], postprocess);
+            % select quality-increasing moves according to "randmove"; set
+            % no initial partition (S0); set postprocessing according to
+            % "postprocess"            
+            
+            % select iterated or single-run version
+            if strcmp(method, 'iterative')
+                [repS(:, r), repQ(r)] = iterated_genlouvain(multiLayerConn, [], 0, [], randmove, [], postprocess);
+            elseif strcmp(method, 'single')     
+                [repS(:, r), repQ(r)] = genlouvain(multiLayerConn, [], 0, [], randmove);
+            end
             
         end
         
@@ -363,8 +374,14 @@ parfor gIdx = 1:gNo
         qMean(gIdx, oIdx) = mean(repQ);
         qSD(gIdx, oIdx) = std(repQ);
         
-        % consensus similarity
-        [consSim(gIdx, oIdx, :), ~, pairwiseSim] = consensus_similarity(repS');
+        % consensus similarity - call consensus_similarity.m with the first 
+        % (consensus partition) output only if consSimFlag
+        if consSimFlag
+            [consSimTmp, ~, pairwiseSim] = consensus_similarity(repS');
+            consSim(gIdx, oIdx, :) = uint16(consSimTmp);  % partitions are positive integers 
+        else
+            [~, ~, pairwiseSim] = consensus_similarity(repS');
+        end
         
         % get partition distances from pairwise similarities calculated for
         % consensus similarity
@@ -385,6 +402,11 @@ parfor gIdx = 1:gNo
         persMean(gIdx, oIdx) = mean(persTmp);
         persSD(gIdx, oIdx) = std(persTmp);
         
+        % raw partition data is stored if requested and passed the memory test
+        if rawOutput
+            part(gIdx, oIdx, :, :) = uint16(repS);  % partitions are positive integers 
+        end
+        
         % elapsed time for (gamma, omega) loop
         paramPairLoopTime(gIdx, oIdx) = toc(loopClock);
         
@@ -403,12 +425,36 @@ totalTime = toc(totalClock);
 disp([char(10), 'Total time elapsed: ', num2str(totalTime)]);
 
 
-%% Save and return
+%% Assign output arrays to struct fields 
 
-saveFile = 'louvainRes_alpha_stim1.mat';
-save(saveFile, 'commNoMean', 'commNoSD', 'qMean', 'qSD', 'consSim', ...
-    'zrandMean', 'zrandSD', 'persMean', 'persSD', 'paramPairLoopTime', ...
-    'gammaValues', 'omegaValues', 'rep');
+% output var
+res = struct;
+
+% assign fields
+res.commNoMean = commNoMean;
+res.commNoSD = commNoSD;
+res.qMean = qMean;
+res.qSD = qSD;
+res.zrandMean = zrandMean;
+res.zrandSD = zrandSD;
+res.persMean = persMean;
+res.persSD = persSD;
+% consSim and part are only assigned if relevant flags are true
+if consSimFlag
+    res.consSim = consSim;
+end
+if rawOutput
+    res.part = part;
+end
+
+
+%% Save if file path was provided, return
+
+if ~isempty(outputFile)
+    save(outputFile, 'res', 'paramPairLoopTime', ...
+       'gammaValues', 'omegaValues', 'rep', 'rawOutput',... 
+       'method', 'randmove', 'postprocess');
+end
 
 
 return
