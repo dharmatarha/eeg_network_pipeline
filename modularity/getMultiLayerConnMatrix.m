@@ -86,7 +86,7 @@ end
 
 %% Normalize real and null connectivity data, apply gamma
 
-% Preallocate 3 array for intra-layer connectivity matrices after
+% Preallocate 3D array for intra-layer connectivity matrices after
 % null-model extraction
 intraLayerConnArr = zeros(epochNo, nodeNo, nodeNo);
 
