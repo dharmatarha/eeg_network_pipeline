@@ -1,17 +1,21 @@
-function [randomizedConnectivityMatrix] = calculateEdgeRandomization(connectivityMatrix)
+function [randomizedConnectivityMatrix] = calculateEdgeRandomization(connectivityMatrix, existingEdges)
 %% Performing edge randomization for a matrix
 %
-% USAGE: randomizedConnectivityMatrix = calculateEdgeRandomization(connectivityMatrix)
+% USAGE: randomizedConnectivityMatrix = calculateEdgeRandomization(connectivityMatrix, existingEdges=true)
 %
 % Calculates the randomized version of a given upper triangular connectivity matrix (excluding the main diagonal).
 % Calculation is carried out by random reassigning of edge weights.
 % 
 % Mandatory inputs:
-% connectivityMatrix            - Connectivity matrix for which the randomization must be carried out.
-%                                 Must be a matrix. May contain NaN entries.
+% connectivityMatrix            - Numeric matrix. Connectivity matrix for  
+%                                 which the randomization must be carried out.  
+%                                 May contain NaN entries.
 %
 % Optional inputs:
-% None.
+% existingEdges                 - Logical value. Flag for permuting only among
+%                                 existing edges (that is, 0 or NaN values in  
+%                                 upper triangle are kept at the same location 
+%                                 for randomized matrix). Defaults to true.
 %
 % Output:
 % randomizedConnectivityMatrix - Randomized connectivity matrix having the same dimensions as the original connectivity matrix.
@@ -20,15 +24,25 @@ function [randomizedConnectivityMatrix] = calculateEdgeRandomization(connectivit
 
 %% Input checks
 
-% Check for mandatory arguments
-if nargin ~= 1
-    error('Measured connectivity matrix is required!');
+% Check no. of args
+if ~ismembertol(nargin, 1:2)
+    error(['Function calculateEdgeRandomization requires input arg ',...
+        '"connectivityMatrix" while input arg "existingEdges" is optional!']);
 end
+% check mandatory args
 if ~ismatrix(connectivityMatrix)
     error('Input must be a matrix!');
 end
 if size(connectivityMatrix, 1) ~= size(connectivityMatrix, 2)
     error('Input must be a square matrix!');
+end
+% check optional args 
+if nargin == 1
+    existingEdges = true;
+else
+    if ~islogical(existingEdges) || ~isequal(numel(existingEdges), 1)
+        error('Optional arg "existingEdges" should be a logical value!');
+    end
 end
 
 
@@ -49,9 +63,22 @@ end
 % impossible value
 connectivityMatrix(tril(true(numberOfChannels))) = blackSwan;  
 
+% if we only permute among existing edges, get a mask for nonzero & non-NaN
+% value in upper triangle
+if existingEdges
+    mask = triu(true(numberOfChannels), 1);
+    mask(isnan(connectivityMatrix)) = false;
+    mask(connectivityMatrix == 0) = false;
+end
+
 % extract connectivity values from upper triangle into a vector
 connValuesLin = connectivityMatrix(:);  % linearize values of the matrix
 connValuesLin(connValuesLin==blackSwan) = [];  % delete blackSwan values - supposed to be only the lower triangle + diagonal
+% delete also zero & NaN values if permutation is only among existing edges
+if existingEdges
+    connValuesLin(isnan(connValuesLin)) = [];
+    connValuesLin(connValuesLin == 0) = [];
+end
 
 % randomize the extracted connectivity values
 randConnValues = connValuesLin(randperm(length(connValuesLin)));
@@ -59,7 +86,15 @@ randConnValues = connValuesLin(randperm(length(connValuesLin)));
 % fill an upper triangle of a matrix (numberOfChannels,
 % numberOfChannels) with the randomized values
 randomizedConnectivityMatrix = nan(numberOfChannels);
-randomizedConnectivityMatrix(triu(true(numberOfChannels), 1)) = randConnValues;
+% if permutation was only among existing edges, assignment is via the mask
+if existingEdges
+    randomizedConnectivityMatrix(mask) = randConnValues;
+    % switch upper triangle NaNs to zeros if there were any in original
+    % connectivity matrix
+    randomizedConnectivityMatrix(connectivityMatrix==0) = 0;
+else
+    randomizedConnectivityMatrix(triu(true(numberOfChannels), 1)) = randConnValues;
+end
 
 return
 

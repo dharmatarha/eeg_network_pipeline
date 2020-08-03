@@ -16,7 +16,7 @@ function [temporallyRandomizedMultiLayerNetwork] = calculateTemporalRandomizatio
 % Output:
 % temporallyRandomizedMultiLayerNetwork - Temporally randomized multilayer network having the same dimensions as the original multilayer network.
 % 
-%%
+%
 
 %% Input checks
 
@@ -28,20 +28,26 @@ if (numel(size(multiLayerNetwork)) ~= 3)
     error('Input must be a 3D tensor!');
 end
 
+%% Randomize layers
 
-%% Determine data dimensions  
+[~, ~, numberOfLayers] = size(multiLayerNetwork);
+temporallyRandomizedMultiLayerNetwork = multiLayerNetwork(:, :, randperm(numberOfLayers));
 
-[numberOfChannels, ~, numberOfLayers] = size(multiLayerNetwork);
-% preallocate the randomized tensor
-temporallyRandomizedMultiLayerNetwork = zeros(numberOfChannels, numberOfChannels, numberOfLayers);
+return
 
-
-%% Calculate the temporally randomized multilayer network
-
-randomizedLayerIndices = randperm(numberOfLayers);
-
-for indexOfIndices = 1 : numberOfLayers
-    temporallyRandomizedMultiLayerNetwork(:, :, indexOfIndices) = multiLayerNetwork(:, :, randomizedLayerIndices(indexOfIndices));
-end
-
-end
+% %% Determine data dimensions  
+% 
+% [numberOfChannels, ~, numberOfLayers] = size(multiLayerNetwork);
+% % preallocate the randomized tensor
+% temporallyRandomizedMultiLayerNetwork = zeros(numberOfChannels, numberOfChannels, numberOfLayers);
+% 
+% 
+% %% Calculate the temporally randomized multilayer network
+% 
+% randomizedLayerIndices = randperm(numberOfLayers);
+% 
+% for indexOfIndices = 1 : numberOfLayers
+%     temporallyRandomizedMultiLayerNetwork(:, :, indexOfIndices) = multiLayerNetwork(:, :, randomizedLayerIndices(indexOfIndices));
+% end
+% 
+% end
