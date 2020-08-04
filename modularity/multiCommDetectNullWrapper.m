@@ -55,6 +55,8 @@ function [res, paramPairLoopTime] = multiCommDetectNullWrapper(realConn, nullCon
 %               'connectionalConstrained', 'nodal', 'temporal'}. Controls
 %               the type of connectivity randomization we apply to obtain a
 %               null model. Defaults to 'connectionalConstrained'.
+%               Combinations of different randomizations is not supported
+%               for now.
 % rep         - Numeric value, number of repetitions for running
 %               the Louvain algorithm with given (gamma, omega) pair. 
 %               Must be a positive integer in the range [10:10^4]. Defaults
@@ -132,6 +134,7 @@ function [res, paramPairLoopTime] = multiCommDetectNullWrapper(realConn, nullCon
 % (2) Fields "consSim" and "part" of the output variable might reach the
 % size of 2-2 GB in certain cases. Keep that in mind. 
 %
+
 
 %% Input checks
 
@@ -337,6 +340,7 @@ disp([char(10), 'Starting loops over gamma and omega values....'])
 % clock for measuring overall elapsed time
 totalClock = tic;
 
+% !!! PARFOR !!!
 parfor gIdx = 1:gNo 
     g = gammaValues(gIdx);
     
@@ -349,34 +353,42 @@ parfor gIdx = 1:gNo
         
         %% Louvain!
         
-        % construct multilayer connectivity matrix from realConn and
-        % nullConn using getMultiLayerConnMatrix
-        multiLayerConn = getMultiLayerConnMatrix(realConn, nullConn, g, o);
-        
         % temp variables holding genlouvain results from all repetitions
         repS = zeros(nodeNo*epochNo, rep);
         repQ = zeros(rep, 1);
         
         % call genlouvain "rep" times
         for r = 1:rep
-            
-            
-            % network randomization step, depending on randConn arg
+                       
+            % network randomization step, depending on "randConn" arg
+            % note that "nodal" randomization occurs at later step, after
+            % calling getMultiLayerConnMatrix
             switch randConn
+                % intra-layer edge randomization across all possible edges
+                % (including 0/NaN values)
                 case 'connectional'
-                    
+                    postOptimConn = postOptimNullNetwork3D(realConn, 2, 0);
+                % intra-layer edge randomization constrained to existing
+                % edges                    
                 case 'connectionalConstrained'
-                    
-                case 'nodal'
-                
+                    postOptimConn = postOptimNullNetwork3D(realConn, 1, 0);
+                % temporal layer shuffling
                 case 'temporal'
-                    
+                    postOptimConn = postOptimNullNetwork3D(realConn, 0, 1);
+                % if "randConN" is non of the above, just refer/copy realConn    
+                otherwise
+                    postOptimConn = realConn;
             end
             
             % construct multilayer connectivity matrix from realConn and
             % nullConn using getMultiLayerConnMatrix
-            multiLayerConn = getMultiLayerConnMatrix(realConn, nullConn, g, o); 
+            multiLayerConn = getMultiLayerConnMatrix(postOptimConn, nullConn, g, o); 
             
+            % if "randConN" was "nodal", randomizing inter-layer (omega)
+            % connections
+            if strcmp(randConn, 'nodal')
+                multiLayerConn = nodalRandomization(multiLayerConn, o, nodeNo);
+            end
             
             % GenLouvain specs:
             % set no specific limit; suppress output; do not force randord;
@@ -391,7 +403,7 @@ parfor gIdx = 1:gNo
                 [repS(:, r), repQ(r)] = genlouvain(multiLayerConn, [], 0, [], randmove);
             end
             
-        end
+        end  % for r
         
         
         %% Get stats of interest
