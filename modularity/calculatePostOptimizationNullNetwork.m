@@ -20,7 +20,7 @@ function [postOptimizationNullNetwork] = calculatePostOptimizationNullNetwork(pr
 % Output:
 % postOptimizationNullNetwork       - Post-optimization null network having the same dimensions as the original network (numberOfChannels, numberOfChannels, numberOfEpochs, numberOfStories).
 % 
-%%
+
 
 %% Input checks
 
