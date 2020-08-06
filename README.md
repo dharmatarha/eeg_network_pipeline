@@ -11,4 +11,11 @@ The aim of the repo is to collect the Matlab scripts/functions used for network-
 
 4. Network similarity measures / network comparisons.
 
-Functions are grouped according to the above classification.
+Functions are grouped mostly according to the above classification.
+
+We pulled a few functions from the great [Network Community Toolbox](http://commdetect.weebly.com/): 
+`/modularity/zrand.m`
+`/modularity/consensus_similarity`
+
+Functions under `/modularity` are mainly wrappers for calling the `genlouvain` and `iterated_genlouvain` functions from the great [Genlouvain toolbox](https://github.com/GenLouvain/GenLouvain)
+The folder `/python_leidenalg` is a very simple interface for using the great [leidenalg python package](https://github.com/vtraag/leidenalg) (note that the leiden algorithm has been included in [igraph](https://igraph.org/redirect.html)).
