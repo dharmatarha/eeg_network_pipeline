@@ -12,6 +12,7 @@ function [normalizedMatrix] = normalizeMatrix(inputMatrix)
 % normalizedMatrix  - Normalized matrix
 %
 
+
 %% Input checks
 
 % Check if the input is a matrix
@@ -19,8 +20,15 @@ if ~ ismatrix(inputMatrix)
     error('Input shoud be a matrix');
 end
 
+
 %% Calculation
-sumOfAllElements = sum(sum(inputMatrix));
+
+if any(any(isnan(inputMatrix)))
+    warning('There were NaN values in the input matrix. We use ''omitnan'' flags, so the result will be correct.');
+end
+sumOfAllElements = sum(sum(inputMatrix, 'omitnan'), 'omitnan');
 normalizedMatrix = inputMatrix / sumOfAllElements;
 
-end
+
+
+return
