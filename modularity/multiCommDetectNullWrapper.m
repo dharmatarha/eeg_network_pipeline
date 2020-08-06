@@ -80,7 +80,7 @@ function [res, paramPairLoopTime] = multiCommDetectNullWrapper(realConn, nullCon
 %               input arg. Defaults to 'moverandw'.
 % postprocess - Char array, one of {'postprocess_ordinal_multilayer',
 %               'postprocess_categorical_multilayer'}. Postprocessing 
-%               method for iterative_genlouvain.m, gets passed on to that 
+%               method for iterated_genlouvain.m, gets passed on to that 
 %               function as a function handle. If left empty, there is no 
 %               postprocessing. Defaults to [] (no postprocessing). Set to 
 %               [] if called with method=='single'.
@@ -233,7 +233,7 @@ end
 % function handle
 if strcmp(method, 'single')
     postprocess = [];
-elseif strcmp(method, 'iterative')
+elseif strcmp(method, 'iterated')
     if strcmp(postprocess, 'postprocess_ordinal_multilayer')
         postprocess = @postprocess_ordinal_multilayer;
     elseif strcmp(postprocess, 'postprocess_categorical_multilayer')
@@ -258,9 +258,9 @@ disp([char(10), 'Called multiCommDetectNullWrapper function with input args: ', 
     char(10), 'No. of louvain runs for each (gamma, omega): ', num2str(rep),...
     char(10), 'Output file: ', outputFile,...
     char(10), 'Raw partitions in output: ', num2str(rawOutput),...
-    char(10), 'Louvain method (single vs iterative): ', method,...
+    char(10), 'Louvain method (single vs iterated): ', method,...
     char(10), 'Node selection method for Louvain algorithm: ', randmove,...
-    char(10), 'Postprocessing included (valid only if iterative Louvain is requested): ', postprocess,...
+    char(10), 'Postprocessing included (valid only if iterated Louvain is requested): ', postprocess,...
     char(10)]);
 
 
@@ -397,7 +397,7 @@ parfor gIdx = 1:gNo
             % "postprocess"            
             
             % select iterated or single-run version
-            if strcmp(method, 'iterative')
+            if strcmp(method, 'iterated')
                 [repS(:, r), repQ(r)] = iterated_genlouvain(multiLayerConn, [], 0, [], randmove, [], postprocess);
             elseif strcmp(method, 'single')     
                 [repS(:, r), repQ(r)] = genlouvain(multiLayerConn, [], 0, [], randmove);
@@ -499,7 +499,7 @@ end
 if ~isempty(outputFile)
     save(outputFile, 'res', 'paramPairLoopTime', ...
        'gammaValues', 'omegaValues', 'rep', 'rawOutput',... 
-       'method', 'randmove', 'postprocess');
+       'method', 'randmove', 'postprocess', 'randConn');
 end
 
 

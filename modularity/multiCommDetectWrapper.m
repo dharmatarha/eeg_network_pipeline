@@ -68,7 +68,7 @@ function [res, paramPairLoopTime] = multiCommDetectWrapper(realConn, nullConn, g
 %               input arg. Defaults to 'moverandw'.
 % postprocess - Char array, one of {'postprocess_ordinal_multilayer',
 %               'postprocess_categorical_multilayer'}. Postprocessing 
-%               method for iterative_genlouvain.m, gets passed on to that 
+%               method for iterated_genlouvain.m, gets passed on to that 
 %               function as a function handle. If left empty, there is no 
 %               postprocessing. Defaults to [] (no postprocessing). Set to 
 %               [] if called with method=='single'.
@@ -134,15 +134,15 @@ if ~ismembertol(nargin, 4:10)
 end
 % check mandatory args
 if ~isnumeric(realConn) || length(size(realConn)) ~= 3 || size(realConn, 1) ~= size(realConn, 2)
-    error(['Input arg "realConN" should be a 3D numeric array with the first ',...
+    error(['Input arg "realConn" should be a 3D numeric array with the first ',...
         'two dimensions having euqal size (nodeNo*nodeNo*epochNo)!']);
 end
 if ~isnumeric(nullConn) || ~ismembertol(length(size(nullConn)), 2:3)  || size(nullConn, 1) ~= size(nullConn, 2)
-    error(['Input arg "nullConN" should be a 2D or 3D numeric array with the first ',...
+    error(['Input arg "nullConn" should be a 2D or 3D numeric array with the first ',...
         'two dimensions having euqal size (nodeNo*nodeNo(*epochNo))!']);
 end
 if size(realConn, 1) ~= size(nullConn, 1)
-    error('Input args "realConn" and "nullConN" have different sizes on first dimension!');
+    error('Input args "realConn" and "nullConn" have different sizes on first dimension!');
 end
 if length(size(nullConn)) == 3 && ~isequal(size(realConn), size(nullConn))
     error('Input arg "nulConn" is 3D but its size does not equal the size of "realConn"!');
@@ -214,7 +214,7 @@ end
 % function handle
 if strcmp(method, 'single')
     postprocess = [];
-elseif strcmp(method, 'iterative')
+elseif strcmp(method, 'iterated')
     if strcmp(postprocess, 'postprocess_ordinal_multilayer')
         postprocess = @postprocess_ordinal_multilayer;
     elseif strcmp(postprocess, 'postprocess_categorical_multilayer')
@@ -239,9 +239,9 @@ disp([char(10), 'Called multiCommDetectWrapper function with input args: ', ...
     char(10), 'No. of louvain runs for each (gamma, omega): ', num2str(rep),...
     char(10), 'Output file: ', outputFile,...
     char(10), 'Raw partitions in output: ', num2str(rawOutput),...
-    char(10), 'Louvain method (single vs iterative): ', method,...
+    char(10), 'Louvain method (single vs iterated): ', method,...
     char(10), 'Node selection method for Louvain algorithm: ', randmove,...
-    char(10), 'Postprocessing included (valid only if iterative Louvain is requested): ', postprocess,...
+    char(10), 'Postprocessing included (valid only if iterated Louvain is requested): ', postprocess,...
     char(10)]);
 
 
@@ -321,6 +321,7 @@ disp([char(10), 'Starting loops over gamma and omega values....'])
 % clock for measuring overall elapsed time
 totalClock = tic;
 
+% !!! PARFOR !!!
 parfor gIdx = 1:gNo 
     g = gammaValues(gIdx);
     
@@ -351,7 +352,7 @@ parfor gIdx = 1:gNo
             % "postprocess"            
             
             % select iterated or single-run version
-            if strcmp(method, 'iterative')
+            if strcmp(method, 'iterated')
                 [repS(:, r), repQ(r)] = iterated_genlouvain(multiLayerConn, [], 0, [], randmove, [], postprocess);
             elseif strcmp(method, 'single')     
                 [repS(:, r), repQ(r)] = genlouvain(multiLayerConn, [], 0, [], randmove);
