@@ -335,7 +335,7 @@ disp([char(10), 'Preallocated results arrays....'])
 %% Loop over parameter values
 
 % user message
-disp([char(10), 'Starting loops over gamma and omega values....'])
+disp([char(10), 'Starting loops over gamma and omega values....']);
 
 % clock for measuring overall elapsed time
 totalClock = tic;
@@ -378,7 +378,7 @@ parfor gIdx = 1:gNo
                 % if "randConN" is non of the above, just refer/copy realConn    
                 otherwise
                     postOptimConn = realConn;
-            end
+            end  % switch
             
             % construct multilayer connectivity matrix from realConn and
             % nullConn using getMultiLayerConnMatrix
