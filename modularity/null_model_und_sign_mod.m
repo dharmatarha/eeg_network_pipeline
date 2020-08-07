@@ -9,7 +9,8 @@ function [W0,R] = null_model_und_sign_mod(W,bin_swaps,wei_freq)
 %
 %   This function randomizes an undirected network with positive and
 %   negative weights, while preserving the degree and strength
-%   distributions. This function calls randmio_und_signed.m
+%   distributions. NaN entries of the connection matrix are ignored. 
+%   This function calls randmio_und_signed_mod.m
 %
 %   Inputs: W,          Undirected weighted connection matrix
 %           bin_swaps,  Average number of swaps of each edge in binary randomization.
@@ -69,6 +70,9 @@ function [W0,R] = null_model_und_sign_mod(W,bin_swaps,wei_freq)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %   Downloaded from the Network Community Toolbox in 08/2020:
 %   https://sites.google.com/site/bctnet/null
+%
+%   Modified in a way that NaN entries of the connection matrix are ignored during 
+%   the randomization process.
 %
 %   Reference: Rubinov and Sporns (2011) Neuroimage 56:2068-79
 %
