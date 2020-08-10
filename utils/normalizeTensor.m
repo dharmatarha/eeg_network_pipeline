@@ -45,41 +45,24 @@ if ~isnumeric(inputTensor) || numel(inputTensor)<2
 end
 
 
-%% Check for NaN values
+%% Get rescaling value
 
-tmp = squeeze(any(isnan(inputTensor)));
-% iterate while there are dimensions to squeeze
-while numel(tmp)~=1
-    tmp = squeeze(any(tmp));
-end
-if tmp && verbose
+% linearize
+inputLin = inputTensor(:);
+% check for NaN
+if any(isnan(inputLin)) && verbose
     warning('There were NaN values in the input. We use ''omitnan'' flags, so the result will be correct.');
 end
-    
-
-%% Normalization 
-
-% get first estimate for value to rescale with
+% rescaling constant
 switch stat
     case 'sum'
-        tmp = squeeze(sum(inputTensor, 'omitnan'));
+        tmp = sum(inputLin, 'omitnan');
     case 'mean'
-        tmp = squeeze(mean(inputTensor, 'omitnan'));
+        tmp = mean(inputLin, 'omitnan');
     case 'median'
-        tmp = squeeze(median(inputTensor, 'omitnan'));
+        tmp = median(inputLin, 'omitnan');
 end
-% iterate while there are dimensions to squeeze
-while numel(tmp)~=1
-    switch stat
-        case 'sum'
-            tmp = squeeze(sum(tmp, 'omitnan'));
-        case 'mean'
-            tmp = squeeze(mean(tmp, 'omitnan'));
-        case 'median'
-            tmp = squeeze(median(tmp, 'omitnan'));
-    end
-end
-% rescaling
+% normalize / rescale
 normalizedTensor = inputTensor/tmp;
 
 
