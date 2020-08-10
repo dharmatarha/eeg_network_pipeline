@@ -1,10 +1,10 @@
-function modularityRealVersusNull(realResFile, nullResFile, omegaLim, gammaLim)
+function diffRes = modularityRealVersusNull(realResFile, nullResFile, omegaLim, gammaLim)
 %% Generating heatmaps from multiCommDetect(Null)Wrapper outputs
 %
-% USAGE: modularityRealVersusNull(realResFile, 
-%                                 nullResFile,
-%                                 omegaLim=[1, length(omegaValues)], 
-%                                 gammaLim=[1, length(gammmaValues)])
+% USAGE: diffRes = modularityRealVersusNull(realResFile, 
+%                                           nullResFile,
+%                                           omegaLim=[1, length(omegaValues)], 
+%                                           gammaLim=[1, length(gammmaValues)])
 %
 % Creates and saves a series of heatmaps to depict the results of
 % corresponding multiCommDetectWrapper and multiCommDetectNullWrapper runs.
@@ -142,7 +142,7 @@ end
 for i = 1:length(fieldn)
     
     f = figure;
-    f.Position = [0 0 1800, 1080];
+    f.Position = [0 0 2400, 1400];
     heatmap(xdata(omegaLim(1):omegaLim(2)), ydata(gammaLim(1):gammaLim(2)), realRes.res.(fieldn{i})(gammaLim(1):gammaLim(2), omegaLim(1):omegaLim(2)), 'Title', [fieldn{i}, ' - ', titles{i}], 'XLabel', 'omega', 'Ylabel', 'gamma');
     
     saveF = ['heatmap_modReal_', fieldn{i},'_', num2str(omegaLim(1)), '_', num2str(omegaLim(2)), '_', num2str(gammaLim(1)), '_', num2str(gammaLim(2)),'.png'];

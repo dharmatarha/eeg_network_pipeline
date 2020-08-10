@@ -5,7 +5,7 @@ function edgeRandConn = edgeRandomization(connectivityMatrix, existingEdges)
 %
 % Calculates the randomized version of a given upper triangular 
 % connectivity matrix (excluding the main diagonal).
-% Calculation is carried out by random reassigning of edge weights.
+% Calculation is carried out by randomly reassigning of edge weights.
 % 
 % Mandatory inputs:
 % connectivityMatrix      - Numeric matrix. Connectivity matrix for  
