@@ -132,7 +132,7 @@ if strcmp(normalization, 'oneStep'); oneStepFlag = true; else; oneStepFlag = fal
 if oneStepFlag
     
     % real connectivity data
-    realConnNorm = normalizeTensor(realConn, 'mean', 0);  % suppress NaN warnings
+    realConnNorm = normalizeTensor(realConn, 'mean', false);  % suppress NaN warnings
     % null model data
     if length(size(nullConn)) == 2
         nullConn = repmat(nullConn, [1, 1, layerNo]);
@@ -140,7 +140,7 @@ if oneStepFlag
     % selecting edges existing (non-NaN) in real data 
     nullConn(isnan(realConnNorm)) = NaN;
     % normalization
-    nullConnNorm = normalizeTensor(nullConn, 'mean', 0);  % suppress NaN warnings
+    nullConnNorm = normalizeTensor(nullConn, 'mean', false);  % suppress NaN warnings
     
 % if normalization is per layer    
 else
