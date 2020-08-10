@@ -7,7 +7,8 @@ function [R,eff] = randmio_und_signed_mod(W, ITER)
 %   This function randomizes an undirected network with positively and
 %   negatively signed connections, while preserving the positively and
 %   negatively signed degree distribution. The function does not preserve
-%   the strength distribution in weighted networks.
+%   the strength distribution in weighted networks. NaN entries of the
+%   connection matrix are ignored.
 %
 %   Input:      W,      undirected (binary/weighted) connection matrix
 %               ITER,   rewiring parameter
@@ -19,6 +20,9 @@ function [R,eff] = randmio_und_signed_mod(W, ITER)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %   Downloaded from the Network Community Toolbox in 08/2020:
 %   https://sites.google.com/site/bctnet/null
+%
+%   Modified in a way that NaN entries of the connection matrix are ignored during 
+%   the randomization process.
 %
 %   Reference:  Maslov and Sneppen (2002) Science 296:910
 %
