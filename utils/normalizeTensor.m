@@ -1,7 +1,7 @@
-function normalizedTensor = normalizeTensor(inputTensor, stat)
+function normalizedTensor = normalizeTensor(inputTensor, stat, verbose)
 %% Simple multidimensional array normalization, either with sum or mean of all values
 % 
-% USAGE: normalizedTensor = normalizeTensor(inputTensor, stat='mean')
+% USAGE: normalizedTensor = normalizeTensor(inputTensor, stat='mean', verbose = true)
 %
 % By normalization we simply mean rescaling by sum / mean of all elements.
 % Done iteratively for all dimensions.
@@ -21,14 +21,23 @@ function normalizedTensor = normalizeTensor(inputTensor, stat)
 
 %% Input checks
 
-if ~ismembertol(nargin, 1:2)
-    error('Function "normalizeTensor" requires input arg "inputTensor" while input arg "stat" is optional!');
+if ~ismembertol(nargin, 1:3)
+    error('Function "normalizeTensor" requires input arg "inputTensor" while input args "stat" and "verbose" are optional!');
 end
 if nargin == 1
     stat = 'mean';
-else
+    verbose = true;
+elseif nargin == 2
+    stat = 'mean';
+    if ~islogical(verbose) || numel(verbose)~=1
+        error('Optional input arg "verbose" must be a logical value!');
+    end
+else    
     if ~ismember(stat, {'sum', 'mean', 'median'})
         error('Optional input arg "stat" must be one of {''sum'', ''mean'', ''median''}!');
+    end
+    if ~islogical(verbose) || numel(verbose)~=1
+        error('Optional input arg "verbose" must be a logical value!');
     end
 end
 if ~isnumeric(inputTensor) || numel(inputTensor)<2
@@ -43,7 +52,7 @@ tmp = squeeze(any(isnan(inputTensor)));
 while numel(tmp)~=1
     tmp = squeeze(any(tmp));
 end
-if tmp
+if tmp && verbose
     warning('There were NaN values in the input. We use ''omitnan'' flags, so the result will be correct.');
 end
     
