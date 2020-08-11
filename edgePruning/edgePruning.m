@@ -13,7 +13,7 @@ function edgePruning(freq, varargin)
 %
 % Results are saved into the provided
 % directory (or into current working directory), named
-% 'FREQUENCYBAND_edgePruningInfo.mat'.
+% 'SUBJECTNUMBER_FREQUENCYBAND_edgePruningInfo.mat'.
 %
 % Assumes that the data is in EEGlab structures and that file naming
 % follows the 'SUBJECTNUMBER_FREQUENCYBAND.mat' (e.g. 's05_alpha.mat')
