@@ -2,7 +2,7 @@ function groupLevelEdgePruning(freq, varargin)
 
 %% Surrogate-data-based edge pruning on group-level.
 %
-% USAGE: groupLevelEdgePruning(freq, dirName = pwd, subjects = {'s02', 's03', ...}, surrNo = 10^4)
+% USAGE: groupLevelEdgePruning(realConn, freq, dirName = pwd, subjects = {'s02', 's03', ...}, surrNo = 10^4)
 %
 % Edge pruning on the group level, based on normal distribution fits to
 % individual surrogate data sets (outputs of surrEdgeEstimation.m). 
@@ -23,7 +23,10 @@ function groupLevelEdgePruning(freq, varargin)
 % 
 % Optional input args are inferred from input arg types and values.
 %
-% Mandatory input:
+% Mandatory inputs:
+% realConn  - Numeric array sized (node no. X node no. X layer no. X stim
+%       no.). Contains group mean edge weights for each edge in each layer,
+%       each stimulus.
 % freq      - Char array, one of {'alpha', 'beta', 'gamma', 'delta', 'theta'}. 
 %       Frequency band to work with. Needs to be the same as used in the
 %       file names (e.g. 'alpha' for files like 
@@ -44,14 +47,17 @@ function groupLevelEdgePruning(freq, varargin)
 %       testing of edge values. Num value, one of 100:100:20000, defaults 
 %       to 10^4. 
 %
+% NOTES: 
+%
+%
 
 
 %% Input checks
 
 % check for mandatory argument
-if ~ismembertol(nargin, 1:4)
-    error(['Function groupLevelEdgePruning requires input arg "freq" ',...
-        '(frequency band) while args "dirName", "subjects" and "surrNo"',... 
+if ~ismembertol(nargin, 2:5)
+    error(['Function groupLevelEdgePruning requires input args "realConn" ',...
+        'and "freq" while args "dirName", "subjects" and "surrNo"',... 
         'are optional!']);
 end
 if ~ismember(freq, {'delta', 'theta', 'alpha', 'beta', 'gamma'})
@@ -95,15 +101,78 @@ disp([char(10), 'Starting groupLevelEdgePruning function with following argument
 disp(subjects);
 
 
-%% Basics
+%% Load and aggregate subject-level data
 
 % number of subjects
 subNo = length(subjects);
 
-% list all surrEdgeEstimation output files we will use
-for s = 1:subNo
-    subjectFiles{s} = [dirName, '/', subjects{s}, '_', freq, '_surrEdgeEstimate.mat'];
+% load subject files, aggregate relevant data
+for subIdx = 1:subNo
+    
+    % load data
+    subjectFile = [dirName, '/', subjects{subIdx}, '_', freq, '_surrEdgeEstimate.mat'];
+    res = load(subjectFile);
+    
+    % if first subject, determine dimensions and preallocate arrays holding
+    % all data
+    if subIdx == 1
+        % check size equality of first two dimensions
+        if size(res.surrNormalMu, 1)~=size(res.surrNormalMu, 2)
+            error(['First two dimensions of var "surrNormalMu" in file ',... 
+                subjectFile, ' should be equal (node no., node no.)!']);
+        end
+        % query size
+        [nodeNo, ~, layerNo, stimNo] = size(res.surrNormalMu);
+        
+        % preallocate
+        % quick check on memory requirement
+        memReq = prod([nodeNo, nodeNo, layerNo, stimNo, subNo])*8*3;  % very rough estimate
+        if memReq > 4*10^9
+            error(['Function could use more then 4 GB memory while aggregating ',...
+                'individiual data, shutting down to just to be safe...']);
+        end
+        % variables aggregating individual data 
+        paramMu = zeros(nodeNo, nodeNo, layerNo, stimNo, subNo);
+        paramSigma = paramMu;
+        paramH = logical(paramMu);
+        paramP = single(paramMu);  % single precision for probability values
+        
+        % create reference for "method" and "dRate" vars
+        methodFirst = res.method;
+        dRateFirst = res.dRate;
+    end
+    
+    % check dimensions and equality across major variables
+    if ~isequal(size(res.surrNormalMu), [nodeNo, nodeNo, layerNo, stimNo]) ||...
+            ~isequal(size(res.surrNormalMu), size(res.surrNormalSigma)) ||...
+            ~isequal(size(res.surrNormalMu), size(res.surrNormalP)) ||...
+            ~isequal(size(res.surrNormalMu), size(res.surrNormalH))
+        error(['At least one variable in ', subjectFile, ' has unexpected size!']);
+    end
+    % check "method" and "dRate" - they should be consistent across all
+    % files
+    if ~strcmp(res.method, methodFirst) || ~isequal(res.dRate, dRateFirst)
+        error(['Variable "method" or "dRate" in ', subjectFile, ' is different than in the first file!']);
+    end
+    
+    % aggregate data
+    paramMu(:, :, :, :, subIdx) = res.surrNormalMu;
+    paramSigma(:, :, :, :, subIdx) = res.surrNormalSigma;
+    testH(:, :, :, :, subIdx) = logical(res.surrNormalH);
+    testP(:, :, :, :, subIdx) = single(res.surrNormalP);
+        
 end
 
-% laod files, aggregate relevant data
+
+%% 
+
+
+
+
+
+
+
+
+
+
 
