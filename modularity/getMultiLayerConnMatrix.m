@@ -162,8 +162,8 @@ else
         nullConnMatrix(isnan(realConnMatrix)) = NaN;
 
         % Normalize measured and surrogate connectivity matrices
-        realConnNorm(:, :, layerIdx) = normalizeMatrix(realConnMatrix);
-        nullConnNorm(:, :, layerIdx) = normalizeMatrix(nullConnMatrix);       
+        realConnNorm(:, :, layerIdx) = normalizeMatrix(realConnMatrix, 'mean', false);
+        nullConnNorm(:, :, layerIdx) = normalizeMatrix(nullConnMatrix, 'mean', false);       
     end  % for layerIdx
     
 end  % if oneStepFlag
