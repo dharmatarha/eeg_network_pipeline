@@ -2,7 +2,13 @@ function surrEdgeEstimation(freq, varargin)
 
 %% Estimate distribution of edge weights (adj. matrix) for surrogate / null data
 %
-% USAGE: surrEdgeEstimation(freq, dirName = pwd, subjects = {'s02', 's03', ...}, method = 'iplv', dRate = 1, surrNo = 1000)
+% USAGE: surrEdgeEstimation(freq,
+%                           dirName = pwd, 
+%                           subjects = {'s02', 's03', ...}, 
+%                           method = 'iplv',
+%                           dRate = 1,
+%                           surrNo = 1000,
+%                           truncated = 'no')
 %
 % Fits that edge weights for phase-scrambling-based surrogate data with a 
 % normal distribution, estimating the parameters (mean and std). 
@@ -20,7 +26,7 @@ function surrEdgeEstimation(freq, varargin)
 % follows the 'SUBJECTNUMBER_FREQUENCYBAND.mat' (e.g. 's05_alpha.mat')
 % convention
 % Also assumes that all relevant files are in the working directory.
-% 
+%
 % Optional input args are inferred from input arg types and values.
 %
 % Mandatory input:
@@ -52,17 +58,25 @@ function surrEdgeEstimation(freq, varargin)
 % surrNo    - Number of surrogate data sets generated for statistical
 %       testing of edge values. Num value, one of 100:100:20000, defaults 
 %       to 10^3. 
+% truncated - Char array, one of {'no', 'yes'}. Determines if a standard or
+%       truncated normal distribution should be fitted to surrogate edge 
+%       data. If 'yes', that is, truncated normal is fitted then we
+%       truncate with [0 Inf]. 
 % 
-%  
+% NOTES:
+% (1) % The method for truncated normal is from:
+% https://www.mathworks.com/matlabcentral/fileexchange/64040-fitting-a-truncated-normal-gaussian-distribution
+% Alexey Ryabov
+%
 
 
 %% Input checks
 
 % check for mandatory argument
-if ~ismembertol(nargin, 1:6)
+if ~ismembertol(nargin, 1:7)
     error(['Function surrEdgeEstimation requires input arg "freq" ',...
         '(frequency band) while args "dirName", "subjects", "method", ',...
-        '"dRate" and "surrNo" are optional!']);
+        '"dRate", "surrNo" and "truncated" are optional!']);
 end
 if ~ismember(freq, {'delta', 'theta', 'alpha', 'beta', 'gamma'})
     error('Input arg "freq" has an unexpected value!');
@@ -81,6 +95,8 @@ if ~isempty(varargin)
             dRate = varargin{v};
         elseif isnumeric(varargin{v}) && ~exist('surrNo', 'var') && ismember(varargin{v}, 100:100:20000)
             surrNo = varargin{v};
+        elseif ischar(varargin{v}) && ismember(varargin{v}, {'yes', 'no'}) && ~exist('truncated', 'var')
+            dirName = varargin{v};            
         else
             error(['There are either too many input args or they are not ',...
                 'mapping nicely to "dirName", "subjects", "method", "dRate" and "surrNo"!']);
@@ -105,6 +121,15 @@ end
 if ~exist('surrNo', 'var')
     surrNo = 10^3;
 end
+if ~exist('truncated', 'var')
+    truncated = 'no';
+end
+% transform truncated to logical
+if strcmp(truncated, 'no')
+    truncated = false;
+elseif strcmp(truncated, 'yes')
+    truncated = true;
+end
 
 % user message
 disp([char(10), 'Starting surrEdgeEstimation function with following arguments: ',...
@@ -113,6 +138,7 @@ disp([char(10), 'Starting surrEdgeEstimation function with following arguments: 
     char(10), 'Connectivity measure: ', method,...
     char(10), 'Decimation rate: ', num2str(dRate),...
     char(10), 'No. of surrogate data sets: ', num2str(surrNo), ... 
+    char(10), 'Truncated normal at [0 Inf]?: ', truncated, ...
     char(10), 'Subjects: ']);
 disp(subjects);
 
@@ -155,6 +181,15 @@ if dRate ~= 1
     phaseData = phaseData(:, 1:dRate:end, :, :);
     sampleNoOrig = sampleNo;
     sampleNo = size(phaseData, 2);
+end
+
+% define helper functions if truncated normal is to be fitted
+if truncated
+    % bounds
+    x_min = 0;
+    x_max = Inf;
+    heaviside_l = @(x) 1.0*(x>=0);
+    norm_trunc = @(x, mu, sigma) (normpdf(x , mu, sigma)./normcdf(-x_min, -mu, sigma) .* heaviside_l(x - x_min));
 end
 
 % user message
@@ -240,15 +275,32 @@ parfor subIdx = 1:subNo
                     % excluding the diagonal as well
                     if roi2 > roi1
                         tmp = squeeze(surrConnData(:, roi1, roi2));
-                        % fitting
-                        pd = fitdist(tmp, 'normal');  % output is a prob.NormalDistribution object
+                        
+                        % if truncated normal is to be fitted
+                        if truncated
+                            % fit truncated normal
+                            phat = mle(tmp , 'pdf', norm_trunc, 'start', [mean(tmp), std(tmp)]);
+                            % save out main params from fitted normal
+                            surrNormalMu(roi1, roi2, epochIdx, stimIdx) = phat(1);
+                            surrNormalSigma(roi1, roi2, epochIdx, stimIdx) = phat(2);
+                            % create a probability distribution for the
+                            % truncated normal with fitted params
+                            pd = makedist('normal', 'mu', phat(1), 'sigma', phat(2));
+                            pdToTest = truncate(pd, [x_min x_max]);       
+                        % if standard normal is to be fitted, not truncated    
+                        else
+                            % fitting
+                            pdToTest = fitdist(tmp, 'normal');  % output is a prob.NormalDistribution object
+                            % save out main params from fitted normal
+                            surrNormalMu(roi1, roi2, epochIdx, stimIdx) = pd.mu;
+                            surrNormalSigma(roi1, roi2, epochIdx, stimIdx) = pd.sigma;                     
+                        end  % if truncated
+                        
                         % test the goodness-of-fit with single sample
                         % Kolmogorov-Smirnov
-                        [surrNormalH(roi1, roi2, epochIdx, stimIdx), surrNormalP(roi1, roi2, epochIdx, stimIdx)] = kstest(tmp, 'CDF', pd);
-                        % save out main params from fitted normal
-                        surrNormalMu(roi1, roi2, epochIdx, stimIdx) = pd.mu;
-                        surrNormalSigma(roi1, roi2, epochIdx, stimIdx) = pd.sigma;
-                    end  % if
+                        [surrNormalH(roi1, roi2, epochIdx, stimIdx), surrNormalP(roi1, roi2, epochIdx, stimIdx)] = kstest(tmp, 'CDF', pdToTest);
+                        
+                    end  % if roi2 > roi1
                 end  % for roi2 loop
             end  % for roi1 loop          
             

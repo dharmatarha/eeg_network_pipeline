@@ -125,7 +125,7 @@ subNo = length(subjects);
 angleDir = [dirName, '/angle/', freq, '/'];
 envDir = [dirName, '/envelope/', freq, '/'];
 
-% add all angle and envelope files we will use to parallel loop
+% list all angle and envelope files we will use
 angleFiles = cell(subNo, 1);
 envFiles = cell(subNo, 1);
 for s = 1:subNo
