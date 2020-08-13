@@ -21,6 +21,7 @@ function surrEdgeEstimation(freq, varargin)
 % Results are saved into the provided
 % directory (or into current working directory), named
 % 'SUBJECTNUMBER_FREQUENCYBAND_surrEdgeEstimate.mat'.
+% Output files contain 
 %
 % Assumes that the data is in EEGlab structures and that file naming
 % follows the 'SUBJECTNUMBER_FREQUENCYBAND.mat' (e.g. 's05_alpha.mat')
@@ -60,9 +61,41 @@ function surrEdgeEstimation(freq, varargin)
 %       to 10^3. 
 % truncated - Char array, one of {'no', 'yes'}. Determines if a standard or
 %       truncated normal distribution should be fitted to surrogate edge 
-%       data. If 'yes', that is, truncated normal is fitted then we
-%       truncate with [0 Inf]. 
+%       data. If 'yes', that is, a truncated normal is fitted, we
+%       truncate with bounds [0 1], corresponding to the range of the 
+%       phase-based connectivity measures. 
 % 
+% Output:
+% The following variables are saved out for each subject.
+% surrNormalMu      - Numeric array, sized (node no. X node no. X layer no. X
+%               stim no.). Contains the estimated "mu" param for the normal
+%               / truncated normal distribution fitted to the surrogate
+%               connectivity data.
+% surrNormalSigma   - Numeric array, sized (node no. X node no. X layer no. X
+%               stim no.). Contains the estimated "sigma" param for the normal
+%               / truncated normal distribution fitted to the surrogate
+%               connectivity data.
+% surrNormalH       - Numeric array, sized (node no. X node no. X layer no. X
+%               stim no.). Elements are either 0 or 1. Contains the main 
+%               result of the Kolmogorov-Smirnov goodness-of-fit test 
+%               (kstest) testing if the surrogate connectivity data for 
+%               each edge indeed corresponds to the fitted (truncated) 
+%               normal distribution. 1 = rejected at 0.05 level, 0 = null
+%               hypothesis cannot be rejected.
+% surrNormalP       - Numeric array, sized (node no. X node no. X layer no. X
+%               stim no.). Elements are in the range [0 1]. Contains the 
+%               probability that the surrogate connectivity data 
+%               corresponds to the fitted (truncated) normal distribution. 
+%               Outcome of the Kolmogorov-Smirnov goodness-of-fit test 
+%               (kstest).
+% method            - Char array, value of input arg "method".
+% surrNo            - Numeric value, value of input arg "surrNo".
+% dRate             - Numeric value, value of input arg "dRate".
+% subject           - Char array, content of input arg "subjects"
+%               corresponding to the subject whose output file this var is
+%               saved out to.
+%
+%
 % NOTES:
 % (1) % The method for truncated normal is from:
 % https://www.mathworks.com/matlabcentral/fileexchange/64040-fitting-a-truncated-normal-gaussian-distribution
@@ -185,11 +218,16 @@ end
 
 % define helper functions if truncated normal is to be fitted
 if truncated
-    % bounds
+    % bounds - currently supported methods all have a range of [0 1]
     x_min = 0;
-    x_max = Inf;
+    x_max = 1;
+    % define heaviside as we would use it, with 1 at origin
     heaviside_l = @(x) 1.0*(x>=0);
-    norm_trunc = @(x, mu, sigma) (normpdf(x , mu, sigma)./normcdf(-x_min, -mu, sigma) .* heaviside_l(x - x_min));
+    heaviside_r = @(x) 1.0*(x<=0);
+    % cdf of normal between bounds - needed for normalization
+    normcdf_lr =@(mu, sigma) (normcdf(x_max, mu, sigma) - normcdf(x_min, mu, sigma));
+    % truncated normal pdf
+    norm_trunc =@(x, mu, sigma) normpdf(x , mu, sigma)./normcdf_lr(mu, sigma) .* heaviside_l(x - x_min) .* heaviside_r(x - x_max);
 end
 
 % user message
