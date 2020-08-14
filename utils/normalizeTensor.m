@@ -1,10 +1,10 @@
 function normalizedTensor = normalizeTensor(inputTensor, stat, verbose)
-%% Simple multidimensional array normalization, either with sum or mean of all values
+%% Simple multidimensional array normalization, with sum, mean, or median of all values
 % 
 % USAGE: normalizedTensor = normalizeTensor(inputTensor, stat='mean', verbose = true)
 %
-% By normalization we simply mean rescaling by sum / mean of all elements.
-% Done iteratively for all dimensions.
+% By normalization we simply mean rescaling by sum / mean / median of all elements.
+% Done by linearization of the multidimensional array.
 %
 % Mandatory input:
 % inputTensor        - Numeric tensor to be normalized. 
