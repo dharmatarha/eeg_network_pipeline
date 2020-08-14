@@ -4,7 +4,7 @@ function estP = estimatedP(realV, randomV, tailed)
 % USAGE: estP = estimatedP(realV, randomVs, tailed=2)
 %
 % Given a real value of some statistic / feature and a generated set of 
-% null-model values, the function calculates the etimated probability of 
+% null-model values, the function estimates the probability of 
 % the real value. 
 % 
 % Works on multiple results as well - if there are N tests to perform,
