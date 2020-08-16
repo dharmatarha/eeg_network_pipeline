@@ -183,6 +183,12 @@ for subIdx = 1:subNo
 end  % for subIdx
 
 
+%% Preallocate results arrays
+
+pValues = nan(nodeNo, nodeNo, layerNo, stimNo);
+fdrMask = pValues;
+
+
 %% Permutation tests
 
 for stimIdx = 1:stimNo
@@ -231,19 +237,16 @@ for stimIdx = 1:stimNo
         
         % estimate probabilities of real group-means compared to surrogate
         % group-mean distributions
-        estP = estimatedP(layerConn, layerSurrMeans, 1);    
+        estP = estimatedP(layerConn, layerSurrMeans, 1);  % one-tailed test  
 
-        
-        
-%         for node1 = 1:nodeNo
-%             
-%             for node2 = 1:nodeNo
-%                 
-%                 if node2 > node1
-                    
-                    mus = paramMu(
+        % p values get stored in result array with same dims as realConn
+        tmp = nan(nodeNo);
+        tmp(triu(true(nodeNo), 1)) = estP;
+        pValues(:, :, layerIdx, stimIdx) = tmp;
 
-
+    end  % for layerIdx
+    
+end  % for stimIdx
 
 
 
