@@ -4,7 +4,7 @@ function [h, pCrit] = fdr(pValues, varargin)
 % USAGE: [h, pCrit] = fdr(pValues, q = 0.05, method = 'bh')
 %
 % Calculates false discovery rate for supplied p (significance) values and
-% supplied q. Method might Benjamini–Hochberg ('bh') or 
+% supplied q. Method might be Benjamini–Hochberg ('bh') or 
 % Benjamini–Yekutieli ('by').
 %
 % Mandatory input:
