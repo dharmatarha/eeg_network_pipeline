@@ -7,7 +7,7 @@ function [mainFig, subFig] = circleGraphPlot(connMatrix, membership, colorTriple
 %                                       trimmingThr=0.2, 
 %                                       labels={}, 
 %                                       figTitle=[];
-%                                       drawFlag=1)
+%                                       drawFlag='draw')
 % 
 % Creates two figures for the supplied network and its modules.
 %
@@ -426,7 +426,7 @@ for s = 1:modNo
         'EdgeAlpha', edgeAlpha,... 
         'NodeColor', colorTriplets(s, :),...
         'MarkerSize', nodeSize,...
-        'LineStyle', edgeStyle{1});
+        'LineStyle', edgeTypes{1});
 
     % set axes boundary line colors
     set(gca,'XColor', gcaLinesColor,'YColor', gcaLinesColor);
