@@ -8,7 +8,7 @@ function surrEdgeEstimation(freq, varargin)
 %                           method = 'iplv',
 %                           dRate = 1,
 %                           surrNo = 1000,
-%                           truncated = 'no')
+%                           truncated = 'yes')
 %
 % Fits that edge weights for phase-scrambling-based surrogate data with a 
 % normal distribution, estimating the parameters (mean and std). 
@@ -63,7 +63,7 @@ function surrEdgeEstimation(freq, varargin)
 %       truncated normal distribution should be fitted to surrogate edge 
 %       data. If 'yes', that is, a truncated normal is fitted, we
 %       truncate with bounds [0 1], corresponding to the range of the 
-%       phase-based connectivity measures. 
+%       phase-based connectivity measures. Defaults to 'yes'.
 % 
 % Output:
 % The following variables are saved out for each subject.
@@ -155,7 +155,7 @@ if ~exist('surrNo', 'var')
     surrNo = 10^3;
 end
 if ~exist('truncated', 'var')
-    truncated = 'no';
+    truncated = 'yes';
 end
 % transform truncated to logical
 if strcmp(truncated, 'no')
@@ -171,7 +171,7 @@ disp([char(10), 'Starting surrEdgeEstimation function with following arguments: 
     char(10), 'Connectivity measure: ', method,...
     char(10), 'Decimation rate: ', num2str(dRate),...
     char(10), 'No. of surrogate data sets: ', num2str(surrNo), ... 
-    char(10), 'Truncated normal at [0 Inf]?: ', truncated, ...
+    char(10), 'Truncated normal at [0 Inf]?: ', num2str(truncated), ...
     char(10), 'Subjects: ']);
 disp(subjects);
 
