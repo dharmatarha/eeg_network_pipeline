@@ -25,8 +25,8 @@ function groupLevelEdgePruning(freq, varargin)
 % edges on the individual level, contrasting real connectivity data with 
 % connectivity distributions from surrogate data.
 %
-% Results are saved into the provided
-% directory (or into current working directory), named
+% Results are saved into the provided directory (or into current working
+% directory if no "dirName" was supplied), named
 % 'FREQUENCYBAND_groupEdgePruningInfo.mat'.
 % 
 % Optional input args are inferred from input arg types and values.
@@ -47,7 +47,7 @@ function groupLevelEdgePruning(freq, varargin)
 % dirName   - Char array. Path of folder containing the surrEdgeEstimation 
 %       output files (s*_FREQENCYBAND_surrEdgeEstimate.mat files). Also 
 %       used for saving out results. Default is current working directory (pwd).
-% subjects  - List of subjects (cell array) whose data we process. 
+% subjects  - Cell array holding the list of subjects whose data we process. 
 %       Each cell contains a subject ID also used in the filenames 
 %       (e.g. 's01' for files like 's01_alpha.mat'). If empty, 
 %       we use the default cell arrray of:
@@ -58,8 +58,31 @@ function groupLevelEdgePruning(freq, varargin)
 %       testing of edge values. Num value, one of 100:100:20000, defaults 
 %       to 10^4. 
 %
-% NOTES: 
+% Outputs: 
+% Outputs are saved into a 'FREQUENCYBAND_groupEdgePruningInfo.mat' file,
+% with the following variables:
+% pValues   - Numeric array sized (node no. X node no. X layer no. X stim
+%       no.). Contains all estimated p values from the surrogate vs. real
+%       group mean comparisons, for each edge, layer/epoch  and
+%       sitmulus/condition. For edges with an estimate of zero, we use the
+%       value 1/surrNo*0.9, that is, the minimal possible estimate X 0.9.
+% pCrit     - Numeric value. Critical p value from the FDR procedure (q =
+%       .05). P values below "pCrit" are significant according to FDR. 
+% fdrMask   - Boolean array sized (node no. X node no. X layer no. X stim
+%       no.). Logical mask of "pValues", with true/1 where the edge
+%       survived the FDR procedure ( <= pCrit).
+% subjects  - Cell array, input arg "subjects".
+% surrNo    - Numeric value, input arg "surrNo".
+% freq      - Char array, input arg "freq".
 %
+%
+% NOTES: 
+% (1) FDR is via the utils/fdr.m function, using default options
+% (Benjamini-Hochberg with q = .05). This is hardcoded behavior.
+% (2) Memory requirements might become relatively large with large surrNo
+% and many nodes. There is a hardcoded upper limit of ~7 GB, erroring out
+% when the limit is reached. If this is a problem, either just delete the
+% checks or perhaps set the var "layerSurrMeans" to single precision.
 %
 
 
@@ -125,6 +148,9 @@ subNo = length(subjects);
 % bounds for truncating surrogate sample distributions
 truncateBounds = [0 1];  % the phase-based connectivity values we use have range [0 1]
 
+% user message
+disp([char(10), 'Loading / aggregating all individual data...']);
+
 % load subject files, aggregate relevant data
 for subIdx = 1:subNo
     
@@ -143,13 +169,27 @@ for subIdx = 1:subNo
         % query size
         [nodeNo, ~, layerNo, stimNo] = size(res.surrNormalMu);
         
-        % preallocate
-        % quick check on memory requirement
-        memReq = prod([nodeNo, nodeNo, layerNo, stimNo, subNo])*8*3;  % very rough estimate
-        if memReq > 4*10^9
-            error(['Function could use more then 4 GB memory while aggregating ',...
-                'individiual data, shutting down to just to be safe...']);
+        % checks on memory requirements
+        % (1) rough estimate for aggregating all individual data
+        dataMemReq = prod([nodeNo, nodeNo, layerNo, stimNo, subNo])*8*3; 
+        % (2) rough estimate for peak memory used in inner "edgeIdx" for
+        % loop (see below)
+        loopMemReq = prod([surrNo, nodeNo*(nodeNo-1)/2+subNo])*8;
+        % error or user message depending on memory requirements - upper bound
+        % is 7 GB, so that we are ~safish on an 8 GB machine
+        disp([char(10), 'Function will attempt to use ~ ',... 
+            num2str((dataMemReq+loopMemReq)/(10^9)), ' GB memory. ',...
+            'This is just a rough estimate.']);
+        if (dataMemReq + loopMemReq) > 7*10^9
+            error(['Function could use more then 7 GB memory while aggregating ',...
+                'and calculating with individiual data, shutting down to just to be safe. ',...
+                'Change this hardcoded behavior or consider using single precision ',...
+                'for more variables or less surrogate group means.']);
+        else
+            disp()
         end
+        
+        % preallocate
         % variables aggregating individual data 
         paramMu = zeros(nodeNo, nodeNo, layerNo, stimNo, subNo);
         paramSigma = paramMu;
@@ -182,18 +222,34 @@ for subIdx = 1:subNo
         
 end  % for subIdx
 
+% user message
+disp([char(10), 'Done loading / aggregating individual data.']);
+
 
 %% Preallocate results arrays
 
 pValues = nan(nodeNo, nodeNo, layerNo, stimNo);
-fdrMask = pValues;
 
 
 %% Permutation tests
 
+% user message
+disp([char(10), 'Generating surrogate group means and comparing to real data...']);
+
+% main clock
+mainClock = tic;
+
+% loop across stimuli / conditions
 for stimIdx = 1:stimNo
     
+    % user message
+    disp([char(10), 'Started stimulus/condition ', num2str(stimIdx)]);
+    
+    % loop across layers / epochs
     for layerIdx = 1:layerNo
+        
+        % layer / epoch clock
+        layerClock = tic;
         
         % extract layer-level group-mean connectivity values
         layerConn = squeeze(realConn(:, :, layerIdx, stimIdx));
@@ -244,9 +300,60 @@ for stimIdx = 1:stimNo
         tmp(triu(true(nodeNo), 1)) = estP;
         pValues(:, :, layerIdx, stimIdx) = tmp;
 
+        % user message
+        disp([char(10), 'Done with layer/epoch ', num2str(layerIdx),... 
+            ' in stimulus/condition ', num2str(stimIdx), ', took ',... 
+            num2str(round(toc(layerClock), 2)), ' secs']);       
+        
     end  % for layerIdx
     
 end  % for stimIdx
+
+% user message
+disp([char(10), 'Done with surrogate - real group mean comparisons ',...
+    'for all edges, layers/epochs and stimuli/conditions, took ',...
+    num2str(round(toc(mainClock), 2)), ' secs']);
+
+
+%% FDR - ignores NaN values
+
+% user message
+disp([char(10), 'FDR correction... Note that zero values in "pValues" are switched with (1/surrNo)*0.9 as a relatively conservative bound.']);
+
+% correct for 0 values in pValues
+pValues(pValues==0) = 1/surrNo*0.9;
+
+% get critical p value at q = .05
+pLin = pValues(:);
+pLin(isnan(pLin)) = [];
+[~, pCrit] = fdr(pLin);
+
+% mask
+fdrMask = pValues<=pCrit;
+
+% user message
+disp([char(10), 'FDR correction done, critical p is at ',... 
+    num2str(pCrit), '. Saving and returning...']);
+
+
+%% Save results, return
+
+saveFile = [freq, '_groupEdgePruningInfo.mat'];
+save(saveFile, 'pValues', 'fdrMask', 'pCrit', 'subjects', 'surrNo', 'freq');
+
+
+return
+
+
+
+
+
+
+
+
+
+
+
 
 
 
