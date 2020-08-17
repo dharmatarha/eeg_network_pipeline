@@ -324,7 +324,7 @@ parfor subIdx = 1:subNo
                             % create a probability distribution for the
                             % truncated normal with fitted params
                             pd = makedist('normal', 'mu', phat(1), 'sigma', phat(2));
-                            pdToTest = truncate(pd, [x_min x_max]);       
+                            pdToTest = truncate(pd, x_min, x_max);       
                         % if standard normal is to be fitted, not truncated    
                         else
                             % fitting
