@@ -35,7 +35,7 @@ function [mainFig, subFig] = circleGraphPlot(connMatrix, membership, colorTriple
 %               values (square matrix). Only upper triangle is used for 
 %               graph construction. 
 % membership      - Numeric vector containing the module membership of each
-%               node in the graph. Values must be in range 0:1:11 (zero is
+%               node in the graph. Values must be in range 0:1:17 (zero is
 %               a valid module identifier).
 % colorTriplets   - Numeric matrix with three columns, each row defines an
 %               RGB triplet for module (and within-module edge) coloring. 
@@ -81,8 +81,8 @@ if ~isvector(membership) || length(membership) ~= size(connMatrix, 1)
     error(['Input arg "membership" should be a vector with the same ',...
         'length as either dimension of "connMatrix"!']);
 end
-if any(~ismember(unique(membership), 0:11))
-    error('Input arg "membership" should contain values in range 0:11!');
+if any(~ismember(unique(membership), 0:17))
+    error('Input arg "membership" should contain values in range 0:17!');
 end
 if ~ismatrix(colorTriplets) || size(colorTriplets, 2) ~= 3
     error(['Input arg "colorTriplets" should be a matrix with three ',...
@@ -162,6 +162,7 @@ disp([char(10), 'Function circleGraphPlot is called with inputs: ',...
 % if they match, the function can highlight the ROI structure automatically
 
 % expected set and order
+% roi names used most often for our EEG datasets, grouped by lobules
 expectedLabels = {'lateralorbitofrontal L', 'medialorbitofrontal L', 'parsorbitalis L', 'parstriangularis L', 'parsopercularis L', 'rostralmiddlefrontal L', 'caudalmiddlefrontal L', 'superiorfrontal L', 'precentral L',...
     'rostralanteriorcingulate L', 'caudalanteriorcingulate L', 'posteriorcingulate L', 'isthmuscingulate L',...
     'transversetemporal L', 'superiortemporal L', 'middletemporal L', 'inferiortemporal L', 'entorhinal L', 'parahippocampal L', 'fusiform L', 'insula L',...
@@ -173,11 +174,26 @@ expectedLabels = {'lateralorbitofrontal L', 'medialorbitofrontal L', 'parsorbita
     'isthmuscingulate R', 'posteriorcingulate R', 'caudalanteriorcingulate R', 'rostralanteriorcingulate R',...
     'precentral R', 'superiorfrontal R', 'caudalmiddlefrontal R', 'rostralmiddlefrontal R', 'parsopercularis R', 'parstriangularis R', 'parsorbitalis R', 'medialorbitofrontal R', 'lateralorbitofrontal R',...
     };
+% shortened version of of usual roi names
+expectedLabelsShort = {'latOrbFront L', 'medOrbFront L', 'parsOrb L', 'parsTriang L', 'parsOpercul L', 'rostrMidFront L', 'caudMidFront L', 'supFront L', 'precentral L',...
+    'rostrAntCing L', 'caudAntCing L', 'postCing L', 'isthmusCing L',...
+    'transvTemp L', 'supTemp L', 'midTemp L', 'infTemp L', 'entorhinal L', 'paraHippoc L', 'fusiform L', 'insula L',...
+    'supraMarg L', 'infPar L', 'supPar L', 'postcentral L', 'paracentral L', 'precuneus L',...
+    'cuneus L', 'lingual L', 'periCalc L', 'latOcc L',...
+    'latOcc R', 'periCalc R', 'lingual R', 'cuneus R',...
+    'precuneus R', 'paracentral R', 'postcentral R', 'supPar R', 'infPar R', 'supraMarg R',...
+    'insula R', 'fusiform R', 'paraHippoc R', 'entorhinal R', 'infTemp R', 'midTemp R', 'supTemp R', 'transvTemp R',...
+    'isthmusCing R', 'postCing R', 'caudAntCing R', 'rostrAntCing R',...
+    'precentral R', 'supFront R', 'caudMidFront R', 'rostrMidFront R', 'parsOpercul R', 'parsTriang R', 'parsOrb R', 'medOrbFront R', 'latOrbFront R',...
+    };
+% amount of shift needed for proper left-right arrangement in plot
 shiftLabels = 15;
+% shifting common labels
 expectedLabels = [expectedLabels(end-shiftLabels:end), expectedLabels(1:end-shiftLabels-1)]';
+expectedLabelsShort = [expectedLabelsShort(end-shiftLabels:end), expectedLabelsShort(1:end-shiftLabels-1)]';
 
 % set flag if supplied arg "labels" match expected set of labels
-if isequal(expectedLabels, labels)
+if isequal(expectedLabels, labels) || isequal(expectedLabelsShort, labels)
     lobuleFlag = 1;
     disp([char(10), 'Supplied labels let us highlight the lobules with additional lines and annotations, will do so']);
 else
@@ -190,11 +206,11 @@ end
 
 % RGB color for between-module edges
 baseEdgeColor = [0.5, 0.5, 0.5];
-% base multiplier for the width of all edges (they are based on
-% connectivity strength which is < 1)
-baseEdgeWidthMultip = 50;
+% base edge width range - we map the supplied data to this range 
+% irrespective of actual weights 
+baseEdgeWidthRange = [0.1, 6];
 % multiplier for the width of within-module edges
-withinEdgeWidthMultip = 60;
+withinEdgeWidthMultip = 10;
 % edge line styles for within- and between-module edges
 %edgeTypes = {'-', 'none'};
 edgeTypes = {'-', '-'};
@@ -308,7 +324,8 @@ nodesPerEdge = G.Edges.EndNodes;
 
 % go through all modules, set different edge properties per module
 edgeColors = repmat(baseEdgeColor, [size(weights, 1), 1]);  % preallocate variable for edge colors, filled with base color
-edgeWidth = weights*baseEdgeWidthMultip;  % at start, edge width is deterimned by connectivity weight
+% map connectivity values to basic edge width range specified earlier
+edgeWidth = (weights-min(weights))./(max(weights)-min(weights))*(baseEdgeWidthRange(2)-baseEdgeWidthRange(1))+baseEdgeWidthRange(1); 
 moduleEdges = zeros(size(weights, 1), modNo);  % binary vectors identifying within-module edges (one column per module)
 for i = 1:modNo
     moduleNodes = labels(membership == moduleIndices(i));  % node indices (as binary vector) for given module
@@ -385,7 +402,7 @@ G.plot('Layout', graphMainLayout,...
     'LineStyle', edgeStyle);
 
 % title
-title(mainFigTitle);
+title(mainFigTitle, 'Interpreter', 'none');
 
 % lines and text boxes highlight the ROIs in each lobule in case of a
 % specific ROI set (labels)
@@ -537,7 +554,52 @@ switch modNo
              0.02, 0.05, 0.20, 0.20;
              0.25, 0.05, 0.20, 0.20;
              0.50, 0.05, 0.20, 0.20;
-             0.75, 0.05, 0.20, 0.20];         
+             0.75, 0.05, 0.20, 0.20];     
+    case 13
+         subPlotPos = [0.02, 0.66, 0.20, 0.20;
+             0.25, 0.66, 0.20, 0.20;
+             0.50, 0.66, 0.20, 0.20;
+             0.75, 0.66, 0.20, 0.20;
+             0.02, 0.33, 0.20, 0.20;
+             0.25, 0.33, 0.20, 0.20;
+             0.50, 0.33, 0.20, 0.20;
+             0.75, 0.33, 0.20, 0.20;
+             0.02, 0.05, 0.17, 0.17;
+             0.20, 0.05, 0.17, 0.17;
+             0.40, 0.05, 0.17, 0.17;
+             0.60, 0.05, 0.17, 0.17;
+             0.80, 0.05, 0.17, 0.17];   
+     case 14
+        subPlotPos = [0.02, 0.66, 0.20, 0.20;
+             0.25, 0.66, 0.20, 0.20;
+             0.50, 0.66, 0.20, 0.20;
+             0.75, 0.66, 0.20, 0.20;
+             0.02, 0.33, 0.17, 0.17;
+             0.20, 0.33, 0.17, 0.17;
+             0.40, 0.33, 0.17, 0.17;
+             0.60, 0.33, 0.17, 0.17;
+             0.80, 0.33, 0.17, 0.17;
+             0.02, 0.05, 0.17, 0.17;
+             0.20, 0.05, 0.17, 0.17;
+             0.40, 0.05, 0.17, 0.17;
+             0.60, 0.05, 0.17, 0.17;
+             0.80, 0.05, 0.17, 0.17]; 
+     case 15
+        subPlotPos = [0.02, 0.66, 0.17, 0.17;
+             0.20, 0.66, 0.17, 0.17;
+             0.40, 0.66, 0.17, 0.17;
+             0.60, 0.66, 0.17, 0.17;
+             0.80, 0.66, 0.17, 0.17;
+             0.02, 0.33, 0.17, 0.17;
+             0.20, 0.33, 0.17, 0.17;
+             0.40, 0.33, 0.17, 0.17;
+             0.60, 0.33, 0.17, 0.17;
+             0.80, 0.33, 0.17, 0.17;
+             0.02, 0.05, 0.17, 0.17;
+             0.20, 0.05, 0.17, 0.17;
+             0.40, 0.05, 0.17, 0.17;
+             0.60, 0.05, 0.17, 0.17;
+             0.80, 0.05, 0.17, 0.17];         
 end
 
 return

@@ -1,4 +1,4 @@
-function circleGraphPlotWrapper(connFile, connVar, moduleFile, moduleVar, colorFile, roiFile, targetDir, varargin)
+function circleGraphPlotWrapper(connFile, connVar, moduleFile, moduleVar, colorFile, roiFile, roiVar, targetDir, varargin)
 %% Wrapper for calling circleGraphPlot on a set of connectivity matrices
 % E.g. plotting all epochs in a subject's data. 
 %
@@ -8,6 +8,7 @@ function circleGraphPlotWrapper(connFile, connVar, moduleFile, moduleVar, colorF
 %                               moduleVar, 
 %                               colorFile, 
 %                               roiFile, 
+%                               roiVar,
 %                               targetDir, 
 %                               trimmingThr=[0.2, 0.3],... 
 %                               drawFlag=1, 
@@ -18,28 +19,29 @@ function circleGraphPlotWrapper(connFile, connVar, moduleFile, moduleVar, colorF
 % function call. 
 %
 % Mandatory inputs:
-% connFile      - String, path to a file containing the relevant
-%           connectivity array. Typically the output of edgePruning.m or 
-%           getMeanConn.m (the later performed on a set of edgePruning.m 
-%           results) 
-% connVar       - String, name of the connectivity array variable. The
-%           array, as with other functions in this repo, is expected to
-%           contain a set of connectivity matrices, each defined by the
-%           first two dimensions. Third and fourth dimensions are expected
-%           to refer to epochs and conditions (stimuli). 
-% moduleFile    - String, path to a file containing the modules identified
+% connFile      - Char array, path to a file containing the relevant
+%           connectivity array. Typically some output of edgePruning.m or 
+%           getMeanConn.m.
+% connVar       - Char array, name of the connectivity array variable. The
+%           array is expected to be numeric, 3D or 4D, containing a set of 
+%           connectivity matrices, each defined by the first two 
+%           dimensions. Third and optional fourth dimensions are expected
+%           to refer to layers/epochs and conditions (stimuli), respectively. 
+% moduleFile    - Char array, path to a file containing the modules identified
 %           in the connectivity array "connVar".  
-% moduleVar     - String, name of the module indices array. Expected to be
-%           a numerical array with the first dimension matching the 
-%           number of nodes/ROIs, the second and third dimension the 
-%           epochs and conditions (stimuli).
-% colorFile     - String, path to file containing a "colorTriplets" matrix
-%           variable. The matrix is expected to have three columns,
-%           with each row defining an RGB color. Used for highlighting
-%           different modules in plots.
-% roiFile     - String, path to file containing a "rois" cell array
-%           variable holding the node/ROI labels. 
-% targetDir     - String, path to a folder, used for saving out all
+% moduleVar     - Char array, name of the module indices array variable in 
+%           "moduleFile". A numerical array with the first dimension matching 
+%           the number of nodes/ROIs, the second and optional third 
+%           dimensions the epochs and conditions (stimuli).
+% colorFile     - Char array, path to file containing a "colorTriplets" 
+%           numeric matrix variable. The matrix is expected to have 
+%           three columns, with each row defining an RGB color. 
+%           Used for highlighting different modules in plots.
+% roiFile     - Char array, path to file containing a cell array
+%           variable holding the node/ROI labels.
+% roiVar      - Char array, name of the cell array variable holding the
+%           node/ROI labels. 
+% targetDir     - Char array, path to a folder, used for saving out all
 %           generated plots.
 %
 %
@@ -47,10 +49,10 @@ function circleGraphPlotWrapper(connFile, connVar, moduleFile, moduleVar, colorF
 % trimmingThr   - Numeric vector with one or two elements. Edge trimming 
 %           treshold that is passed on to circleGraphPlot. Value(s)
 %           must be in range [0:0.01:0.9]. Defaults to [0.2, 0.3].
-% drawFlag      - String, one of {'draw', 'nodraw'}. Passed on to circleGraphPlot.
+% drawFlag      - Char array, one of {'draw', 'nodraw'}. Passed on to circleGraphPlot.
 %           Flag for displaying the plot (='draw') or only returning 
 %           the plot object handle ('nodraw'). Defaults to 'draw' (display plot).
-% titleBase     - String, title text for each figure generated. "titleBase"
+% titleBase     - Char array, title text for each figure generated. "titleBase"
 %           is always amended by the epoch and condition number. Defaults to
 %           [].
 %
@@ -60,10 +62,10 @@ function circleGraphPlotWrapper(connFile, connVar, moduleFile, moduleVar, colorF
 
 %% Input checks
 
-if ~ismember(nargin, 7:10)
+if ~ismember(nargin, 8:11)
     error(['Function circleGraphPlotWrapper requires input args: ',...
         '"connFile", "connVar", "moduleFile", "moduleVar", "colorFile", ',...
-        '"roiFile" and "targetDir", while args "trimmingThr", ',... 
+        '"roiFile", "roiVar" and "targetDir", while args "trimmingThr", ',... 
         '"drawFlag" and "titleBase" are optional']);
 end
 
@@ -88,6 +90,9 @@ end
 if ~ischar(moduleVar)
     error('Input arg "moduleVar" should be a string (variable name)!');
 end
+if ~ischar(roiVar)
+    error('Input arg "roiVar" should be a string (variable name)!');
+end
 
 % check optional arguments, parse them
 if ~isempty(varargin)
@@ -96,7 +101,7 @@ if ~isempty(varargin)
             trimmingThr = varargin{v};
             for t = 1: length(trimmingThr)
                 if ~ismember(trimmingThr(t), 0:0.01:0.9)
-                    error('Optional input arg "trimmingThr" has value(s) outside 0:0.01:0.9!');
+                    error('Optional input arg "trimmingThr" has value(s) outside the range 0:0.01:0.9!');
                 end
             end
         elseif ischar(varargin{v}) && ismember(varargin{v}, {'draw', 'nodraw'})
@@ -129,11 +134,11 @@ disp([char(10), 'Function circleGraphPlotWrapper is called with inputs: ',...
     char(10), 'Variable to load from module indices file: ', moduleVar,...
     char(10), 'RGB color file ', colorFile,...
     char(10), 'ROI/node labels file: ', roiFile,...
+    char(10), 'Variable to load from ROI/node labels file: ', roiVar,...
     char(10), 'Target dir for saving figures: ', targetDir,...
     char(10), 'Edge trimming threshold(s): ', num2str(trimmingThr),...
     char(10), 'Figure drawing flag: ', num2str(drawFlag),...
     char(10), 'Figure title base text: ', titleBase]);
-
 
 
 %% Load data + module indices + colors
@@ -146,17 +151,43 @@ modules = load(moduleFile, moduleVar);
 modIndices = modules.(moduleVar);
 % colors and ROI/node labels
 load(colorFile, 'colorTriplets');
-load(roiFile, 'rois'); labels = rois;
+roiTmp = load(roiFile, roiVar); 
+labels = roiTmp.(roiVar);
+if ~iscolumn(labels) 
+    labels = labels';
+end
 
-% sanity checks
+% size checks
+% connData should be 3D or 4D numeric array
+if ~ismember(numel(size(connData)), 3:4) || ~isnumeric(connData)
+    error('Connectivity array ("connData") should be a 3D or 4D numeric array!');
+end
+% first two dimensions equal (square matrix of connectivity values per
+% epoch)
 if ~isequal(size(connData, 1), size(connData, 2))
     error('First two dimension of connectivity array should be equal (square matrix per epoch)!');
 end
-if ~isequal(size(modIndices, 1), size(connData, 1))
-    error('First dimension of module array does not match first dimension of connectivity data array!');
+% get node, epoch/layer and condition/stimuli numbers
+flag3d = false;
+if numel(size(connData)) == 3
+    flag3d = true;
+    [nodeNo, ~, epochNo] = size(connData);
+else
+    [nodeNo, ~, epochNo, condNo] = size(connData);
 end
-if ~isequal(length(rois), size(connData, 1))
-    error('Number of ROI/node labels supplied does not match the number of nodes in connectivity data array (its first dimension)!');
+% check if modularity indices have right dimensions    
+if flag3d
+    if ~isequal(size(modIndices), [nodeNo, epochNo]) || ~isnumeric(modIndices)
+        error('Module array ("modIndices") should be a numeric array sized nodeNo X epochNo!');
+    end
+else
+    if ~isequal(size(modIndices), [nodeNo, epochNo, condNo]) || ~isnumeric(modIndices)
+        error('Module array ("modIndices") should be a numeric array sized nodeNo X epochNo X condNo!');
+    end
+end
+% check labels
+if ~isequal(length(labels), nodeNo)
+    error('Number of ROI/node labels supplied does not match the number of nodes in connectivity data array!');
 end
 
 % user message about supplied data and module indices
@@ -171,6 +202,7 @@ disp([char(10), 'Loaded connectivity data, with size ', num2str(size(connData)),
 % better plots
 
 % expected set of labels
+% roi names used most often for our EEG datasets, grouped by lobules
 newLabels = {'lateralorbitofrontal L', 'medialorbitofrontal L', 'parsorbitalis L', 'parstriangularis L', 'parsopercularis L', 'rostralmiddlefrontal L', 'caudalmiddlefrontal L', 'superiorfrontal L', 'precentral L',...
     'rostralanteriorcingulate L', 'caudalanteriorcingulate L', 'posteriorcingulate L', 'isthmuscingulate L',...
     'transversetemporal L', 'superiortemporal L', 'middletemporal L', 'inferiortemporal L', 'entorhinal L', 'parahippocampal L', 'fusiform L', 'insula L',...
@@ -182,17 +214,36 @@ newLabels = {'lateralorbitofrontal L', 'medialorbitofrontal L', 'parsorbitalis L
     'isthmuscingulate R', 'posteriorcingulate R', 'caudalanteriorcingulate R', 'rostralanteriorcingulate R',...
     'precentral R', 'superiorfrontal R', 'caudalmiddlefrontal R', 'rostralmiddlefrontal R', 'parsopercularis R', 'parstriangularis R', 'parsorbitalis R', 'medialorbitofrontal R', 'lateralorbitofrontal R',...
     };
+% shortened version of of usual roi names
+newLabelsShort = {'latOrbFront L', 'medOrbFront L', 'parsOrb L', 'parsTriang L', 'parsOpercul L', 'rostrMidFront L', 'caudMidFront L', 'supFront L', 'precentral L',...
+    'rostrAntCing L', 'caudAntCing L', 'postCing L', 'isthmusCing L',...
+    'transvTemp L', 'supTemp L', 'midTemp L', 'infTemp L', 'entorhinal L', 'paraHippoc L', 'fusiform L', 'insula L',...
+    'supraMarg L', 'infPar L', 'supPar L', 'postcentral L', 'paracentral L', 'precuneus L',...
+    'cuneus L', 'lingual L', 'periCalc L', 'latOcc L',...
+    'latOcc R', 'periCalc R', 'lingual R', 'cuneus R',...
+    'precuneus R', 'paracentral R', 'postcentral R', 'supPar R', 'infPar R', 'supraMarg R',...
+    'insula R', 'fusiform R', 'paraHippoc R', 'entorhinal R', 'infTemp R', 'midTemp R', 'supTemp R', 'transvTemp R',...
+    'isthmusCing R', 'postCing R', 'caudAntCing R', 'rostrAntCing R',...
+    'precentral R', 'supFront R', 'caudMidFront R', 'rostrMidFront R', 'parsOpercul R', 'parsTriang R', 'parsOrb R', 'medOrbFront R', 'latOrbFront R',...
+    };
+% amount of shift needed for proper left-right arrangement in plot
 shiftLabels = 15;
-newLabels = [newLabels(end-shiftLabels:end), newLabels(1:end-shiftLabels-1)];
+% shifting common labels
+newLabels = [newLabels(end-shiftLabels:end), newLabels(1:end-shiftLabels-1)]';
+newLabelsShort = [newLabelsShort(end-shiftLabels:end), newLabelsShort(1:end-shiftLabels-1)]';
 
 % get intersect of supplied labels and expected ones
-c = intersect(labels, newLabels);
+intersectLabels = intersect(labels, newLabels);
+intersectLabelsShort = intersect(labels, newLabelsShort);
 
 % if the two sets match, set data transformation flag
-if isequal(c, labels)
-    transformFlag = 1;  % transformation flag
-else
-    transformFlag = 0;
+transformFlag = false;  % label transformation flag
+shortLabelsFlag = false;  % flag for long / short versions of expected labels
+if isequal(intersectLabels, sort(labels))
+    transformFlag = true; 
+elseif isequal(intersectLabelsShort, sort(labels))
+    transformFlag = true;
+    shortLabelsFlag = true;
 end
 
 % user message
@@ -205,65 +256,126 @@ end
 
 %% Condition (stimulus) and epoch loops
 
-epochNo = size(connData, 3);
-condNo = size(connData, 4);
-
-for condIdx = 1:condNo
-    
+% if connectivity array is 3d (== only one condition/stimulus)
+if flag3d
+    % go through epochs/layers
     for epochIdx = 1:epochNo
         
-        % user message
-        disp([char(10), 'Drawing for epoch ', num2str(epochIdx), ', condition ', num2str(condIdx)]);
+        % call helper function dealing with tansformations + exact plotting
+        % call, set condIdx to empty
+        callPlotting([], epochIdx, colorTriplets, connData, titleBase, targetDir,...
+                labels, newLabels, newLabelsShort, shortLabelsFlag, transformFlag,...
+                modIndices, trimmingThr, drawFlag)
         
-        % epoch-level connectivity and module indices
+    end  % for epochIdx
+    
+% if connectivity array is 4d (== multiple conditions/stimuli)    
+else
+    
+    % go through conditions/stimuli
+    for condIdx = 1:condNo
+        % go through epochs/layers
+        for epochIdx = 1:epochNo
+
+            % call helper function dealing with tansformations + exact plotting
+            % call
+            callPlotting(condIdx, epochIdx, colorTriplets, connData, titleBase, targetDir,...
+                    labels, newLabels, newLabelsShort, shortLabelsFlag, transformFlag,...
+                    modIndices, trimmingThr, drawFlag)
+
+        end  % for epochIdx
+
+    end  % for condIdx
+    
+end  % if flag3d
+                                  
+
+end  % function
+
+
+%% Helper functions
+
+function callPlotting(condIdx, epochIdx, colorTriplets, connData, titleBase, targetDir,...
+        labels, newLabels, newLabelsShort, shortLabelsFlag, transformFlag,...
+        modIndices, trimmingThr, drawFlag)
+
+    % user message
+    if ~isempty(condIdx)
+        disp([char(10), 'Drawing for epoch ', num2str(epochIdx), ', condition ', num2str(condIdx)]);
+    else
+        disp([char(10), 'Drawing for epoch ', num2str(epochIdx)]);
+    end
+
+    % epoch-level connectivity and module indices
+    if ~isempty(condIdx)
         connMatrix = connData(:, :, epochIdx, condIdx);
         modIndicesVector = modIndices(:, epochIdx, condIdx);
+    else
+        connMatrix = connData(:, :, epochIdx);
+        modIndicesVector = modIndices(:, epochIdx);
+    end
 
-        % create symmetric connectivity / adjacency matrix with zeros at diagonal
-        connMatrix = triu(connMatrix, 1) + triu(connMatrix, 1)';
-        connMatrix(isnan(connMatrix)) = 0;
-        
-        % title text
+    % create symmetric connectivity / adjacency matrix with zeros at diagonal
+    connMatrix = triu(connMatrix, 1) + triu(connMatrix, 1)';
+    connMatrix(isnan(connMatrix)) = 0;
+
+    % title text
+    if ~isempty(condIdx)
         titleText = [titleBase, ' Epoch ', num2str(epochIdx), ', cond ', num2str(condIdx)];     
-        
-        % save files name
+    else
+        titleText = [titleBase, ' Epoch ', num2str(epochIdx)];
+    end
+
+    % save files name
+    if ~isempty(condIdx)
         saveFileMain = [targetDir, '/cond', num2str(condIdx),'_epoch', num2str(epochIdx), '_main.png'];
         saveFileSub = [targetDir, '/cond', num2str(condIdx), '_epoch', num2str(epochIdx), '_sub.png'];
-        
-        % transform connectivity and module data in case of special label set
-        if transformFlag   
-            
-            % rearrange connectivity matrix based on new ROI/node label
-            % order
-            [connMatrix, old2new] = matrixReorder(connMatrix, labels, newLabels);
-            % apply the same re-ordering to ROI/node module indices
-            modIndicesVector = modIndicesVector(old2new);
-            
-            % call plotting function
-            [mainFig, subFig] = circleGraphPlot(connMatrix, modIndicesVector,...
-                                      colorTriplets, trimmingThr, newLabels,... 
-                                      drawFlag, titleText);        
-                                  
-        else    
-            % call plotting function
-            [mainFig, subFig] = circleGraphPlot(connMatrix, modIndicesVector,...
-                                      colorTriplets, trimmingThr, labels,... 
-                                      drawFlag, titleText);                                 
-        end
-        
-        % save figure
-        saveas(mainFig, saveFileMain);
-        saveas(subFig, saveFileSub);
-        
-        % close figures
-        close(mainFig); close(subFig);
-        
+    else
+        saveFileMain = [targetDir, '/epoch', num2str(epochIdx), '_main.png'];
+        saveFileSub = [targetDir, '/epoch', num2str(epochIdx), '_sub.png'];
     end
-    
-end
-                                  
 
-return
+    % transform connectivity and module data in case of special label set
+    if transformFlag   
+
+        % rearrange connectivity matrix based on new ROI/node label
+        % order, with long or short expected label set depending on flag
+        if ~shortLabelsFlag
+            [connMatrix, old2new] = matrixReorder(connMatrix, labels, newLabels);
+        else
+            [connMatrix, old2new] = matrixReorder(connMatrix, labels, newLabelsShort);
+        end % if shortLabelsFlag
+
+        % apply the same re-ordering to ROI/node module indices
+        modIndicesVector = modIndicesVector(old2new);
+
+        % call plotting function, label set depends on long/short
+        % version flag
+        if shortLabelsFlag
+            [mainFig, subFig] = circleGraphPlot(connMatrix, modIndicesVector,...
+                                    colorTriplets, trimmingThr, newLabels,... 
+                                    drawFlag, titleText); 
+        else
+            [mainFig, subFig] = circleGraphPlot(connMatrix, modIndicesVector,...
+                                    colorTriplets, trimmingThr, newLabelsShort,... 
+                                    drawFlag, titleText);  
+        end  % if shortLabelsFlag
+
+    else   
+        % call plotting function with supplied labels
+        [mainFig, subFig] = circleGraphPlot(connMatrix, modIndicesVector,...
+                                  colorTriplets, trimmingThr, labels,... 
+                                  drawFlag, titleText);                                 
+    end  % if transformFlag
+
+    % save figure
+    saveas(mainFig, saveFileMain);
+    saveas(subFig, saveFileSub);
+
+    % close figures
+    close(mainFig); close(subFig);
+        
+end
 
 
 % % basic data
