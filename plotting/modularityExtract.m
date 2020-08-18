@@ -30,10 +30,7 @@ c = load(colorFile);
 colorTriplets = c.colorTriplets;
 
 % thr
-trimmingThr = 0.01;
-
-% title
-figTitle = 'Alpha, epoch1, stim1';
+trimmingThr = [0.02, 0];
 
 % rearrange label names and modularity indices
 % expected set of labels
@@ -61,23 +58,42 @@ else
     error('Unexpected labels');
 end
 
-% transform connectivity and module data in case of special label set
-if transformFlag   
+
+for layerIdx = 1:40
+    
+    % title
+    figTitle = ['Alpha, layer ', num2str(layerIdx), ', stim 1'];
     
     % connectivity
-    connMatrix = squeeze(connData(:,:,1));
+    connMatrix = squeeze(connData(:,:,layerIdx));
     % modularity indices
-    modIndicesVector = modAll(:,1);
-    
-    % rearrange connectivity matrix based on new ROI/node label
-    % order
-    [connMatrix, old2new] = matrixReorder(connMatrix, labels, newLabels);
-    % apply the same re-ordering to ROI/node module indices
-    modIndicesVector = modIndicesVector(old2new);
+    modIndicesVector = modAll(:,layerIdx);
 
-    % plot
-    [mainFig, subFig] = circleGraphPlot(connMatrix, modIndicesVector, colorTriplets, trimmingThr,... 
-                                          newLabels, figTitle);
+    % transform connectivity and module data in case of special label set
+    if transformFlag   
+    
+        % rearrange connectivity matrix based on new ROI/node label
+        % order
+        [connMatrix, old2new] = matrixReorder(connMatrix, labels, newLabels);
+        % apply the same re-ordering to ROI/node module indices
+        modIndicesVector = modIndicesVector(old2new);
+
+        % plot
+        [mainFig, subFig] = circleGraphPlot(connMatrix, modIndicesVector, colorTriplets, trimmingThr,... 
+                                              newLabels, figTitle);
+                                          
+    end
+    
+    % save out plots
+    mainFile = ['main_alpha_layer', num2str(layerIdx), '_stim1.png'];
+    subFile = ['sub_alpha_layer', num2str(layerIdx), '_stim1.png'];
+    saveas(mainFig, mainFile);
+    saveas(subFig, subFile);
+    
+    % close figs
+    close(mainFig);
+    close(subFig);
+                                          
 end
 
                                   

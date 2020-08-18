@@ -47,7 +47,7 @@ function [mainFig, subFig] = circleGraphPlot(connMatrix, membership, colorTriple
 %               applied to all connections. If two values, the first one is
 %               applied to within-module, the second to between-module
 %               connections. Defaults to [0.2], value(s) must be in range
-%               [0:0.01:0.9].
+%               [0:0.001:0.9].
 % labels          - Cell array of node labels / names. Defaults to a cell
 %               array of numbers {'1', '2', ...}. 
 % figTitle        - String, displayed as title on the figures. Defaults to
@@ -95,8 +95,8 @@ if ~isempty(varargin)
         if isnumeric(varargin{v}) && ismember(length(varargin{v}), [1 2])
             trimmingThr = varargin{v};
             for t = 1: length(trimmingThr)
-                if ~ismember(trimmingThr(t), 0:0.01:0.9)
-                    error('Optional input arg "trimmingThr" has value(s) outside 0:0.01:0.9!');
+                if ~ismember(trimmingThr(t), 0:0.001:0.9)
+                    error('Optional input arg "trimmingThr" has value(s) outside 0:0.001:0.9!');
                 end
             end
         elseif iscell(varargin{v}) && length(varargin{v}) == length(membership)
@@ -192,9 +192,9 @@ end
 baseEdgeColor = [0.5, 0.5, 0.5];
 % base multiplier for the width of all edges (they are based on
 % connectivity strength which is < 1)
-baseEdgeWidthMultip = 3;
+baseEdgeWidthMultip = 50;
 % multiplier for the width of within-module edges
-withinEdgeWidthMultip = 10;
+withinEdgeWidthMultip = 60;
 % edge line styles for within- and between-module edges
 %edgeTypes = {'-', 'none'};
 edgeTypes = {'-', '-'};
@@ -346,9 +346,11 @@ elseif doubleTrim && any(trimmingThr ~= 0)
 end
 
 % delete corresponding rows from edge attribute arrays
-edgeColors(edgesToTrim, :) = [];
-edgeWidth(edgesToTrim) = [];
-edgeStyle(edgesToTrim) = [];
+if ~isempty(edgesToTrim)
+    edgeColors(edgesToTrim, :) = [];
+    edgeWidth(edgesToTrim) = [];
+    edgeStyle(edgesToTrim) = [];
+end
 
 
 %% Define a subgraph for each module
