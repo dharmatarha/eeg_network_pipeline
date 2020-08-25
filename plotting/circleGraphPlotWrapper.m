@@ -351,7 +351,7 @@ function callPlotting(condIdx, epochIdx, colorTriplets, connData, titleBase, tar
 
         % call plotting function, label set depends on long/short
         % version flag
-        if shortLabelsFlag
+        if ~shortLabelsFlag
             [mainFig, subFig] = circleGraphPlot(connMatrix, modIndicesVector,...
                                     colorTriplets, trimmingThr, newLabels,... 
                                     drawFlag, titleText); 
