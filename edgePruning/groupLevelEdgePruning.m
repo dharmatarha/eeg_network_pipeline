@@ -1,4 +1,4 @@
-function groupLevelEdgePruning(freq, varargin)
+function groupLevelEdgePruning(realConn, freq, varargin)
 
 %% Surrogate-data-based edge pruning on group-level.
 %
@@ -38,7 +38,8 @@ function groupLevelEdgePruning(freq, varargin)
 %       first two dimensions) are taken into account at calculations 
 %       (assuming undirected connectivity). Might contain 0 or NaN 
 %       values in upper triangles.
-% freq      - Char array, one of {'alpha', 'beta', 'gamma', 'delta', 'theta'}. 
+% freq      - Char array, one of {'alpha', 'beta', 'gamma', 'delta', 'theta'}.group stats
+
 %       Frequency band to work with. Needs to be the same as used in the
 %       file names (e.g. 'alpha' for files like 
 %       's01_alpha_surrEdgeEstimate.mat').
@@ -109,7 +110,7 @@ if ~isempty(varargin)
             subjects = varargin{v};
         elseif ischar(varargin{v}) && ~exist('dirName', 'var') && exist(varargin{v}, 'dir')
             dirName = varargin{v};
-        elseif isnumeric(varargin{v}) && ~exist('surrNo', 'var') && ismember(varargin{v}, 100:100:20000)
+        elseif isnumeric(varargin{v}) && ~exist('surrNo', 'var') && ismembertol(varargin{v}, 100:100:200000)
             surrNo = varargin{v};
         else
             error(['There are either too many input args or they are not ',...
@@ -176,7 +177,7 @@ for subIdx = 1:subNo
         % loop (see below)
         loopMemReq = prod([surrNo, nodeNo*(nodeNo-1)/2+subNo])*8;
         % error or user message depending on memory requirements - upper bound
-        % is 7 GB, so that we are ~safish on an 8 GB machine
+        % is 7 GB, so that we are ~safeish on an 8 GB machine
         disp([char(10), 'Function will attempt to use ~ ',... 
             num2str((dataMemReq+loopMemReq)/(10^9)), ' GB memory. ',...
             'This is just a rough estimate.']);
@@ -185,8 +186,6 @@ for subIdx = 1:subNo
                 'and calculating with individiual data, shutting down to just to be safe. ',...
                 'Change this hardcoded behavior or consider using single precision ',...
                 'for more variables or less surrogate group means.']);
-        else
-            disp()
         end
         
         % preallocate
