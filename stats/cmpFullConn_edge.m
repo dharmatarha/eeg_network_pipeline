@@ -275,6 +275,9 @@ parfor edgeIdx = 1:edgeNo
 %         disp([char(10), 'Done with edge no. ', num2str(edgeNo),... 
 %             ', took ', num2str(elapsedTime), ' secs so far']);
 %     end
+   
+   % user message about progress
+   elapsedTime = round(toc(startClock), 2);
    disp(['Done with edge no. ', num2str(edgeIdx), ', took ', num2str(elapsedTime), ' secs so far']);
     
 end  % parfor edgeIdx
