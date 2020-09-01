@@ -257,7 +257,7 @@ for edgeIdx = 1:edgeNo
         % permutation test across the two groups of connectivity similarity
         % values
         [pEst(edgeIdx, condIdx), realDiff(edgeIdx, condIdx),... 
-            permDiff, cohend(edgeidx, condIdx)] = permTest(withinCondSim, acrossCondSim, permNo, permStat);
+            permDiff, cohend(edgeIdx, condIdx)] = permTest(withinCondSim, acrossCondSim, permNo, permStat, 'silent');  % suppress permTest outputs to command prompt
         % save out the mean and SD of permited differences
         permDiffMean(edgeIdx, condIdx) = mean(permDiff);
         permDiffSD(edgeIdx, condIdx) = std(permDiff);
