@@ -56,7 +56,7 @@ if ~isempty(varargin)
     % loop through each varargin element
     for v = 1:length(varargin)
         % sort by type and range
-        if ischar(varargin{v}) && ismember(varargin{v}, {'mean', 'median', 'std'} && ~exist('stat', 'var')
+        if ischar(varargin{v}) && ismember(varargin{v}, {'mean', 'median', 'std'}) && ~exist('stat', 'var')
             stat = varargin{v};
         elseif isnumeric(varargin{v}) && ismembertol(varargin{v}, 1:1000000) && ~exist('perm', 'var')
             perm = varargin{v};
