@@ -17,6 +17,8 @@ function [permRes, connSim] = cmpFullConn_edge(connData, varargin)
 % For the tests we rely on permTest.m, input args "permNo" and "permStat"
 % (if specified) are passed to permTest.m.
 %
+% USES PARFOR FOR THE LOOP ACROSS EDGES!
+%
 % Mandatory input:
 % connData      - 4D Numerical tensor, sets of connectivity matrices across
 %               epochs and conditions (stimuli). First two dimensions have
@@ -54,7 +56,7 @@ function [permRes, connSim] = cmpFullConn_edge(connData, varargin)
 %               "numbreOfEpochs"*"numberOfConditions"].
 %
 %
-
+%
 
 %% Input checks
 
@@ -194,7 +196,7 @@ disp([char(10), 'Calculated similarity across all epoch-pairings, all edges']);
 
 withinCondMean = nan(edgeNo, condNo);
 withinCondSD = nan(edgeNo, condNo);
-withinCondMedian = nan(edgeNo, 1);
+withinCondMedian = nan(edgeNo, condNo);
 acrossCondMean = nan(edgeNo, condNo);
 acrossCondSD = nan(edgeNo, condNo);
 acrossCondMedian = nan(edgeNo, condNo);
@@ -207,11 +209,14 @@ cohend = nan(edgeNo, condNo);
 % clock for measuring elapsed time
 startClock = tic;
 
+%%%%%%%%%%%%%%%%%%%%%
+%%%%% PARFOR!!! %%%%%
+%%%%%%%%%%%%%%%%%%%%%
 % loop through edges
-for edgeIdx = 1:edgeNo
+parfor edgeIdx = 1:edgeNo
 
     % define data for edge
-    edgeData = squeeze(connSim(edgeNo, :, :));
+    edgeData = squeeze(connSim(edgeIdx, :, :));
     % mirror the upper triangular part of connSim matrix to the lower
     % half
     edgeData = triu(edgeData, 1) + triu(edgeData, 1)'; 
@@ -264,14 +269,15 @@ for edgeIdx = 1:edgeNo
 
     end  % for condIdx
     
-    % user message after each Nth edge
-    if mod(edgeNo, 50) == 0
-        elapsedTime = round(toc(startClock), 2);
-        disp([char(10), 'Done with edge no. ', num2str(edgeNo),... 
-            ', took ', num2str(elapsedTime), ' secs so far']);
-    end
+%     % user message after each Nth edge
+%     if mod(edgeNo, 50) == 0
+%         elapsedTime = round(toc(startClock), 2);
+%         disp([char(10), 'Done with edge no. ', num2str(edgeNo),... 
+%             ', took ', num2str(elapsedTime), ' secs so far']);
+%     end
+   disp(['Done with edge no. ', num2str(edgeIdx), ', took ', num2str(elapsedTime), ' secs so far']);
     
-end  % for edgeIdx
+end  % parfor edgeIdx
 
 % user message
 disp([char(10), 'Compared similarity within- versus across-condition epoch-pairings']);
@@ -291,7 +297,6 @@ permRes.realDiff = realDiff;
 permRes.permDiffMean = permDiffMean;
 permRes.permDiffSD = permDiffSD;
 permRes.cohend = cohend;
-
 
 
 return
