@@ -1,7 +1,7 @@
 function [pEst, realDiff, permDiff, CohenD] = permTest(a, b, varargin)
 %% Permutation test for the difference between two data vectors
 %
-% USAGE: [pEst, realDiff, permDiff, CohenD] = permTest(a, b, perm = 10000, stat = 'mean')
+% USAGE: [pEst, realDiff, permDiff, CohenD] = permTest(a, b, perm = 10000, stat = 'mean', verbosity = 'verbose')
 %
 % Simple permutation test to estimate the statistical significance of the
 % difference between two data sets in terms of the mean, SD or the median.
@@ -15,9 +15,13 @@ function [pEst, realDiff, permDiff, CohenD] = permTest(a, b, varargin)
 % a, b      - Data vectors.
 %
 % Optional inputs:
-% perm      - No. of permutations used for estimation. Defaults to 10^4.
-% stat      - Test statistic to use, string. One of {'mean', 'median',
-%           'std'}
+% perm      - Numeric value, no. of permutations used for estimation. 
+%           Defaults to 10^4.
+% stat      - Char array, one of {'mean', 'median', 'std'}. Test 
+%           statistic to use. Defautls to 'mean'.
+% verbosity - Char array, one of {'verbose', 'silent'}. Controls verbosity,
+%           i.e., whether user messages are displayed or the script runs 
+%           silently. Defaults to 'verbose'.
 %
 % Outputs:
 % pEst      - Estimated probability of the null hypothesis (i.e. that
@@ -33,9 +37,9 @@ function [pEst, realDiff, permDiff, CohenD] = permTest(a, b, varargin)
 %% Input checks
 
 % need at least two args
-if ~ismember(nargin, 2:4)
+if ~ismember(nargin, 2:5)
     error(['Function permTest requires input args "a" and "b" (data vectors) ',...
-        'while input args "perm" and "stat" are optional (see the help)!']);
+        'while input args "perm", "stat" and "verbosity" are optional (see the help)!']);
 end
 % check mandatory args    
 if ~isvector(a) || ~isvector(b)
@@ -52,12 +56,14 @@ if ~isempty(varargin)
     % loop through each varargin element
     for v = 1:length(varargin)
         % sort by type and range
-        if ischar(varargin{v}) && ismember(varargin{v}, {'mean', 'median', 'std'})
+        if ischar(varargin{v}) && ismember(varargin{v}, {'mean', 'median', 'std'} && ~exist('stat', 'var')
             stat = varargin{v};
-        elseif isnumeric(varargin{v}) && ismembertol(varargin{v}, 1:1000000)
+        elseif isnumeric(varargin{v}) && ismembertol(varargin{v}, 1:1000000) && ~exist('perm', 'var')
             perm = varargin{v};
+        elseif ischar(varargin{v}) && ismember(varargin{v}, {'verbose', 'silent'}) && ~exist('verbosity', 'var')
+            verbosity = varargin{v};    
         else 
-            error(['At least one optional input arg could not be parsed, neither as "perm" nor as "stat"!']);
+            error('At least one optional input arg could not be parsed, neither as "perm", "stat", nor as "verbosity"!');
         end
     end
 end
@@ -68,21 +74,34 @@ end
 if ~exist('perm', 'var')
     perm = 10000;  
 end
+if ~exist('verbosity', 'var')
+    verbosity = 'verbose';  
+end
+% turn verbosity into logical
+if strcmp(verbosity, 'verbose')
+    verbosity = true;
+else
+    verbosity = false;
+end
 
 % user message
-disp([char(10), 'Called permTest for data vectors sized: ',...
-    char(10), num2str(size(a)), ...
-    char(10), num2str(size(b)),...
-    char(10), 'No. of permutations: ', num2str(perm),...
-    char(10), 'Test statistic: ', stat]);
+if verbosity
+    disp([char(10), 'Called permTest for data vectors sized: ',...
+        char(10), num2str(size(a)), ...
+        char(10), num2str(size(b)),...
+        char(10), 'No. of permutations: ', num2str(perm),...
+        char(10), 'Test statistic: ', stat]);
+end
 
 
 %% permute data, calculate test stat
 
 % check for NaN
-if any(isnan(a)) || any(isnan(b))
-    warning(['There is at least one NaN value in the data vectors. ',...
-        'We treat this with ''omitnan'' flags but you should know about this!']);
+if verbosity
+    if any(isnan(a)) || any(isnan(b))
+        warning(['There is at least one NaN value in the data vectors. ',...
+            'We treat this with ''omitnan'' flags but you should know about this!']);
+    end
 end
 
 % real difference
@@ -130,9 +149,11 @@ end
 CohenD = (mean(a)-mean(b))/(((std(a)^2+std(b)^2)/2)^0.5);
 
 % user message
-disp([char(10), 'Real difference was ', num2str(realDiff),...
-    char(10), 'Estimated probability of H0 (equality): ', num2str(pEst),...
-    char(10), 'Effect size (Cohen''s d): ', num2str(CohenD), char(10)]);
+if verbosity
+    disp([char(10), 'Real difference was ', num2str(realDiff),...
+        char(10), 'Estimated probability of H0 (equality): ', num2str(pEst),...
+        char(10), 'Effect size (Cohen''s d): ', num2str(CohenD), char(10)]);
+end
 
 
 return
