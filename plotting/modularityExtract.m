@@ -8,7 +8,7 @@ modularityResFile = '/media/adamb/bonczData/hyperscan/modularityResults/tensorNo
 m = load(modularityResFile);
 
 % get modularity around target gamma, omega pairing
-targets = [1, 0.5];
+targets = [1.1, 0.3];
 [~, gIdx] = min(abs(m.gammaValues-targets(1)));
 [~, oIdx] = min(abs(m.omegaValues-targets(2)));
 
