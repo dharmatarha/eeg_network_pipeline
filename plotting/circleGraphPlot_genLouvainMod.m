@@ -115,6 +115,9 @@ end
 if length(roiLabels) ~= size(realConn, 1)
     error('Length of ROI / node labels cell array does not match the number of nodes in "realConn"!');
 end
+if ~iscolumn(roiLabels)
+    roiLabels = roiLabels';
+end
 
 % user message
 disp([char(10), 'Called circleGraphPlot_genLouvainMod with input args: ',...
@@ -141,57 +144,43 @@ mod = double(squeeze(mod));  % res.consSim is uint16 by default if coming from m
 % reshape modularity memberships into one module vector per layer/epoch
 mod = reshape(mod, [nodeNo, layerNo]);
 
-% rearrange label names and modularity indices
-% expected set of labels
-newLabels = {'lateralorbitofrontal L', 'medialorbitofrontal L', 'parsorbitalis L', 'parstriangularis L', 'parsopercularis L', 'rostralmiddlefrontal L', 'caudalmiddlefrontal L', 'superiorfrontal L', 'precentral L',...
-    'rostralanteriorcingulate L', 'caudalanteriorcingulate L', 'posteriorcingulate L', 'isthmuscingulate L',...
-    'transversetemporal L', 'superiortemporal L', 'middletemporal L', 'inferiortemporal L', 'entorhinal L', 'parahippocampal L', 'fusiform L', 'insula L',...
-    'supramarginal L', 'inferiorparietal L', 'superiorparietal L', 'postcentral L', 'paracentral L', 'precuneus L',...
-    'cuneus L', 'lingual L', 'pericalcarine L', 'lateraloccipital L',...
-    'lateraloccipital R', 'pericalcarine R', 'lingual R', 'cuneus R',...
-    'precuneus R', 'paracentral R', 'postcentral R', 'superiorparietal R', 'inferiorparietal R', 'supramarginal R',...
-    'insula R', 'fusiform R', 'parahippocampal R', 'entorhinal R', 'inferiortemporal R', 'middletemporal R', 'superiortemporal R', 'transversetemporal R',...
-    'isthmuscingulate R', 'posteriorcingulate R', 'caudalanteriorcingulate R', 'rostralanteriorcingulate R',...
-    'precentral R', 'superiorfrontal R', 'caudalmiddlefrontal R', 'rostralmiddlefrontal R', 'parsopercularis R', 'parstriangularis R', 'parsorbitalis R', 'medialorbitofrontal R', 'lateralorbitofrontal R',...
-    };
-shiftLabels = 15;
-newLabels = [newLabels(end-shiftLabels:end), newLabels(1:end-shiftLabels-1)];
-
-% get intersect of supplied labels and expected ones
-c = intersect(labels, newLabels);
-
-% if the two sets match, set data transformation flag
-if isequal(c, labels)
-    transformFlag = 1;  % transformation flag
-else
-    error('Unexpected labels');
-end
+% see if the supplied labels match any of the standard sets
+[equalFlag, matchingSetsFlag, roiLabelsPlotting] = roiLabelMatching(roiLabels);
 
 
-for layerIdx = 1:40
+%% Loop through layers/epochs, generate plots
+
+% for layerIdx = 1:layerNo
+for layerIdx = 1:1
     
     % title
     figTitle = ['Alpha, layer ', num2str(layerIdx), ', stim 1'];
     
     % connectivity
-    connMatrix = squeeze(connData(:,:,layerIdx));
+    connMatrix = squeeze(realConn(:,:,layerIdx));
     % modularity indices
-    modIndicesVector = modAll(:,layerIdx);
-
-    % transform connectivity and module data in case of special label set
-    if transformFlag   
+    modIndicesVector = mod(:,layerIdx);    
     
-        % rearrange connectivity matrix based on new ROI/node label
-        % order
-        [connMatrix, old2new] = matrixReorder(connMatrix, labels, newLabels);
+    % if the labels were not an exact match but overlapped with standard
+    % sets, rearrange labels + data
+    if ~equalFlag && matchingSetsFlag
+        % rearrange connectivity matrix based on new ROI label order
+        [connMatrix, old2new] = matrixReorder(connMatrix, roiLabels, roiLabelsPlotting);
         % apply the same re-ordering to ROI/node module indices
         modIndicesVector = modIndicesVector(old2new);
-
-        % plot
-        [mainFig, subFig] = circleGraphPlot(connMatrix, modIndicesVector, colorTriplets, trimmingThr,... 
-                                              newLabels, figTitle);
-                                          
-    end
+        
+        % plotting
+        [mainFig, subFig] = circleGraphPlot(connMatrix, modIndicesVector,... 
+                                colorTriplets, trimmingThr,... 
+                                roiLabelsPlotting, figTitle);
+        
+    % in any other case, simply call the plotting function with the original labels    
+    else
+        [mainFig, subFig] = circleGraphPlot(connMatrix, modIndicesVector,... 
+                                colorTriplets, trimmingThr,... 
+                                roiLabels, figTitle); 
+                            
+    end  % if
     
     % save out plots
     mainFile = ['main_alpha_layer', num2str(layerIdx), '_stim1.png'];
@@ -201,9 +190,12 @@ for layerIdx = 1:40
     
     % close figs
     close(mainFig);
-    close(subFig);
-                                          
-end
+    close(subFig);      
+    
+end  % for
+
+
+return
 
                                   
                                   

@@ -31,7 +31,7 @@ function [equalFlag, matchingSetsFlag, roiLabelsPlotting] = roiLabelMatching(roi
 if nargin ~= 1
     error('Input arg "roiLabelsData" is required!');
 end
-if ~iscell(roiLabelsData) || ~isvector(roilabelsData) || any(~cellfun(@ischar, roiLabelsData))
+if ~iscell(roiLabelsData) || ~isvector(roiLabelsData) || any(~cellfun(@ischar, roiLabelsData))
     error('Input arg "roiLabelsData" should be a cell vector of char arrays');
 end
 % transform to column vector if necessary

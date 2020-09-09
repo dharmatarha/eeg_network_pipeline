@@ -343,6 +343,8 @@ edgeStyle(betweenModEdgeIdx) = repmat(edgeTypes(2), [sum(betweenModEdgeIdx, 1), 
 
 %% Trimming edges
 
+% preallocate variable to collect edges to be deleted
+edgesToTrim = [];
 % if same threshold applies to within- and between-module edges
 if ~doubleTrim && trimmingThr ~= 0
     edgesToTrim = find(weights < trimmingThr);  % graph.rmedge does not work with logical indexing, requires numeric edge indices
