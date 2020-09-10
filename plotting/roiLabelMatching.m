@@ -104,6 +104,10 @@ if ~equalFlag  % only if sets were not equal
         matchingSetsFlag = false;
         roiLabelsPlotting = [];
     end
+    
+else
+    matchingSetsFlag = true;
+    
 end  % if ~equalFlag
 
 
