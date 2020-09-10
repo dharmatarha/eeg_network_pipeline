@@ -4,6 +4,7 @@ function [mainFig, subFig] = circleGraphPlot(connMatrix, membership, colorTriple
 % USAGE: [mainFig, subFig] = circleGraphPlot(connMatrix, 
 %                                       membership,
 %                                       colorTriplets,
+%                                       mod2color=[],
 %                                       trimmingThr=0.2, 
 %                                       labels={}, 
 %                                       figTitle=[];
@@ -35,12 +36,21 @@ function [mainFig, subFig] = circleGraphPlot(connMatrix, membership, colorTriple
 %               values (square matrix). Only upper triangle is used for 
 %               graph construction. 
 % membership      - Numeric vector containing the module membership of each
-%               node in the graph. Values must be in range 0:1:23 (zero is
-%               a valid module identifier).
+%               node in the graph. Values must be positive integers or zero. 
+%               The maximum number of unique values is determined by the 
+%               number of colors specified by input arg "colorTriplets". 
+%               Zero is treated as a valid module identifier.
 % colorTriplets   - Numeric matrix with three columns, each row defines an
 %               RGB triplet for module (and within-module edge) coloring. 
 % 
 % Optional inputs:
+% mod2color       - Numeric matrix with two columns. Contains
+%               module-to-color assignments. The first color contains
+%               module identifiers, the second corresponding row numbers of
+%               the input arg "colorTriplets". Defaults to empty, in which
+%               case module-to-color assignment is automatic and based on
+%               ascending corresponding numbers (e.g., lowest module indice is
+%               assinged to first row of "colorTriplets", and so on).
 % trimmingThr     - One- or two-element vector containing threshold(s) 
 %               for trimming (deleting) weak connections before plotting.
 %               If trimmingThr is only one value, the same threshold is
@@ -67,9 +77,9 @@ function [mainFig, subFig] = circleGraphPlot(connMatrix, membership, colorTriple
 %% Input checks
 
 % check number of args
-if nargin < 3 || nargin > 7
+if ~ismember(nargin, 4:8)
     error(['Function circleGraphPlot requires mandatory input args "connMatrix", '... 
-        '"membership" and "colorTriplets", while input args "trimmingThr", ',...
+        '"membership" and "colorTriplets", while input args "mod2color", "trimmingThr", ',...
         '"labels", "figTitle" and "drawFlag" are optional!']);
 end
 
@@ -81,8 +91,9 @@ if ~isvector(membership) || length(membership) ~= size(connMatrix, 1)
     error(['Input arg "membership" should be a vector with the same ',...
         'length as either dimension of "connMatrix"!']);
 end
-if any(~ismember(unique(membership), 0:23))
-    error('Input arg "membership" should contain values in range 0:23!');
+if length(unique(membership)) > size(colorTriplets, 1)
+    error(['Input arg "membership" contains more unique module ids than ',...
+        'the number of colors coded by "colorTriplets"!']);
 end
 if ~ismatrix(colorTriplets) || size(colorTriplets, 2) ~= 3
     error(['Input arg "colorTriplets" should be a matrix with three ',...
@@ -92,27 +103,32 @@ end
 % check optional arguments, parse them
 if ~isempty(varargin)
     for v = 1:length(varargin)
-        if isnumeric(varargin{v}) && ismember(length(varargin{v}), [1 2])
+        if isnumeric(varargin{v}) && ismatrix(varargin{v}) && size(varargin{v}, 2)==2 && ~exist('mod2color', 'var')
+            mod2color = varargin{v}; 
+        elseif isnumeric(varargin{v}) && ismember(length(varargin{v}), [1 2]) && ~exist('trimmingThr', 'var')
             trimmingThr = varargin{v};
             for t = 1: length(trimmingThr)
                 if ~ismember(trimmingThr(t), 0:0.001:0.9)
                     error('Optional input arg "trimmingThr" has value(s) outside 0:0.001:0.9!');
                 end
             end
-        elseif iscell(varargin{v}) && length(varargin{v}) == length(membership)
+        elseif iscell(varargin{v}) && length(varargin{v}) == length(membership) && ~exist('labels', 'var')
             labels = varargin{v};
-        elseif ischar(varargin{v}) && ismember(varargin{v}, {'draw', 'nodraw'})
+        elseif ischar(varargin{v}) && ismember(varargin{v}, {'draw', 'nodraw'}) && ~exist('drawFlag', 'var')
             drawFlag = varargin{v};
-        elseif ischar(varargin{v}) && ~ismember(varargin{v}, {'draw', 'nodraw'})
+        elseif ischar(varargin{v}) && ~ismember(varargin{v}, {'draw', 'nodraw'}) && ~exist('figTitle', 'var')
             figTitle = varargin{v};            
         else
-            error(['An input arg could not be parsed as any of "trimmingThr", ',...
+            error(['An input arg could not be parsed as any of "mod2color", "trimmingThr", ',...
                 '"labels", "drawFlag" or "figTitle"!']);
         end
     end
 end
    
 % defaults
+if ~exist('mod2color', 'var')
+    mod2color = [];
+end
 if ~exist('trimmingThr', 'var')
     trimmingThr = 0.2;
 end
@@ -143,6 +159,14 @@ end
 if isrow(labels)
     labels = labels';
 end
+if ~isempty(mod2color)
+    if ~isempty(setxor(unique(membership), mod2color(:,1)))
+        error('Module indices in "mod2color" do not match completely the ones in "membership"!');
+    end
+    if any(~ismember(mod2color(:, 2), 1:size(colorTriplets, 1)))
+        error('At least one color reference in "mod2color" is out of bounds!');
+    end
+end
 
 % get number of modules
 modNo = length(unique(membership));
@@ -161,39 +185,11 @@ disp([char(10), 'Function circleGraphPlot is called with inputs: ',...
 %% Compare labels to the specific anatomic ROI set 
 % if they match, the function can highlight the ROI structure automatically
 
-% expected set and order
-% roi names used most often for our EEG datasets, grouped by lobules
-expectedLabels = {'lateralorbitofrontal L', 'medialorbitofrontal L', 'parsorbitalis L', 'parstriangularis L', 'parsopercularis L', 'rostralmiddlefrontal L', 'caudalmiddlefrontal L', 'superiorfrontal L', 'precentral L',...
-    'rostralanteriorcingulate L', 'caudalanteriorcingulate L', 'posteriorcingulate L', 'isthmuscingulate L',...
-    'transversetemporal L', 'superiortemporal L', 'middletemporal L', 'inferiortemporal L', 'entorhinal L', 'parahippocampal L', 'fusiform L', 'insula L',...
-    'supramarginal L', 'inferiorparietal L', 'superiorparietal L', 'postcentral L', 'paracentral L', 'precuneus L',...
-    'cuneus L', 'lingual L', 'pericalcarine L', 'lateraloccipital L',...
-    'lateraloccipital R', 'pericalcarine R', 'lingual R', 'cuneus R',...
-    'precuneus R', 'paracentral R', 'postcentral R', 'superiorparietal R', 'inferiorparietal R', 'supramarginal R',...
-    'insula R', 'fusiform R', 'parahippocampal R', 'entorhinal R', 'inferiortemporal R', 'middletemporal R', 'superiortemporal R', 'transversetemporal R',...
-    'isthmuscingulate R', 'posteriorcingulate R', 'caudalanteriorcingulate R', 'rostralanteriorcingulate R',...
-    'precentral R', 'superiorfrontal R', 'caudalmiddlefrontal R', 'rostralmiddlefrontal R', 'parsopercularis R', 'parstriangularis R', 'parsorbitalis R', 'medialorbitofrontal R', 'lateralorbitofrontal R',...
-    };
-% shortened version of of usual roi names
-expectedLabelsShort = {'latOrbFront L', 'medOrbFront L', 'parsOrb L', 'parsTriang L', 'parsOpercul L', 'rostrMidFront L', 'caudMidFront L', 'supFront L', 'precentral L',...
-    'rostrAntCing L', 'caudAntCing L', 'postCing L', 'isthmusCing L',...
-    'transvTemp L', 'supTemp L', 'midTemp L', 'infTemp L', 'entorhinal L', 'paraHippoc L', 'fusiform L', 'insula L',...
-    'supraMarg L', 'infPar L', 'supPar L', 'postcentral L', 'paracentral L', 'precuneus L',...
-    'cuneus L', 'lingual L', 'periCalc L', 'latOcc L',...
-    'latOcc R', 'periCalc R', 'lingual R', 'cuneus R',...
-    'precuneus R', 'paracentral R', 'postcentral R', 'supPar R', 'infPar R', 'supraMarg R',...
-    'insula R', 'fusiform R', 'paraHippoc R', 'entorhinal R', 'infTemp R', 'midTemp R', 'supTemp R', 'transvTemp R',...
-    'isthmusCing R', 'postCing R', 'caudAntCing R', 'rostrAntCing R',...
-    'precentral R', 'supFront R', 'caudMidFront R', 'rostrMidFront R', 'parsOpercul R', 'parsTriang R', 'parsOrb R', 'medOrbFront R', 'latOrbFront R',...
-    };
-% amount of shift needed for proper left-right arrangement in plot
-shiftLabels = 15;
-% shifting common labels
-expectedLabels = [expectedLabels(end-shiftLabels:end), expectedLabels(1:end-shiftLabels-1)]';
-expectedLabelsShort = [expectedLabelsShort(end-shiftLabels:end), expectedLabelsShort(1:end-shiftLabels-1)]';
+% matching is performed by roiLabelMatching
+[equalFlag, ~, ~] = roiLabelMatching(labels);
 
-% set flag if supplied arg "labels" match expected set of labels
-if isequal(expectedLabels, labels) || isequal(expectedLabelsShort, labels)
+% set flag if supplied ROI/node labels is equal to either one of the expected sets
+if equalFlag
     lobuleFlag = 1;
     disp([char(10), 'Supplied labels let us highlight the lobules with additional lines and annotations, will do so']);
 else
@@ -303,9 +299,18 @@ if size(colorTriplets, 1) < length(moduleIndices)
 end
 
 % sort colors to nodes
-nodeColors = zeros(length(membership), 3);
-for i = 1:length(moduleIndices)
-    nodeColors(membership==moduleIndices(i), :) = repmat(colorTriplets(i, :), [sum(membership==moduleIndices(i)), 1]);
+nodeColors = zeros(length(membership), 3);  % preallocate
+% if the input arg "mod2color" was not supplied, we assign then in
+% ascending order
+if isempty(mod2color)
+    for i = 1:length(moduleIndices)
+        nodeColors(membership==moduleIndices(i), :) = repmat(colorTriplets(i, :), [sum(membership==moduleIndices(i)), 1]);
+    end
+% else assignment is based on "mod2color"
+else
+    for i = 1:size(mod2color, 1)
+        nodeColors(membership==mod2color(i,1), :) = repmat(colorTriplets(mod2color(i, 2), :), [sum(membership==mod2color(i,1)), 1]);
+    end
 end
 
 
