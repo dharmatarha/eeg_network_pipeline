@@ -34,12 +34,12 @@ function circleGraphPlot_genLouvainMod(realConn, modRes, gammaOmegaTargets, vara
 %           it on the basis of corresponding [gamma, omega] param values.
 %
 % Optional inputs:
-% roiLabels        - Cell array holding the labels for nodes / ROIs. Be
+% roiLabels        - Cell array holding the labels for nodes / ROIs.
 %           Defaults to loading var 'roisShort' from
 %           'utils/roiNamesInOrder.mat'. Be careful as this 
 % colorTriplets    - Numeric matrix with three columns, each row defines an
 %           RGB triplet for module (and within-module edge) coloring.
-%           Defaults to loading the var 'colorTriplets' from
+%           Defaults to loading the var 'colorTriplets20' from
 %           utils/colorTriplets.mat.
 % trimmingThr      - One- or two-element numeric vector containing threshold(s) 
 %           for trimming (deleting) weak connections before plotting.
@@ -105,7 +105,7 @@ if ~exist('colorTriplets', 'var')
         error('Found either zero or multiple versions of "colorTriplets.mat"! See the help on input arg "colorTriplets"!');
     else
         tmp = load('colorTriplets.mat');
-        colorTriplets = tmp.colorTriplets;
+        colorTriplets = tmp.colorTriplets20;
     end
 end
 if ~exist('trimmingThr', 'var')
@@ -139,19 +139,41 @@ disp([char(10), 'Called circleGraphPlot_genLouvainMod with input args: ',...
 % get modularity around target gamma, omega pairing
 [~, gIdx] = min(abs(modRes.gammaValues-gammaOmegaTargets(1)));
 [~, oIdx] = min(abs(modRes.omegaValues-gammaOmegaTargets(2)));
+% provide feedback about selected gamma & omega values
+disp([char(10), 'Requested [gamma, omega] values were: ', num2str(gammaOmegaTargets),...
+    char(10), 'Closest match in the data was: ',... 
+    num2str([modRes.gammaValues(gIdx), modRes.omegaValues(oIdx)])]);
+
 mod = modRes.res.consSim(gIdx, oIdx, :);
 mod = double(squeeze(mod));  % res.consSim is uint16 by default if coming from multiCommDetectWrapper
 % reshape modularity memberships into one module vector per layer/epoch
 mod = reshape(mod, [nodeNo, layerNo]);
 
+
+%% Check if labels match either of the expected label sets
+
 % see if the supplied labels match any of the standard sets
 [equalFlag, matchingSetsFlag, roiLabelsPlotting] = roiLabelMatching(roiLabels);
+
+
+%% Check if we have enough unique colors for all modules
+
+% no. of colors
+colorNo = size(colorTriplets, 1);
+
+% if there are more modules overall than colors, set flag for only keeping 
+% color-module pairings in successive layers/epochs for overlapping modules
+if sum(unique(mod(:))) > colorNo
+    moduleRecolorFlag = true;
+else
+    moduleRecolorFlag = false;
+end
 
 
 %% Loop through layers/epochs, generate plots
 
 % for layerIdx = 1:layerNo
-for layerIdx = 1:1
+for layerIdx = 1:10
     
     % title
     figTitle = ['Alpha, layer ', num2str(layerIdx), ', stim 1'];
@@ -160,6 +182,32 @@ for layerIdx = 1:1
     connMatrix = squeeze(realConn(:,:,layerIdx));
     % modularity indices
     modIndicesVector = mod(:,layerIdx);    
+    
+    % reassign module numbers / colors if we would not have enough colors
+    % to cover all modules otherwise
+    if layerIdx > 1 && moduleRecolorFlag
+        
+        % there is already a mod2color, as it is defined for the first
+        % layer
+        mod2colorOld = mod2color;
+        mod2color = [modIndicesVector, zeros(size(modIndicesVector, 1), 1)];
+        % check if there is any module in the current layer/epoch not there
+        % in the previous one
+        newModules = setdiff(modIndicesVector, mod2colorOld(:, 1));
+        % only go on if this set is not empty
+        if ~isempty(newModules)
+            % define the set of colors not used in the previous layer/epoch
+            availColors = setdiff(1:colorNo, mod2colorOld(:, 2));
+            % assign all new modules a color
+            for newModIdx = 1:length(newModules)
+                mod2color(modIndicesVector==newModules(newModIdx), 2) = repmat(availColors(newModIdx), [sum(modIndicesVector==newModules(newModIdx)), 1]);
+            end  % for newModIdx
+        end  % if ~isempty
+        
+    else
+        mod2color = [modIndicesVector, modIndicesVector]; 
+        
+    end
     
     % if the labels were not an exact match but overlapped with standard
     % sets, rearrange labels + data
@@ -171,13 +219,13 @@ for layerIdx = 1:1
         
         % plotting
         [mainFig, subFig] = circleGraphPlot(connMatrix, modIndicesVector,... 
-                                colorTriplets, trimmingThr,... 
+                                colorTriplets, mod2color, trimmingThr,... 
                                 roiLabelsPlotting, figTitle);
         
     % in any other case, simply call the plotting function with the original labels    
     else
         [mainFig, subFig] = circleGraphPlot(connMatrix, modIndicesVector,... 
-                                colorTriplets, trimmingThr,... 
+                                colorTriplets, mod2color, trimmingThr,... 
                                 roiLabels, figTitle); 
                             
     end  % if
