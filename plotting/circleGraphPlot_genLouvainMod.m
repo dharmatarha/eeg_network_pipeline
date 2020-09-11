@@ -5,7 +5,7 @@ function circleGraphPlot_genLouvainMod(realConn, modRes, gammaOmegaTargets, vara
 %                                       modRes, 
 %                                       gammaOmegaTargets, 
 %                                       roiLabels=load('utils/roinamesInOrder.mat', 'roisShort'),
-%                                       colorTriplets=load('utils/colorTriplets.mat', 'colorTriplets'),
+%                                       colorTriplets=load('utils/colorTriplets.mat', 'colorTriplets24'),
 %                                       trimmingThr=0)
 %
 % Wrapper function for plotting the results of modularity detection on a
@@ -39,7 +39,7 @@ function circleGraphPlot_genLouvainMod(realConn, modRes, gammaOmegaTargets, vara
 %           'utils/roiNamesInOrder.mat'. Be careful as this 
 % colorTriplets    - Numeric matrix with three columns, each row defines an
 %           RGB triplet for module (and within-module edge) coloring.
-%           Defaults to loading the var 'colorTriplets20' from
+%           Defaults to loading the var 'colorTriplets24' from
 %           utils/colorTriplets.mat.
 % trimmingThr      - One- or two-element numeric vector containing threshold(s) 
 %           for trimming (deleting) weak connections before plotting.
@@ -105,7 +105,7 @@ if ~exist('colorTriplets', 'var')
         error('Found either zero or multiple versions of "colorTriplets.mat"! See the help on input arg "colorTriplets"!');
     else
         tmp = load('colorTriplets.mat');
-        colorTriplets = tmp.colorTriplets20;
+        colorTriplets = tmp.colorTriplets24;
     end
 end
 if ~exist('trimmingThr', 'var')
@@ -144,10 +144,10 @@ disp([char(10), 'Requested [gamma, omega] values were: ', num2str(gammaOmegaTarg
     char(10), 'Closest match in the data was: ',... 
     num2str([modRes.gammaValues(gIdx), modRes.omegaValues(oIdx)])]);
 
-mod = modRes.res.consSim(gIdx, oIdx, :);
-mod = double(squeeze(mod));  % res.consSim is uint16 by default if coming from multiCommDetectWrapper
+modules = modRes.res.consSim(gIdx, oIdx, :);
+modules = double(squeeze(modules));  % res.consSim is uint16 by default if coming from multiCommDetectWrapper
 % reshape modularity memberships into one module vector per layer/epoch
-mod = reshape(mod, [nodeNo, layerNo]);
+modules = reshape(modules, [nodeNo, layerNo]);
 
 
 %% Check if labels match either of the expected label sets
@@ -163,7 +163,7 @@ colorNo = size(colorTriplets, 1);
 
 % if there are more modules overall than colors, set flag for only keeping 
 % color-module pairings in successive layers/epochs for overlapping modules
-if sum(unique(mod(:))) > colorNo
+if sum(unique(modules(:))) > colorNo
     moduleRecolorFlag = true;
 else
     moduleRecolorFlag = false;
@@ -181,7 +181,7 @@ for layerIdx = 1:10
     % connectivity
     connMatrix = squeeze(realConn(:,:,layerIdx));
     % modularity indices
-    modIndicesVector = mod(:,layerIdx);    
+    modIndicesVector = modules(:,layerIdx);    
     
     % reassign module numbers / colors if we would not have enough colors
     % to cover all modules otherwise
