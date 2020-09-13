@@ -152,9 +152,23 @@ if ~multiLayer || strcmp(cMethod, 'nan')
 % otherwise we go through layers and use the rest of the colors repeatedly
 % to mark smaller modules
 elseif multiLayer && strcmp(cMethod, 'randColor')
+    topFreqMods = modules2colors(1:n, 1);
+    colorsLeft = n+1:colorNo;
+    for i = 1:moduleNo
+        allColors(modules==modules2colors(i, 1)) = modules2colors(i, 2);
+    end
     
+    % for first layer
+    % define modules in layer not among top frequent ones
+    modulesLeft = setdiff(modules(:,1), topFreqMods);
+    % assign colors just based on their order
+    layerAssignment = [modulesLeft, colorsLeft(1:length(modulesLeft))'];
+    % set allColors appropriately
+    for i = 1:length(modulesLeft)
+        allColors(modules(:, 1)==modulesLeft(i), 1) = layerAssignment(i, 2);
+    end
     
-    
+    % for subsequent layers
     
 end
     
