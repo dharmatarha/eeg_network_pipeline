@@ -1,7 +1,10 @@
-function [modules2colors, allColors] = sortModules2Colors(modules, colorNo, varargin)
+function [modules2colors, allColors, sortedModFreq] = sortModules2Colors(modules, colorNo, varargin)
 %% Function to assign colors to modules
 % 
-% USAGE sortModules2Colors(modules, colorNo, n=10, cMethod='randColor')
+% USAGE [modules2colors, allColors, sortedModFreq] = sortModules2Colors(modules, 
+%                                                                       colorNo, 
+%                                                                       n=10, 
+%                                                                       cMethod='randColor')
 %
 % If there are enough colors to cover all modules uniquely, assignment is
 % simply based on frequencies, so that colors reflect the same frequency 
@@ -45,6 +48,12 @@ function [modules2colors, allColors] = sortModules2Colors(modules, colorNo, vara
 % allColors         - Numeric vector or matrix, same size as input arg
 %           "modules". Contains color number for all module indices in
 %           "modules".
+% sortedModFreq     - Numeric matrix sized [no. of unique modules X 2].
+%           First column contains the frequency (sum) of node memberships 
+%           for each module, while the second column holds the module 
+%           indices. The matrix is sorted by frequencies, that is, the 
+%           first row contains the highest frequency value and the 
+%           corresponding module index.    
 %
 
 
@@ -141,38 +150,99 @@ end
 modules2colors(:, 1) = sortedModFreq(:, 2);
 modules2colors(:, 2) = [[1:n]'; nan(moduleNo-n, 1)];
 
-% if module data is from one layer, or requested "cMethod" is 'nan', we 
-% simply set allColors based on modules2colors, meaning NaN for any module 
-% above "n" 
-if ~multiLayer || strcmp(cMethod, 'nan')   
-    for i = 1:moduleNo
-        allColors(modules==modules2colors(i, 1)) = modules2colors(i, 2);
-    end
-
-% otherwise we go through layers and use the rest of the colors repeatedly
-% to mark smaller modules
-elseif multiLayer && strcmp(cMethod, 'randColor')
-    topFreqMods = modules2colors(1:n, 1);
-    colorsLeft = n+1:colorNo;
-    for i = 1:moduleNo
-        allColors(modules==modules2colors(i, 1)) = modules2colors(i, 2);
-    end
-    
-    % for first layer
-    % define modules in layer not among top frequent ones
-    modulesLeft = setdiff(modules(:,1), topFreqMods);
-    % assign colors just based on their order
-    layerAssignment = [modulesLeft, colorsLeft(1:length(modulesLeft))'];
-    % set allColors appropriately
-    for i = 1:length(modulesLeft)
-        allColors(modules(:, 1)==modulesLeft(i), 1) = layerAssignment(i, 2);
-    end
-    
-    % for subsequent layers
-    
+% basic color assignment is the same for single- and multilayer module
+% data, irrespective of "cMethod" - go through rows of modules2colors and
+% perform the assignment
+for i = 1:moduleNo
+    allColors(modules==modules2colors(i, 1)) = modules2colors(i, 2);
 end
+
+% if module data is multilayer and the requested coloring method
+% ("cMethod") is 'randColor', we o through each layer and assign colors
+% remaining after top "n" modules repeatedly to the smaller modules
+if multiLayer && strcmp(cMethod, 'randColor')
+    % "n" top frequent modules
+    topFreqMods = modules2colors(1:n, 1);
+    % color indices above "n"
+    colorsLeft = n+1:colorNo;
+    
+    % loop through layers
+    for layerIdx = 1:size(modules, 2)
+        
+        % for first layer we just 
+        if layerIdx == 1
+            % define modules present in layer "layerIdx" that are not among top frequent ones
+            oldModulesLeft = setdiff(modules(:, layerIdx), topFreqMods);
+            % assign colors to modules above "n" just based on their order
+            oldLayerAssignment = [oldModulesLeft, colorsLeft(1:length(oldModulesLeft))'];
+            % get color indices left after layer assignment
+            colorsLeftForNext = setdiff(colorsLeft, oldLayerAssignment(:,2));
+            % set allColors in layer "layerIdx" appropriately
+            for i = 1:length(oldModulesLeft)
+                allColors(modules(:, layerIdx)==oldModulesLeft(i), layerIdx) = oldLayerAssignment(i, 2);
+            end
+            
+        % for the rest of the layers
+        else
+
+            % define modules present in layer "layerIdx" that are not among top frequent ones
+            currentModulesLeft = setdiff(modules(:, layerIdx), topFreqMods);
+            
+            % go through the modules if there are any besides the top frequent "n"
+            if ~isempty(currentModulesLeft)
+                % check if we have enough colors left for coloring current
+                % layer
+                if numel(setdiff(currentModulesLeft, oldModulesLeft)) > numel(colorsLeftForNext)
+                    error([char(10), 'We ran out of colors in layer, ', num2str(layerIdx),... 
+                        ' when assigning colors to smaller modules. There are only ',... 
+                        num2str(numel(colorsLeftForNext)), ' colors but ',... 
+                        num2str(numel(setdiff(currentModulesLeft, oldModulesLeft))),... 
+                        ' modules to color.']);
+                end               
+                % preallocate the new layer module-color assignment var
+                newLayerAssignment = [currentModulesLeft, zeros(length(currentModulesLeft), 1)];
+                % counter for using up the colors left for current layer
+                colorCounter = 0;
+                % go through each module in current layer not in top "n" 
+                for c = 1:length(currentModulesLeft)
+                    % if the module was also present in last layer, use the
+                    % same color as there
+                    if ismember(currentModulesLeft(c), oldModulesLeft)
+                        newLayerAssignment(c, 2) = oldLayerAssignment(oldModulesLeft==currentModulesLeft(c), 2);
+                    % otherwise assign a new color, not used either by top
+                    % "n" modules or in last layer (oldColorsLeft)
+                    else
+                        colorCounter = colorCounter+1;
+                        newLayerAssignment(c, 2) = colorsLeftForNext(colorCounter);
+                    end  % if ismember
+                end  % for c
+                
+                % set allColors in layer "layerIdx" appropriately
+                for i = 1:length(currentModulesLeft)
+                    allColors(modules(:, layerIdx)==currentModulesLeft(i), layerIdx) = newLayerAssignment(i, 2);
+                end
+                
+            % if there are only the top "n" modules present in layer, we 
+            % still define "newLayerAssignment"       
+            else
+                newLayerAssignment = modules2colors(1:n, 1:2);
+                
+            end  % if ~isempty
+            
+            % define "old" vars for the assignments in next layer
+            oldModulesLeft = currentModulesLeft;
+            oldLayerAssignment = newLayerAssignment;
+            colorsLeftForNext = setdiff(colorsLeft, oldLayerAssignment(:,2));
+            
+        end  % if layerIdx == 1
+        
+    end  % for layerIdx
+     
+end  % if multiLayer &&
     
 
+
+return
 
 
 

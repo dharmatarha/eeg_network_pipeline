@@ -77,7 +77,7 @@ function [mainFig, subFig] = circleGraphPlot(connMatrix, membership, colorTriple
 %% Input checks
 
 % check number of args
-if ~ismember(nargin, 4:8)
+if ~ismember(nargin, 3:8)
     error(['Function circleGraphPlot requires mandatory input args "connMatrix", '... 
         '"membership" and "colorTriplets", while input args "mod2color", "trimmingThr", ',...
         '"labels", "figTitle" and "drawFlag" are optional!']);
@@ -204,9 +204,9 @@ end
 baseEdgeColor = [0.5, 0.5, 0.5];
 % base edge width range - we map the supplied data to this range 
 % irrespective of actual weights 
-baseEdgeWidthRange = [0.1, 6];
+baseEdgeWidthRange = [0.1, 4];
 % multiplier for the width of within-module edges
-withinEdgeWidthMultip = 10;
+withinEdgeWidthMultip = 2;
 % edge line styles for within- and between-module edges
 %edgeTypes = {'-', 'none'};
 edgeTypes = {'-', '-'};
@@ -300,7 +300,7 @@ end
 
 % sort colors to nodes
 nodeColors = zeros(length(membership), 3);  % preallocate
-% if the input arg "mod2color" was not supplied, we assign then in
+% if the input arg "mod2color" was not supplied, we assign them in
 % ascending order
 if isempty(mod2color)
     for i = 1:length(moduleIndices)
@@ -330,13 +330,17 @@ nodesPerEdge = G.Edges.EndNodes;
 % go through all modules, set different edge properties per module
 edgeColors = repmat(baseEdgeColor, [size(weights, 1), 1]);  % preallocate variable for edge colors, filled with base color
 % map connectivity values to basic edge width range specified earlier
-edgeWidth = (weights-min(weights))./(max(weights)-min(weights))*(baseEdgeWidthRange(2)-baseEdgeWidthRange(1))+baseEdgeWidthRange(1); 
+% edgeWidth = (weights-min(weights))./(max(weights)-min(weights))*(baseEdgeWidthRange(2)-baseEdgeWidthRange(1))+baseEdgeWidthRange(1); 
+edgeWidth = weights./mean(weights).*mean(baseEdgeWidthRange);
 moduleEdges = zeros(size(weights, 1), modNo);  % binary vectors identifying within-module edges (one column per module)
 for i = 1:modNo
     moduleNodes = labels(membership == moduleIndices(i));  % node indices (as binary vector) for given module
     moduleEdges(:, i) = ismember(nodesPerEdge(:, 1), moduleNodes) & ismember(nodesPerEdge(:, 2), moduleNodes);  % edge indices (as binary vector) for edges within given module
-    edgeColors(logical(moduleEdges(:, i)), :) = repmat(colorTriplets(i, :), [sum(moduleEdges(:, i)), 1]);  % set edge color for current module
-    edgeWidth(logical(moduleEdges(:, i))) = weights(logical(moduleEdges(:, i)))*withinEdgeWidthMultip;  % set edge width for current module
+    moduleEdgeColor = colorTriplets(mod2color(mod2color(:, 1) == moduleIndices(i), 2), :);  % get RGB color for current module
+    edgeColors(logical(moduleEdges(:, i)), :) = repmat(moduleEdgeColor, [sum(moduleEdges(:, i)), 1]);  % set edge color for edges within current module
+%     edgeColors(logical(moduleEdges(:, i)), :) = repmat(colorTriplets(i, :), [sum(moduleEdges(:, i)), 1]);  % set edge color for current module
+%     edgeWidth(logical(moduleEdges(:, i))) = weights(logical(moduleEdges(:, i)))*withinEdgeWidthMultip;  % set edge width for current module
+    edgeWidth(logical(moduleEdges(:, i))) = edgeWidth(logical(moduleEdges(:, i)))*withinEdgeWidthMultip;  % set edge width for current module
 end
 
 % identify between-module edges
@@ -445,12 +449,15 @@ for s = 1:modNo
     % positioned in lower half, one next to the other
     subplot('position', subPlotPos(s, :));
     
+    % edge and node color for given module
+    subModColor = colorTriplets(mod2color(mod2color(:,1)==moduleIndices(s), 2), :);
+    
     % module subplot
     subGraphs{s}.plot('Layout', graphSubLayout,... 
         'LineWidth', subGraphs{s}.Edges.Weight*withinEdgeWidthMultip,... 
-        'EdgeColor', colorTriplets(s, :),... 
+        'EdgeColor', subModColor,... 
         'EdgeAlpha', edgeAlpha,... 
-        'NodeColor', colorTriplets(s, :),...
+        'NodeColor', subModColor,...
         'MarkerSize', nodeSize,...
         'LineStyle', edgeTypes{1});
 
