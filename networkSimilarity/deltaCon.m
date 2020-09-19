@@ -1,7 +1,7 @@
 function [deltaConSim, deltaConDist, S1, S2] = deltaCon(adjMatrix1, adjMatrix2, varargin)
 %% Calculate DeltaCon network similarity measure 
 %
-% USAGE: [deltaConDist, S1, S2] = deltaCon(adjMatrix1, adjMatrix2, epsilon = 0.01, verbose = true)
+% USAGE: [deltaConSim, deltaConDist, S1, S2] = deltaCon(adjMatrix1, adjMatrix2, epsilon = 0.01, verbose = true)
 % 
 % The function calculates the DeltaCon network similarity measure for the
 % two networks defined by the adjancency matrices "adjMatrix1" and
@@ -34,6 +34,7 @@ function [deltaConSim, deltaConDist, S1, S2] = deltaCon(adjMatrix1, adjMatrix2, 
 %               meaning no user messages, "true" meaning user messages.
 %
 % Outputs:
+% deltaConSim   - Numeric value, DeltaCon similarity.
 % deltaConDist  - Numeric value, DeltaCon distance. 
 % S1            - Numeric matrix, pairwise node affinities for
 %               "adjMatrix1". Same size as "adjMatrix1" (nodes X nodes).
