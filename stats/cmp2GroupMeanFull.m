@@ -17,6 +17,9 @@ function [permRes, withinSim, acrossSim] = cmp2GroupMeanFull(groupData, subIdx, 
 % We calculate both groups of similarity values (within-epoch vs
 % across-epochs) and compare the two sets of values with a permutation test
 %
+% Only for NON-DIRECTED connectivity, as only the upper triangle of
+% connectivity matrices is used.
+%
 % Mandatory inputs:
 % groupData     - Numeric array, sized [ROIs, ROIs, epochs, conditions, subjects]. 
 %           Group-level full connectivity matrix. Undirected
@@ -30,13 +33,19 @@ function [permRes, withinSim, acrossSim] = cmp2GroupMeanFull(groupData, subIdx, 
 %
 % Optional inputs:
 % metric        - String specifying distance metric for connectivity
-%               matrix comparisons. Matrices are first vectorized, 
-%               then one of these distances is used: {'corr', 'eucl'}.  
+%               matrix comparisons. One of {'corr', 'eucl', 'deltaCon'} 
+%               which stand for (1) pearson correlation, (2) eucledian 
+%               (frobenius for matrix) norm and (3) DeltaCon, 
+%               a network similarity measure (see "help deltaCon" for 
+%               details). If 'corr', connectivity matrices are first 
+%               vectorized, then simple Pearson correlation is used.
+%               Defaults to 'corr'.
 % permNo        - Numeric value, the number of permutations to perform for
-%               random permutation tests. One of 100:100:10^6.
+%               random permutation tests. One of 100:100:10^6. Defaults to
+%               10^4.
 % permStat      - String specifying the statistic we perform the random
 %               permutation tests on. One of {'mean', 'median', 'std'} -
-%               the ones supported by permTest.m
+%               the ones supported by permTest.m. Defaults to 'mean'.
 %
 % Outputs:
 % permRes       - Struct containing the output of permTest.m. Its fields
@@ -64,17 +73,18 @@ end
 if nargin > 2
     for v = 1:length(varargin)
         if ischar(varargin{v})
-            if ismember(varargin{v}, {'corr', 'eucl'})
+            if ismember(varargin{v}, {'corr', 'eucl', 'deltaCon'}) && ~exist('metric', 'var')
                 metric = varargin{v};
-            elseif ismember(varargin{v}, {'mean', 'median', 'std'})
+            elseif ismember(varargin{v}, {'mean', 'median', 'std'}) && ~exist('permStat', 'var')
                 permStat = varargin{v};
             else
                 error('An input arg (string) could not be mapped to any optional arg!');
             end
-        elseif isnumeric(varargin{v}) && ismember(varargin{v}, 100:100:10^6)
+        elseif isnumeric(varargin{v}) && ismember(varargin{v}, 100:100:10^6) && ~exist('permNo', 'var')
             permNo = varargin{v};
         else
-            error('At least one input arg could not mapped to any optional arg!');
+            error(['At least one input arg could not mapped to nicely to ',...
+                'any optional arg ("metric", "permStat" or "permNo")!']);
         end
     end
 end            
@@ -122,81 +132,58 @@ roiNo = size(groupData, 1);
 condNo = size(groupData, 4);
 epochNo = size(groupData, 3);
 
-% preallocate for linearized data
-subDataLin = zeros((roiNo*roiNo-roiNo)/2, epochNo, condNo);
-groupDataLin = subDataLin;
+% reshape data so that epochs across conditions/stimuli come after each
+% other
+subData = reshape(subData, [roiNo, roiNo, epochNo*condNo]);
+groupData = reshape(groupData, [roiNo, roiNo, epochNo*condNo]);
 
 % user message
 disp([char(10), 'Defined subject and leave-one-out group data']);
 
 
-%% Linearize and reshape connectivity data
-
-for cond = 1:condNo
-    for epoch = 1:epochNo
-        % get upper triangular part from epoch-level connectivity matrix in
-        % a vector, for subject and group separately
-        % subject
-        tmp = squeeze(subData(:, :, epoch, cond))';
-        idx = tril(true(size(tmp)), -1);  % do not include data from main diagonal
-        subDataLin(:, epoch, cond) = tmp(idx)';
-        % group
-        tmp = squeeze(groupData(:, :, epoch, cond))';
-        idx = tril(true(size(tmp)), -1);  % do not include data from main diagonal
-        groupDataLin(:, epoch, cond) = tmp(idx)';        
-        % warning if there are NaN values
-        if any(isnan(subDataLin(:, epoch, cond))) || any(isnan(groupDataLin(:, epoch, cond)))
-            warning(['There is at least one NaN value among the ',...
-                'connectivity values at condition ', num2str(cond),... 
-                ', epoch ', num2str(epoch), '!']);
-        end
-    end
-end
-
-% conditions become epochs one after another, so e.g. epoch 2 at cond 3
-% becomes epoch 22
-subDataLin = reshape(subDataLin, [(roiNo*roiNo-roiNo)/2, epochNo*condNo]);
-groupDataLin = reshape(groupDataLin, [(roiNo*roiNo-roiNo)/2, epochNo*condNo]);
-
-% user message
-disp([char(10), 'Vectorized connectivity matrices (upper triangles)']);
-
-
 %% Get similarity score from all epoch-pairings
 
 % calculation depends on metric type
-switch metric
-    
-    case 'corr'  % simple correlation
-        % get all column-pairwise correlations
-        connSim = corr(subDataLin, groupDataLin);
-        % keep the upper triangle, set the rest to NaN
-        connSim(tril(true(epochNo*condNo), -1)) = nan;
-        
-    case 'eucl'  % 2-norm of differences
-        
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        % THIS PART COULD BE SIMPLIFIED WITH BUILT-IN FUNCTION "VECNORM"
-        % CALCULATION BELOW IS CURRENTLY PREFERRED FOR
-        % BACKWARDS-COMPATIBILITY WITH OLDER MATLAB VERSIONS
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        
-        % preallocate results matrix
-        connSim = nan(epochNo*condNo);
-        % loops through subject and group epochs
-        for subEpoch = 1:epochNo*condNo
-            for groupEpoch = 1:epochNo*condNo
-                if subEpoch <= groupEpoch  % only for upper triangle of pairings
-                    % norm of diff vector
-                    connSim(subEpoch, groupEpoch) = norm(subDataLin(:, subEpoch)-groupDataLin(:, groupEpoch));              
-                end       
-            end  % groupEpoch for
-        end  % subEpoch for
-        
-end  % switch metric
 
+% simple correlation
+if strcmp(metric, 'corr')
+    % extract upper triangles above the main diagonal
+    subDataLin = linearizeTrius(subData, 1);  
+    groupDataLin = linearizeTrius(groupData, 1);
+    % get all column-pairwise correlations
+    connSim = corr(subDataLin, groupDataLin);
+    % keep the upper triangle, set the rest to NaN
+    connSim(tril(true(epochNo*condNo), -1)) = nan;
+    
+% frobenius norm of difference matrix ('eucl') or DeltaCon
+elseif ismember(metric, {'eucl', 'deltaCon'})
+    % preallocate results matrix
+    connSim = nan(epochNo*condNo);
+    % loops through subject and group epochs
+    for subEpoch = 1:epochNo*condNo
+        for groupEpoch = 1:epochNo*condNo
+            if subEpoch <= groupEpoch  % only for upper triangle of pairings
+                
+                % create symmetric adjacency matrices with zeros at diagonal
+                subEpochData = triu(subData(:, :, subEpoch), 1) + triu(subData(:, :, subEpoch), 1)';
+                groupEpochData = triu(groupData(:, :, subEpoch), 1) + triu(groupData(:, :, subEpoch), 1)';
+                
+                % calculation depending on metric
+                switch metric
+                    case 'eucl'
+                        connSim(subEpoch, groupEpoch) = norm(subEpochData-groupEpochData, 'fro');
+                    case 'deltaCon'
+                        connSim(subEpoch, groupEpoch) = deltaCon(subEpochData, groupEpochData, false);  % verbosity of deltaCon is set to false
+                end
+                
+            end  % if
+        end  % for groupEpoch
+    end  % for subEpoch    
+    
+end
+       
 % user message
-disp([char(10), 'Calculated epoch-pairing similarities']);
+disp([char(10), 'Calculated epoch-pairing distance / similarities']);
 
 
 %% Extract within-epoch and across-epoch values, compare them
@@ -210,16 +197,14 @@ permRes = struct;
 
 % compare within- and across- with a random permutation test
 [permRes.pEst, permRes.realDiff,... 
-    permRes.permDiff, permRes.CohenD] = permTest(withinSim, acrossSim, permNo, permStat); 
+    permRes.permDiff, permRes.CohenD] = permTest(withinSim, acrossSim, permNo, permStat, 'silent'); 
+
+% user message
+disp([char(10), 'Finished permutation test:']);
+disp(permRes);
 
 
 return
-
-
-
-
-
-
 
 
 

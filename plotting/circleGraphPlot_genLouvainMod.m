@@ -156,24 +156,33 @@ modules = reshape(modules, [nodeNo, layerNo]);
 [equalFlag, matchingSetsFlag, roiLabelsPlotting] = roiLabelMatching(roiLabels);
 
 
-%% Check if we have enough unique colors for all modules
+%% Get coloring assignments for modules, per layer
 
 % no. of colors
 colorNo = size(colorTriplets, 1);
+% params for color assignment
+n = 10;
+cMethod = 'randColor';
+% call the color assignment function
+[modules2colors, allColors, sortedModFreq] = sortModules2Colors(modules, colorNo, n, cMethod);
 
-% if there are more modules overall than colors, set flag for only keeping 
-% color-module pairings in successive layers/epochs for overlapping modules
-if sum(unique(modules(:))) > colorNo
-    moduleRecolorFlag = true;
-else
-    moduleRecolorFlag = false;
-end
+% add color indices to the sorted frequency modules matrix 
+sortedModFreq(:,3) = modules2colors(modules2colors(:,1)==sortedModFreq(:,2), 2);
+% add RGB colors
+sortedModFreq(1:n, 4:6) = colorTriplets(sortedModFreq(1:n, 3), :);
+sortedModFreq(n+1:end, 4:6) = nan(size(sortedModFreq, 1)-n, 3);
+
+T = table(sortedModFreq(:, 1), sortedModFreq(:, 2), sortedModFreq(:, 4:6), 'VariableNames', {'Frequency', 'Module_ID', 'RGB'});
+% user message about coloring
+disp([char(10), 'Top ', num2str(n), ' frequent modules have stable color ',...
+    'assignments, colors for the rest change from layer-to-layer:', char(10)]);
+disp(T);
 
 
 %% Loop through layers/epochs, generate plots
 
-% for layerIdx = 1:layerNo
-for layerIdx = 1:10
+for layerIdx = 1:layerNo
+% for layerIdx = 1:10
     
     % title
     figTitle = ['Alpha, layer ', num2str(layerIdx), ', stim 1'];
@@ -183,31 +192,9 @@ for layerIdx = 1:10
     % modularity indices
     modIndicesVector = modules(:,layerIdx);    
     
-    % reassign module numbers / colors if we would not have enough colors
-    % to cover all modules otherwise
-    if layerIdx > 1 && moduleRecolorFlag
-        
-        % there is already a mod2color, as it is defined for the first
-        % layer
-        mod2colorOld = mod2color;
-        mod2color = [modIndicesVector, zeros(size(modIndicesVector, 1), 1)];
-        % check if there is any module in the current layer/epoch not there
-        % in the previous one
-        newModules = setdiff(modIndicesVector, mod2colorOld(:, 1));
-        % only go on if this set is not empty
-        if ~isempty(newModules)
-            % define the set of colors not used in the previous layer/epoch
-            availColors = setdiff(1:colorNo, mod2colorOld(:, 2));
-            % assign all new modules a color
-            for newModIdx = 1:length(newModules)
-                mod2color(modIndicesVector==newModules(newModIdx), 2) = repmat(availColors(newModIdx), [sum(modIndicesVector==newModules(newModIdx)), 1]);
-            end  % for newModIdx
-        end  % if ~isempty
-        
-    else
-        mod2color = [modIndicesVector, modIndicesVector]; 
-        
-    end
+    % get only unique module-color pairings instead of colors for all
+    % modules
+    modules2colorsForLayer = unique([modules(:, layerIdx), allColors(:, layerIdx)], 'rows');
     
     % if the labels were not an exact match but overlapped with standard
     % sets, rearrange labels + data
@@ -219,8 +206,8 @@ for layerIdx = 1:10
         
         % plotting
         [mainFig, subFig] = circleGraphPlot(connMatrix, modIndicesVector,... 
-                                colorTriplets, mod2color, trimmingThr,... 
-                                roiLabelsPlotting, figTitle);
+                                colorTriplets, modules2colorsForLayer,... 
+                                 trimmingThr, roiLabelsPlotting, figTitle);
         
     % in any other case, simply call the plotting function with the original labels    
     else
