@@ -35,7 +35,7 @@ function [permRes, withinCondPermRes, connSim] = cmpPrunedConn(connData, varargi
 % (if specified) are passed to permTest.m.
 %
 % Mandatory input:
-% connData      - Numerical tensor, sets of connectivity matrices across
+% connData      - 4D numeric array, sets of connectivity matrices across
 %               epochs and conditions (stimuli). First two dimensions have
 %               equal size and determine a connectivity matrix, third
 %               dimension is epochs, fourth is conditions (stimuli).

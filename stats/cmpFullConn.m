@@ -17,15 +17,20 @@ function [permRes, withinCondPermRes, connSim] = cmpFullConn(connData, varargin)
 % (if specified) are passed to permTest.m.
 %
 % Mandatory input:
-% connData      - Numerical tensor, sets of connectivity matrices across
+% connData      - 4D numeric array, sets of connectivity matrices across
 %               epochs and conditions (stimuli). First two dimensions have
 %               equal size and determine a connectivity matrix, third
 %               dimension is epochs, fourth is conditions (stimuli).
 %
 % Optional inputs:
 % metric        - String specifying distance metric for connectivity
-%               matrix comparisons. Matrices are first vectorized, 
-%               then one of these distances is used: {'corr', 'eucl'}.  
+%               matrix comparisons. One of {'corr', 'eucl', 'deltaCon'} 
+%               which stand for (1) pearson correlation, (2) eucledian 
+%               (frobenius for matrix) norm and (3) DeltaCon, 
+%               a network similarity measure (see "help deltaCon" for 
+%               details). If 'corr', connectivity matrices are first 
+%               vectorized, then simple Pearson correlation is used.
+%               Defaults to 'corr'.  
 % permNo        - Numeric value, the number of permutations to perform for
 %               random permutation tests. One of 100:100:10^6.
 % permStat      - String specifying the statistic we perform the random
@@ -62,23 +67,23 @@ function [permRes, withinCondPermRes, connSim] = cmpFullConn(connData, varargin)
 
 % number of args
 if ~ismember(nargin, 1:4)
-    error('Wrong number of input args - "connData" is needed while "metric", "permNo" and "permStat" are optional!');
+    error('Function cmpFullConn requires input arg "connData" while args "metric", "permNo" and "permStat" are optional!');
 end
 % loop through varargin to sort out input args
-if nargin > 1
+if ~isempty(varargin)
     for v = 1:length(varargin)
         if ischar(varargin{v})
-            if ismember(varargin{v}, {'corr', 'eucl'})
+            if ismember(varargin{v}, {'corr', 'eucl', 'deltaCon'}) && ~exist('metric', 'var')
                 metric = varargin{v};
-            elseif ismember(varargin{v}, {'mean', 'median', 'std'})
+            elseif ismember(varargin{v}, {'mean', 'median', 'std'}) && ~exist('permStat', 'var')
                 permStat = varargin{v};
             else
-                error('An input arg (string) could not be mapped to any optional arg!');
+                error('An input arg (char array) could not be mapped to either "metric" or "permStat"!');
             end
-        elseif isnumeric(varargin{v}) && ismember(varargin{v}, 100:100:10^6)
+        elseif isnumeric(varargin{v}) && ismember(varargin{v}, 100:100:10^6) && ~exist('permNo', 'var')
             permNo = varargin{v};
         else
-            error('At least one input arg could not mapped to any optional arg!');
+            error('At least one input arg could not be mapped nicely to any optional arg!');
         end
     end
 end   
@@ -94,7 +99,7 @@ if ~exist('permNo', 'var')
 end  
 % check size and dimensionality of mandatory arg "connData"
 if ~isequal(size(connData, 1), size(connData, 2))
-    error('First two dimensions of input arg "connData" need to have equal size!');
+    error('First two dimensions of input arg "connData" need to have equal sizes!');
 end
 if length(size(connData)) ~= 4
     error('Input arg "connData" should have four dimensions!');
@@ -111,67 +116,56 @@ disp([char(10), 'Called cmpFullConn function with input args:',...
 %% Basics
 
 % number of ROIS, conditions and epochs
-roiNo = size(connData, 1);
-condNo = size(connData, 4);
-epochNo = size(connData, 3);
-% preallocate for linearized data
-dataLin = zeros((roiNo*roiNo-roiNo)/2, epochNo, condNo);
+[roiNo, ~, epochNo, condNo] = size(connData);
+
+% reshape data so that epochs across conditions/stimuli come after each
+% other
+connData = reshape(connData, [roiNo, roiNo, epochNo*condNo]);
 
 
-%% Linearize and reshape connectivity data
+%% Get similarity score from all epoch-pairings
 
-for cond = 1:condNo
-    for epoch = 1:epochNo
-        % get upper triangular part from epoch-level connectivity matrix in
-        % a vector
-        tmp = squeeze(connData(:, :, epoch, cond))';
-        idx = tril(true(size(tmp)), -1);  % do not include data from main diagonal
-        dataLin(:, epoch, cond) = tmp(idx)';
-        % warning if there are NaN values
-        if any(isnan(dataLin(:, epoch, cond)))
-            warning(['There is at least one NaN value among the ',...
-                'connectivity values at condition ', num2str(cond),... 
-                ', epoch ', num2str(epoch), '!']);
-        end
-    end
-end
+% calculation depends on metric type
 
-% conditions become epochs one after another, so e.g. epoch 2 at cond 3
-% becomes epoch 22
-dataLin = reshape(dataLin, [(roiNo*roiNo-roiNo)/2, epochNo*condNo]);
-
-% user message
-disp([char(10), 'Vectorized connectivity matrices (upper triangles)']);
-
-
-%% Get similarity across all epoch-pairings
-
-% preallocate
-connSim = nan(epochNo*condNo);  % connectivity pattern similarity across epochs
-pairCounter = 0;  % counter for pairings calculated
-pastPairings = zeros((epochNo^2*condNo^2-epochNo*condNo)/2, 2);  % var storing epoch pairings calculated
-% loops through all epochs
-for epochOne = 1:epochNo*condNo
-    for epochTwo = 1:epochNo*condNo
-        % only consider epoch-pairing if the two epochs are not the same
-        % and have not been encountered before
-        if epochOne ~= epochTwo && ~ismember([epochOne, epochTwo], pastPairings, 'rows') && ~ismember([epochTwo, epochOne], pastPairings, 'rows')
-            % store epoch-pairing
-            pairCounter = pairCounter+1;
-            pastPairings(pairCounter, :) = [epochOne, epochTwo];
-            % calculate similarity according to the supplied metric
-            switch metric
-                case 'corr'
-                    connSim(epochOne, epochTwo) = corr(dataLin(:, epochOne), dataLin(:, epochTwo));
-                case 'eucl'
-                    connSim(epochOne, epochTwo) = norm(dataLin(:, epochOne)-dataLin(:, epochTwo));
-            end
-        end
-    end
+% simple correlation
+if strcmp(metric, 'corr')
+    % extract upper triangles above the main diagonal
+    dataLin = linearizeTrius(connData, 1);  
+    % get all column-pairwise correlations
+    connSim = corr(dataLin, dataLin);
+    % keep the upper triangle, inlcuding main diagonal, set the rest to NaN
+    connSim(tril(true(epochNo*condNo), -1)) = nan;
+    
+% frobenius norm of difference matrix ('eucl') or DeltaCon
+elseif ismember(metric, {'eucl', 'deltaCon'})
+    % preallocate results matrix
+    connSim = nan(epochNo*condNo);
+    % loops through epochs
+    for epochOne = 1:epochNo*condNo
+        % create symmetric adjacency matrices with zeros at diagonal
+        epochOneData = triu(connData(:, :, epochOne), 1) + triu(connData(:, :, epochOne), 1)';
+        for epochTwo = 1:epochNo*condNo
+            if epochOne <= epochTwo  % only for upper triangle of pairings
+                
+                % create symmetric adjacency matrices with zeros at diagonal
+                epochTwoData = triu(connData(:, :, epochTwo), 1) + triu(connData(:, :, epochTwo), 1)';
+                
+                % calculation depending on metric
+                switch metric
+                    case 'eucl'
+                        connSim(epochOne, epochTwo) = norm(epochOneData-epochTwoData, 'fro');
+                    case 'deltaCon'
+                        connSim(epochOne, epochTwo) = deltaCon(epochOneData, epochTwoData, false);  % verbosity of deltaCon is set to false
+                end
+                
+            end  % if
+        end  % for groupEpoch
+    end  % for subEpoch      
+    
 end
 
 % user message
-disp([char(10), 'Calculated similarity across all epoch-pairings']);
+disp([char(10), 'Calculated epoch-pairing distance / similarities']);
 
 
 %% Compare similarity values between within- and across-condition pairings
@@ -192,23 +186,23 @@ permRes.realDiff = nan;
 permRes.permDiff = nan(permNo, 1);
 permRes.pEst = nan;
 
-for cond = 1:condNo
+% preallocate vars holding within- and across condition/stimulus similarities
+withinCondSim = nan((epochNo^2-epochNo)/2, condNo);
+acrossCondSim = nan(epochNo^2*(condNo-1), condNo);
+
+for condIdx = 1:condNo
     
     % within-cond epoch pairing similarities for given condition
-    tmp = connSim((cond-1)*epochNo+1:cond*epochNo, (cond-1)*epochNo+1:cond*epochNo);
-    tmp = triu(tmp, 1);  
-    % linearize to vector
-    tmpT = tmp';
-    idx = tril(true(size(tmpT)), -1);
-    withinCondSim = tmpT(idx)';
+    tmp = connSim((condIdx-1)*epochNo+1:condIdx*epochNo, (condIdx-1)*epochNo+1:condIdx*epochNo); 
+    withinCondSim(:, condIdx) = tmp(triu(true(epochNo), 1));
     
     % across-condition pairings for epochs in given condition
     tmpParts = cell(2, 1);
-    if cond ~= 1
-        tmpParts{1} = connSim((cond-1)*epochNo+1:cond*epochNo, 1:(cond-1)*epochNo);
+    if condIdx ~= 1
+        tmpParts{1} = connSim((condIdx-1)*epochNo+1:condIdx*epochNo, 1:(condIdx-1)*epochNo);
     end
-    if cond ~= condNo
-        tmpParts{2} = connSim((cond-1)*epochNo+1:cond*epochNo, cond*epochNo+1:end);
+    if condIdx ~= condNo
+        tmpParts{2} = connSim((condIdx-1)*epochNo+1:condIdx*epochNo, condIdx*epochNo+1:end);
     end
     % concatenate the parts
     if isempty(tmpParts{1})
@@ -219,26 +213,35 @@ for cond = 1:condNo
         tmpAll = [tmpParts{1}, tmpParts{2}];
     end
     % linearize into a vector
-    acrossCondSim = reshape(tmpAll', [1, epochNo^2*(condNo-1)]);
+    acrossCondSim(:, condIdx) = reshape(tmpAll', [epochNo^2*(condNo-1), 1]);
     
     % store descriptives in result struct
-    permRes(cond).withinCondMean = mean(withinCondSim);
-    permRes(cond).withinCondSD = std(withinCondSim);
-    permRes(cond).withinCondMedian = median(withinCondSim);
-    permRes(cond).acrossCondMean = mean(acrossCondSim);
-    permRes(cond).acrossCondSD = std(acrossCondSim); 
-    permRes(cond).acrossCondMedian = median(acrossCondSim);
+    permRes(condIdx).withinCondMean = mean(withinCondSim);
+    permRes(condIdx).withinCondSD = std(withinCondSim);
+    permRes(condIdx).withinCondMedian = median(withinCondSim);
+    permRes(condIdx).acrossCondMean = mean(acrossCondSim);
+    permRes(condIdx).acrossCondSD = std(acrossCondSim); 
+    permRes(condIdx).acrossCondMedian = median(acrossCondSim);
     
     % permutation test across the two groups of connectivity similarity
     % values
-    [permRes(cond).pEst, permRes(cond).realDiff,... 
-        permRes(cond).permDiff] = permTest(withinCondSim, acrossCondSim, permNo, permStat);
+    [permRes(condIdx).pEst, permRes(condIdx).realDiff,... 
+        permRes(condIdx).permDiff] = permTest(withinCondSim, acrossCondSim, permNo, permStat);
     
 end
 
 % user message
 disp([char(10), 'Compared similarity within- versus across-condition epoch-pairings']);
 
+
+%% Comparison between within- and across-condition pairings across all conditions / stimuli
+
+[permRes(condNo+1).pEst, permRes(condNo+1).realDiff,... 
+        permRes(condNo+1).permDiff] = permTest(withinCondSim(:), acrossCondSim(:), permNo, permStat);
+
+% user message
+disp([char(10), 'Compared within- vs across-cond similarity across all stimuli']);    
+    
 
 %% Compare similarity values between different within-condition pairings
 % e.g. between epoch-pairings in within cond 1 and epoch-pairings within

@@ -128,9 +128,7 @@ groupData(:, :, :, :, subIdx) = [];
 groupData = mean(groupData, 5);
 
 % number of ROIS, conditions and epochs
-roiNo = size(groupData, 1);
-condNo = size(groupData, 4);
-epochNo = size(groupData, 3);
+[roiNo, ~, epochNo, condNo] = size(groupData);
 
 % reshape data so that epochs across conditions/stimuli come after each
 % other
@@ -152,7 +150,7 @@ if strcmp(metric, 'corr')
     groupDataLin = linearizeTrius(groupData, 1);
     % get all column-pairwise correlations
     connSim = corr(subDataLin, groupDataLin);
-    % keep the upper triangle, set the rest to NaN
+    % keep the upper triangle, inlcuding main diagonal, set the rest to NaN
     connSim(tril(true(epochNo*condNo), -1)) = nan;
     
 % frobenius norm of difference matrix ('eucl') or DeltaCon
@@ -166,7 +164,7 @@ elseif ismember(metric, {'eucl', 'deltaCon'})
                 
                 % create symmetric adjacency matrices with zeros at diagonal
                 subEpochData = triu(subData(:, :, subEpoch), 1) + triu(subData(:, :, subEpoch), 1)';
-                groupEpochData = triu(groupData(:, :, subEpoch), 1) + triu(groupData(:, :, subEpoch), 1)';
+                groupEpochData = triu(groupData(:, :, groupEpoch), 1) + triu(groupData(:, :, groupEpoch), 1)';
                 
                 % calculation depending on metric
                 switch metric

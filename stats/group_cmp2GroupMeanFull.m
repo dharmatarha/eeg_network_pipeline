@@ -8,7 +8,10 @@ function anovaRes = group_cmp2GroupMeanFull(groupData, metric)
 % the within-epoch and across-epoch connectivity similarities between
 % individual and leave-one-out group datasets for all individuals and fits
 % a linear model (anovan with subject as random effect) to the aggregate
-% data.
+% data. See "help cmp2GroupMeanFull" for further details.
+%
+% Only for NON-DIRECTED connectivity, as only the upper triangle of
+% connectivity matrices is used.
 %
 % The anovan output is also displayed in a figure.
 %
@@ -22,8 +25,13 @@ function anovaRes = group_cmp2GroupMeanFull(groupData, metric)
 %
 % Optional inputs:
 % metric        - String specifying distance metric for connectivity
-%               matrix comparisons. Matrices are first vectorized, 
-%               then one of these distances is used: {'corr', 'eucl'}.  
+%               matrix comparisons. One of {'corr', 'eucl', 'deltaCon'} 
+%               which stand for (1) pearson correlation, (2) eucledian 
+%               (frobenius for matrix) norm and (3) DeltaCon, 
+%               a network similarity measure (see "help deltaCon" for 
+%               details). If 'corr', connectivity matrices are first 
+%               vectorized, then simple Pearson correlation is used.
+%               Defaults to 'corr'. 
 %
 % Output:
 % anovaRes      - Struct containing the results of anovan performed on the
@@ -45,8 +53,8 @@ end
 if nargin == 1
     metric = 'corr';
 else
-    if ~ismember(metric ,{'corr', 'eucl'})
-        error('Input arg "metric" must be one of {''corr'', ''eucl''}!');
+    if ~ismember(metric ,{'corr', 'eucl', 'deltaCon'})
+        error('Input arg "metric" must be one of {''corr'', ''eucl'', ''deltaCon''}!');
     end
 end
 % check size and dimensionality of mandatory arg "groupData"
@@ -58,7 +66,7 @@ if length(size(groupData)) ~= 5
 end
 
 % user message
-disp([char(10), 'Called cmp2GroupMeanFull function with input args:',...
+disp([char(10), 'Called group_cmp2GroupMeanFull function with input args:',...
     char(10), 'Group data is array with size ', num2str(size(groupData)),...
     char(10), 'Metric: ', metric,]);
 
@@ -81,77 +89,59 @@ for subIdx = 1:subNo
     
     % user message about progress
     disp([char(10), 'Calculating for subject ', num2str(subIdx)]);
-    
+
     % Define subject- and leave-one-out mean data
     subData = squeeze(groupData(:, :, :, :, subIdx));
     meanData = groupData;
     meanData(:, :, :, :, subIdx) = [];
-    meanData = mean(meanData, 5);
+    meanData = mean(meanData, 5);    
     
-    % preallocate for linearized data
-    subDataLin = zeros((roiNo*roiNo-roiNo)/2, epochNo, condNo);
-    meanDataLin = subDataLin;
-    
-    % vectorize (linearize) data
-    for cond = 1:condNo
-        for epoch = 1:epochNo
-            % get upper triangular part from epoch-level connectivity matrix in
-            % a vector, for subject and group separately
-            % subject
-            tmp = squeeze(subData(:, :, epoch, cond))';
-            idx = tril(true(size(tmp)), -1);  % do not include data from main diagonal
-            subDataLin(:, epoch, cond) = tmp(idx)';
-            % group
-            tmp = squeeze(meanData(:, :, epoch, cond))';
-            idx = tril(true(size(tmp)), -1);  % do not include data from main diagonal
-            meanDataLin(:, epoch, cond) = tmp(idx)';        
-            % warning if there are NaN values
-            if any(isnan(subDataLin(:, epoch, cond))) || any(isnan(meanDataLin(:, epoch, cond)))
-                warning(['There is at least one NaN value among the ',...
-                    'connectivity values at condition ', num2str(cond),... 
-                    ', epoch ', num2str(epoch), '!']);
-            end
-        end
-    end    
-    
-    % conditions become epochs one after another, so e.g. epoch 2 at cond 3
-    % becomes epoch 22
-    subDataLin = reshape(subDataLin, [(roiNo*roiNo-roiNo)/2, epochNo*condNo]);
-    meanDataLin = reshape(meanDataLin, [(roiNo*roiNo-roiNo)/2, epochNo*condNo]);
+    % reshape data so that epochs across conditions/stimuli come after each
+    % other
+    subData = reshape(subData, [roiNo, roiNo, epochNo*condNo]);
+    meanData = reshape(meanData, [roiNo, roiNo, epochNo*condNo]);
 
     % Get similarity score from all epoch-pairings
     % calculation depends on metric type
-    switch metric
 
-        case 'corr'  % simple correlation
-            % get all column-pairwise correlations
-            tmp = corr(subDataLin, meanDataLin);
-            % keep the upper triangle, set the rest to NaN
-            tmp(tril(true(epochNo*condNo), -1)) = nan;
-            connSim(:, :, subIdx) = tmp;
-
-        case 'eucl'  % 2-norm of differences
-
-            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-            % THIS PART COULD BE SIMPLIFIED WITH BUILT-IN FUNCTION "VECNORM"
-            % CALCULATION BELOW IS CURRENTLY PREFERRED FOR
-            % BACKWARDS-COMPATIBILITY WITH OLDER MATLAB VERSIONS
-            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-            % preallocate results matrix
-            connSim = nan(epochNo*condNo);
-            % loops through subject and group epochs
-            for subEpoch = 1:epochNo*condNo
-                for groupEpoch = 1:epochNo*condNo
-                    if subEpoch <= groupEpoch  % only for upper triangle of pairings
-                        % norm of diff vector
-                        connSim(subEpoch, groupEpoch, subIdx) = norm(subDataLin(:, subEpoch)-meanDataLin(:, groupEpoch));              
-                    end       
-                end  % groupEpoch for
-            end  % subEpoch for
-
-    end  % switch metric
+    % simple correlation
+    if strcmp(metric, 'corr')
+        % extract upper triangles above the main diagonal
+        subDataLin = linearizeTrius(subData, 1);  
+        meanDataLin = linearizeTrius(meanData, 1);
+        % get all column-pairwise correlations
+        connSim(:, :, subIdx) = corr(subDataLin, meanDataLin);
+        % keep the upper triangle, set the rest to NaN
+        connSim(tril(true(epochNo*condNo), -1)) = nan;
     
+    % frobenius norm of difference matrix ('eucl') or DeltaCon
+    elseif ismember(metric, {'eucl', 'deltaCon'})
+        % loops through subject and group epochs
+        for subEpoch = 1:epochNo*condNo
+            for groupEpoch = 1:epochNo*condNo
+                if subEpoch <= groupEpoch  % only for upper triangle of pairings
+
+                    % create symmetric adjacency matrices with zeros at diagonal
+                    subEpochData = triu(subData(:, :, subEpoch), 1) + triu(subData(:, :, subEpoch), 1)';
+                    meanEpochData = triu(meanData(:, :, groupEpoch), 1) + triu(meanData(:, :, groupEpoch), 1)';
+
+                    % calculation depending on metric
+                    switch metric
+                        case 'eucl'
+                            connSim(subEpoch, groupEpoch, subIdx) = norm(subEpochData-meanEpochData, 'fro');
+                        case 'deltaCon'
+                            connSim(subEpoch, groupEpoch, subIdx) = deltaCon(subEpochData, meanEpochData, false);  % verbosity of deltaCon is set to false
+                    end
+
+                end  % if
+            end  % for groupEpoch
+        end  % for subEpoch    
+
+    end
+
+    % user message about progress
+    disp([char(10), 'Calculation finished for subject ', num2str(subIdx), char(10)]);
+
 end
 
 
@@ -168,9 +158,9 @@ anovaRes = struct;
 % get same-epoch pairing and different-epoch pairing similarities
 for subIdx = 1:subNo
     sameEpochSim(:, subIdx) = diag(connSim(:, :, subIdx));
-    tmp = connSim(:, :, subIdx)';
-    idx = tril(true(size(tmp)), -1);
-    diffEpochSim(:, subIdx) = tmp(idx)';
+    tmp = connSim(:, :, subIdx);
+    idx = triu(true(size(tmp)), 1);
+    diffEpochSim(:, subIdx) = tmp(idx);
 end
     
 % reshape data for random-effects model (anovan)
