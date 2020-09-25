@@ -1,6 +1,6 @@
 function [permRes, withinCondPermRes, connSim] = cmpFullConn(connData, varargin)
 %% Compare full connectivity matrices across conditions
-%
+%clear a
 % USAGE: [permRes, withinCondPermRes, connSim] = cmpFullConn(connData, metric='corr', permNo=10000, permStat='mean')
 %
 % Compares connectivity patterns across different groups of epoch-pairings 
@@ -34,31 +34,35 @@ function [permRes, withinCondPermRes, connSim] = cmpFullConn(connData, varargin)
 % permNo        - Numeric value, the number of permutations to perform for
 %               random permutation tests. One of 100:100:10^6.
 % permStat      - String specifying the statistic we perform the random
-%               permutaiton tests on. One of {'mean', 'median', 'std'} -
+%               permutation tests on. One of {'mean', 'median', 'std'} -
 %               the ones supported by permTest.m
 %
 % Outputs:
-% permRes       - Struct, random permutation test results. Each element of
-%               permRes summerizes the results of the within-condition 
-%               epoch pairings versus across-condition epoch-pairings test 
-%               for a condition, i.e. its size is [1 "numberOfConditions"].
+% permRes       - Struct, random permutation test results. The first 
+%               "condition no." elements of permRes summerize the results 
+%               of the within-condition epoch-pairings versus 
+%               across-condition epoch-pairings test for each condition. 
+%               The subsequent, last element contains the results for 
+%               comparing all within-condition pairings to all 
+%               across-condition pairings (across all stimuli). Thus, 
+%               its length is "numberOfConditions"+1.
 %               Has fields for the mean, median and SD values of both
 %               epoch-pairing groups, and for the outcomes of permTest,
-%               i.e. estimated p-value, real test stat difference and
-%               permuted difference values.
+%               i.e. estimated p-value, real test stat difference, 
+%               permuted difference values and effect size (Cohen's d).
 % withinCondPermRes       - Struct, random permutation test results. 
 %               Each element of withinCondPermRes summerizes the results of
 %               a comparison of epoch-pairings across two conditions, i.e. 
-%               its size is [1 nchoosek("numberOfConditions", 2)].
+%               its length is nchoosek("condition no.", 2).
 %               Has fields for the mean, median and SD values of both
 %               epoch-pairing groups, and for the outcomes of permTest,
-%               i.e. estimated p-value, real test stat difference and
-%               permuted difference values.
+%               i.e. estimated p-value, real test stat difference,
+%               permuted difference values and effect size (Cohen's d).
 % connSim       - Numeric matrix containing connectivity similarity values
 %               for all epoch-pairings. Symmetric, as the upper triangle
 %               values are calculated and mirrored to the lower half. Its
-%               size is ["numbreOfEpochs"*"numberOfConditions",
-%               "numbreOfEpochs"*"numberOfConditions"].
+%               size is ["epoch no" X "condition no.",
+%               "epoch no." X "condition no."].
 %
 %
 
@@ -216,17 +220,23 @@ for condIdx = 1:condNo
     acrossCondSim(:, condIdx) = reshape(tmpAll', [epochNo^2*(condNo-1), 1]);
     
     % store descriptives in result struct
-    permRes(condIdx).withinCondMean = mean(withinCondSim);
-    permRes(condIdx).withinCondSD = std(withinCondSim);
-    permRes(condIdx).withinCondMedian = median(withinCondSim);
-    permRes(condIdx).acrossCondMean = mean(acrossCondSim);
-    permRes(condIdx).acrossCondSD = std(acrossCondSim); 
-    permRes(condIdx).acrossCondMedian = median(acrossCondSim);
+    permRes(condIdx).withinCondMean = mean(withinCondSim(:, condIdx));
+    permRes(condIdx).withinCondSD = std(withinCondSim(:, condIdx));
+    permRes(condIdx).withinCondMedian = median(withinCondSim(:, condIdx));
+    permRes(condIdx).acrossCondMean = mean(acrossCondSim(:, condIdx));
+    permRes(condIdx).acrossCondSD = std(acrossCondSim(:, condIdx)); 
+    permRes(condIdx).acrossCondMedian = median(acrossCondSim(:, condIdx));
     
     % permutation test across the two groups of connectivity similarity
     % values
-    [permRes(condIdx).pEst, permRes(condIdx).realDiff,... 
-        permRes(condIdx).permDiff] = permTest(withinCondSim, acrossCondSim, permNo, permStat);
+    [permRes(condIdx).pEst,... 
+     permRes(condIdx).realDiff,... 
+     permRes(condIdx).permDiff,... 
+     permRes(condIdx).cohenD] = permTest(withinCondSim(:, condIdx),... 
+                                         acrossCondSim(:, condIdx),... 
+                                         permNo,... 
+                                         permStat,...
+                                         'silent');
     
 end
 
@@ -236,8 +246,23 @@ disp([char(10), 'Compared similarity within- versus across-condition epoch-pairi
 
 %% Comparison between within- and across-condition pairings across all conditions / stimuli
 
-[permRes(condNo+1).pEst, permRes(condNo+1).realDiff,... 
-        permRes(condNo+1).permDiff] = permTest(withinCondSim(:), acrossCondSim(:), permNo, permStat);
+% store descriptives in result struct
+permRes(condNo+1).withinCondMean = mean(withinCondSim(:));
+permRes(condNo+1).withinCondSD = std(withinCondSim(:));
+permRes(condNo+1).withinCondMedian = median(withinCondSim(:));
+permRes(condNo+1).acrossCondMean = mean(acrossCondSim(:));
+permRes(condNo+1).acrossCondSD = std(acrossCondSim(:)); 
+permRes(condNo+1).acrossCondMedian = median(acrossCondSim(:));
+
+% permutation test on vectorized withinCondSim and acrossCondSim matrices
+[permRes(condNo+1).pEst,... 
+ permRes(condNo+1).realDiff,... 
+ permRes(condNo+1).permDiff,... 
+ permRes(condNo+1).cohenD] = permTest(withinCondSim(:),... 
+                                      acrossCondSim(:),... 
+                                      permNo,... 
+                                      permStat,...
+                                      'silent');
 
 % user message
 disp([char(10), 'Compared within- vs across-cond similarity across all stimuli']);    
@@ -249,75 +274,38 @@ disp([char(10), 'Compared within- vs across-cond similarity across all stimuli']
 
 % preallocate results struct
 withinCondPermRes = struct;
-withinCondPermRes.condOneMean = nan;
-withinCondPermRes.condOneSD = nan;
-withinCondPermRes.condOneMedian= nan;
-withinCondPermRes.condTwoMean = nan;
-withinCondPermRes.condTwoSD = nan;
-withinCondPermRes.condTwoMedian = nan;
-
-% counter for condition pairings
-pairCounter = 0;
-% var storing condition pairings already calculated
-pastPairings = zeros(nchoosek(4, 2), 2);
 
 % loops through conditions
+counter = 0;
 for condOne = 1:condNo
     for condTwo = 1:condNo
-        % only calculate if the two conditions are not the same and have
-        % not been take into account yet
-        if condOne~=condTwo && ~ismember([condOne, condTwo], pastPairings, 'rows') && ~ismember([condTwo, condOne], pastPairings, 'rows')
-            pairCounter = pairCounter+1;
-            pastPairings(pairCounter, :) = [condOne, condTwo];
+        % only calculate if the two conditions are not the same
+        if condTwo > condOne
             
-            % within-cond epoch pairing similarities for condition one
-            tmp = connSim((condOne-1)*epochNo+1:condOne*epochNo, (condOne-1)*epochNo+1:condOne*epochNo);
-            tmp = triu(tmp, 1);  
-            % linearize to vector
-            tmpT = tmp';
-            idx = tril(true(size(tmpT)), -1);
-            withinCondSimOne = tmpT(idx)';
-
-            % within-cond epoch pairing similarities for condition two
-            tmp = connSim((condTwo-1)*epochNo+1:condTwo*epochNo, (condTwo-1)*epochNo+1:condTwo*epochNo);
-            tmp = triu(tmp, 1);  
-            % linearize to vector
-            tmpT = tmp';
-            idx = tril(true(size(tmpT)), -1);
-            withinCondSimTwo = tmpT(idx)';
-            
-            % store descriptives in results struct
-            withinCondPermRes(pairCounter).condOneMean = mean(withinCondSimOne);
-            withinCondPermRes(pairCounter).condOneSD = std(withinCondSimOne);
-            withinCondPermRes(pairCounter).condOneMedian = median(withinCondSimOne);
-            withinCondPermRes(pairCounter).condTwoMean = mean(withinCondSimTwo);
-            withinCondPermRes(pairCounter).condTwoSD = std(withinCondSimTwo);
-            withinCondPermRes(pairCounter).condTwoMedian = median(withinCondSimTwo);
+            % adjust counter
+            counter = counter + 1;
             
             % permutation test across the two groups of connectivity similarity
             % values
-            [withinCondPermRes(pairCounter).pEst, withinCondPermRes(pairCounter).realDiff,... 
-                withinCondPermRes(pairCounter).permDiff] = permTest(withinCondSimOne, withinCondSimTwo, permNo, permStat);
+            [withinCondPermRes(counter).pEst,... 
+                withinCondPermRes(counter).realDiff,... 
+                withinCondPermRes(counter).permDiff,...
+                withinCondPermRes(counter).cohenD] = permTest(withinCondSim(:, condOne),... 
+                                                              withinCondSim(:, condTwo),... 
+                                                              permNo,... 
+                                                              permStat,...
+                                                              'silent');
             
-        end
-        
-    end
-end
+        end  % if 
+    end  % for condTwo
+end  % for condOne
 
 % user message
 disp([char(10), 'Compared similarity across conditions for within-condition epoch-pairings']);
 disp('Done with everything!');
 
+
 return
-
-
-
-
-
-
-
-
-
 
 
 
