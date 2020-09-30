@@ -31,13 +31,11 @@ function [permRes, withinCondAnova, connSim] = cmpFullConn_edge(connData, vararg
 %
 % Optional inputs:
 % metric        - Char array specifying distance metric for connectivity
-%               matrix comparisons. One of {'corr', 'eucl', 'deltaCon'} 
+%               matrix comparisons. One of {'corr', 'eucl'} 
 %               which stand for (1) pearson correlation, (2) eucledian 
-%               (frobenius for matrix) norm and (3) DeltaCon, 
-%               a network similarity measure (see "help deltaCon" for 
-%               details). If 'corr', connectivity matrices are first 
-%               vectorized, then simple Pearson correlation is used.
-%               Defaults to 'corr'. 
+%               (frobenius for matrix) norm. If 'corr', connectivity 
+%               matrices are first vectorized, then simple Pearson 
+%               correlation is used. Defaults to 'corr'. 
 % permNo        - Numeric value, the number of permutations to perform for
 %               random permutation tests. One of 100:100:10^6. Defaults to
 %               10^4.
@@ -97,7 +95,7 @@ end
 if ~isempty(varargin)
     for v = 1:length(varargin)
         if ischar(varargin{v})
-            if ismember(varargin{v}, {'corr', 'eucl', 'deltaCon'}) && ~exist('metric', 'var')
+            if ismember(varargin{v}, {'corr', 'eucl'}) && ~exist('metric', 'var')
                 metric = varargin{v};
             elseif ismember(varargin{v}, {'mean', 'median', 'std'}) && ~exist('permStat', 'var')
                 permStat = varargin{v};
@@ -194,7 +192,7 @@ disp([char(10), 'Calculated similarity for all epoch-pairings, ',...
     'for all edges, took ', num2str(simTime), ' secs!']);
     
 
-%% Compare similarity values between within- and across-condition pairings
+%% Compare similarity values between within- and across-condition pairings, for all edges
 
 % preallocate results vars
 withinCondMean = nan(edgeNo, condNo);
