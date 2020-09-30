@@ -231,8 +231,7 @@ startClock = tic;
 %%%%% PARFOR!!! %%%%%
 %%%%%%%%%%%%%%%%%%%%%
 % loop through edges
-% parfor edgeIdx = 1:edgeNo
-parfor edgeIdx = 1:4
+parfor edgeIdx = 1:edgeNo
 
     % define data for edge
     edgeData = squeeze(connSim(edgeIdx, :, :));
