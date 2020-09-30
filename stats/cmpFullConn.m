@@ -1,6 +1,6 @@
 function [permRes, withinCondPermRes, connSim] = cmpFullConn(connData, varargin)
 %% Compare full connectivity matrices across conditions
-%clear a
+%
 % USAGE: [permRes, withinCondPermRes, connSim] = cmpFullConn(connData, metric='corr', permNo=10000, permStat='mean')
 %
 % Compares connectivity patterns across different groups of epoch-pairings 
@@ -23,7 +23,7 @@ function [permRes, withinCondPermRes, connSim] = cmpFullConn(connData, varargin)
 %               dimension is epochs, fourth is conditions (stimuli).
 %
 % Optional inputs:
-% metric        - String specifying distance metric for connectivity
+% metric        - Char array specifying distance metric for connectivity
 %               matrix comparisons. One of {'corr', 'eucl', 'deltaCon'} 
 %               which stand for (1) pearson correlation, (2) eucledian 
 %               (frobenius for matrix) norm and (3) DeltaCon, 
@@ -32,10 +32,11 @@ function [permRes, withinCondPermRes, connSim] = cmpFullConn(connData, varargin)
 %               vectorized, then simple Pearson correlation is used.
 %               Defaults to 'corr'.  
 % permNo        - Numeric value, the number of permutations to perform for
-%               random permutation tests. One of 100:100:10^6.
-% permStat      - String specifying the statistic we perform the random
+%               random permutation tests. One of 100:100:10^6. Defaults to
+%               10^4.
+% permStat      - Char array specifying the statistic we perform the random
 %               permutation tests on. One of {'mean', 'median', 'std'} -
-%               the ones supported by permTest.m
+%               the ones supported by permTest.m. Defaults to 'mean'.
 %
 % Outputs:
 % permRes       - Struct, random permutation test results. The first 
@@ -73,6 +74,13 @@ function [permRes, withinCondPermRes, connSim] = cmpFullConn(connData, varargin)
 if ~ismember(nargin, 1:4)
     error('Function cmpFullConn requires input arg "connData" while args "metric", "permNo" and "permStat" are optional!');
 end
+% check size and dimensionality of mandatory arg "connData"
+if ~isnumeric(connData) || length(size(connData)) ~= 4
+    error('Input arg "connData" should be 4D numeric array!');
+end
+if ~isequal(size(connData, 1), size(connData, 2))
+    error('First two dimensions of input arg "connData" need to have equal sizes!');
+end
 % loop through varargin to sort out input args
 if ~isempty(varargin)
     for v = 1:length(varargin)
@@ -101,13 +109,6 @@ end
 if ~exist('permNo', 'var')
     permNo = 10^4;
 end  
-% check size and dimensionality of mandatory arg "connData"
-if ~isequal(size(connData, 1), size(connData, 2))
-    error('First two dimensions of input arg "connData" need to have equal sizes!');
-end
-if length(size(connData)) ~= 4
-    error('Input arg "connData" should have four dimensions!');
-end
 
 % user message
 disp([char(10), 'Called cmpFullConn function with input args:',...

@@ -1,7 +1,11 @@
-function [permRes, connSim] = cmpFullConn_edge(connData, varargin)
-%% Compare full connectivity matrices across conditions
+function [permRes, withinCondAnova, connSim] = cmpFullConn_edge(connData, varargin)
+%% Compare edge contributions to connectivity matrice differences across conditions
 %
-% USAGE: [permRes, connSim] = cmpFullConn_edge(connData, metric='corr', permNo=10000, permStat='mean')
+% USAGE: [permRes, withinCondAnova, connSim] = cmpFullConn_edge(connData, 
+%                                                               metric='corr', 
+%                                                               permNo=10000, 
+%                                                               permStat='mean')
+%
 %
 % Evaluates the contribution of each edge to the difference between 
 % within- vs. across-condition similarities calculated on the full 
@@ -20,15 +24,19 @@ function [permRes, connSim] = cmpFullConn_edge(connData, varargin)
 % USES PARFOR FOR THE LOOP ACROSS EDGES!
 %
 % Mandatory input:
-% connData      - 4D Numerical tensor, sets of connectivity matrices across
+% connData      - 4D numeric array, sets of connectivity matrices across
 %               epochs and conditions (stimuli). First two dimensions have
 %               equal size and determine a connectivity matrix, third
 %               dimension is epochs, fourth is conditions (stimuli).
 %
 % Optional inputs:
-% metric        - String specifying distance metric for connectivity
-%               matrix comparisons. Matrices are first vectorized, 
-%               then one of these distances is used: {'corr', 'eucl'}. 
+% metric        - Char array specifying distance metric for connectivity
+%               matrix comparisons. One of {'corr', 'eucl', 'deltaCon'} 
+%               which stand for (1) pearson correlation, (2) eucledian 
+%               (frobenius for matrix) norm and (3) DeltaCon, 
+%               a network similarity measure (see "help deltaCon" for 
+%               details). If 'corr', connectivity matrices are first 
+%               vectorized, then simple Pearson correlation is used.
 %               Defaults to 'corr'. 
 % permNo        - Numeric value, the number of permutations to perform for
 %               random permutation tests. One of 100:100:10^6. Defaults to
@@ -38,16 +46,30 @@ function [permRes, connSim] = cmpFullConn_edge(connData, varargin)
 %               the ones supported by permTest.m. Defaults to 'mean'.
 %
 % Outputs:
-% permRes       - Struct, random permutation test results. Its fields 
-%               summerize the results of the within-condition 
-%               epoch pairings versus across-condition epoch-pairings
-%               comparison.
+% permRes       - Struct, random permutation test results for each edge. 
+%               It has fields for the results of permutation tests 
+%               comparing within-condition epoch-pairings versus 
+%               across-condition epoch-pairings for each condition:
+%               withinCondMean, withinCondSD, withinCondMedian,
+%               acrossCondMean, acrossCondSD, acrossCondMedian, realDiff, 
+%               permDiffMean, permDiffSD, pEst, cohend. 
+%               Each of these fields is a numeric matrix sized 
+%               ["no. of edges" X "no of conditions"].
+%               Also contains fields for the results of within vs across
+%               comparisons across all stimuli/conditions:
+%               withinAllMean, withinAllSD, withinAllMedian,
+%               acrossAllMean, acrossAllSD, acrossAllMedian, realDiffAll, 
+%               permDiffAllMean,  permDiffAllSD, pEstAll, cohendAll.
+%               These are all numeric vectors sized ["no of edges" X 1].
+% withinCondAnova       - Struct, anova results for comparing within-cond 
+%               epoch-pairings across stimuli/conditions, separately for 
+%               each edge. 
+%               Its length is nchoosek("condition no.", 2).
 %               Has fields for the mean, median and SD values of both
 %               epoch-pairing groups, and for the outcomes of permTest,
-%               i.e. estimated p-value, real test stat difference, mean and
-%               SD of
-%               permuted difference values.
-% connSim       - 3D Numeric array containing connectivity similarity values
+%               i.e. estimated p-value, real test stat difference,
+%               permuted difference values and effect size (Cohen's d).
+% connSim       - 3D numeric array containing connectivity similarity values
 %               for all edges and epoch-pairings. Each layer (as defined 
 %               by the 2nd and 3rd dimensions is symmetric, as the upper 
 %               triangle values are calculated and mirrored to the lower 
@@ -56,29 +78,36 @@ function [permRes, connSim] = cmpFullConn_edge(connData, varargin)
 %               "numbreOfEpochs"*"numberOfConditions"].
 %
 %
-%
+
 
 %% Input checks
 
 % number of args
 if ~ismember(nargin, 1:4)
-    error('Wrong number of input args - "connData" is needed while "metric", "permNo" and "permStat" are optional!');
+    error('Function cmpFullConn_edge requires input arg "connData" while args "metric", "permNo" and "permStat" are optional!');
+end
+% check size and dimensionality of mandatory arg "connData"
+if ~isnumeric(connData) || length(size(connData)) ~= 4
+    error('Input arg "connData" should be 4D numeric array!');
+end
+if ~isequal(size(connData, 1), size(connData, 2))
+    error('First two dimensions of input arg "connData" need to have equal sizes!');
 end
 % loop through varargin to sort out input args
-if nargin > 1
+if ~isempty(varargin)
     for v = 1:length(varargin)
         if ischar(varargin{v})
-            if ismember(varargin{v}, {'corr', 'eucl'})
+            if ismember(varargin{v}, {'corr', 'eucl', 'deltaCon'}) && ~exist('metric', 'var')
                 metric = varargin{v};
-            elseif ismember(varargin{v}, {'mean', 'median', 'std'})
+            elseif ismember(varargin{v}, {'mean', 'median', 'std'}) && ~exist('permStat', 'var')
                 permStat = varargin{v};
             else
-                error('An input arg (string) could not be mapped to any optional arg!');
+                error('An input arg (char array) could not be mapped to either "metric" or "permStat"!');
             end
-        elseif isnumeric(varargin{v}) && ismember(varargin{v}, 100:100:10^6)
+        elseif isnumeric(varargin{v}) && ismember(varargin{v}, 100:100:10^6) && ~exist('permNo', 'var')
             permNo = varargin{v};
         else
-            error('At least one input arg could not mapped to any optional arg!');
+            error('At least one input arg could not be mapped nicely to any optional arg!');
         end
     end
 end   
@@ -92,17 +121,10 @@ end
 if ~exist('permNo', 'var')
     permNo = 10^4;
 end  
-% check size and dimensionality of mandatory arg "connData"
-if ~isequal(size(connData, 1), size(connData, 2))
-    error('First two dimensions of input arg "connData" need to have equal size!');
-end
-if length(size(connData)) ~= 4
-    error('Input arg "connData" should have four dimensions!');
-end
 
 % user message
 disp([char(10), 'Called cmpFullConn_edge function with input args:',...
-    char(10), 'Input data is array with size ', num2str(size(connData)),...
+    char(10), 'Input data is numeric array with size ', num2str(size(connData)),...
     char(10), 'Metric: ', metric,...
     char(10), 'No. of random permutations: ', num2str(permNo),...
     char(10), 'Test statistic for random permutations: ', permStat]);
@@ -111,62 +133,38 @@ disp([char(10), 'Called cmpFullConn_edge function with input args:',...
 %% Basics
 
 % number of ROIS, conditions and epochs
-roiNo = size(connData, 1);
-condNo = size(connData, 4);
-epochNo = size(connData, 3);
-% number of edges = elements in the upper triangle excluding the diagonal
-edgeNo = (roiNo*roiNo-roiNo)/2;
-% preallocate for linearized data
-dataLin = zeros((roiNo*roiNo-roiNo)/2, epochNo, condNo);
+[roiNo, ~, epochNo, condNo] = size(connData);
+
+% reshape data so that epochs across conditions/stimuli come after each
+% other
+connData = reshape(connData, [roiNo, roiNo, epochNo*condNo]);
 
 
-%% Linearize and reshape connectivity data
-
-for condIdx = 1:condNo
-    for epoch = 1:epochNo
-        % get upper triangular part from epoch-level connectivity matrix in
-        % a vector
-        tmp = squeeze(connData(:, :, epoch, condIdx))';
-        idx = tril(true(size(tmp)), -1);  % do not include data from main diagonal
-        dataLin(:, epoch, condIdx) = tmp(idx)';
-        % warning if there are NaN values
-        if any(isnan(dataLin(:, epoch, condIdx)))
-            warning(['There is at least one NaN value among the ',...
-                'connectivity values at condition ', num2str(condIdx),... 
-                ', epoch ', num2str(epoch), '!']);
-        end
-    end
-end  % for condIdx
-
-% conditions become epochs one after another, so e.g. epoch 2 at cond 3
-% becomes epoch 22
-dataLin = reshape(dataLin, [edgeNo, epochNo*condNo]);
-
-% user message
-disp([char(10), 'Vectorized connectivity matrices (upper triangles)']);
-
-
-%% Normalize connectivity data if method is 'corr'
-
-% for measuring the piecewise contributions of each edge to the total
-% result, we look at covariances on normalized data
-if strcmp(metric, 'corr')
-    tmpMeans = mean(dataLin, 1);
-    tmpSds = std(dataLin, 1, 1);
-    dataLin = (dataLin-tmpMeans)./tmpSds; % it is still crazy we can do this
-end
-
-
-%% Get similarity across all epoch-pairings, separately for each edge
+%% Get similarity score from all epoch-pairings
 
 % preallocate
-connSim = nan(edgeNo, epochNo*condNo, epochNo*condNo);  % connectivity pattern similarity across epochs, for each edge
+% connectivity pattern similarity across epochs, for each edge
+connSim = nan(edgeNo, epochNo*condNo, epochNo*condNo);  
 
+% extract upper triangles above the main diagonal
+dataLin = linearizeTrius(connData, 1); 
+
+% extra preprocessing steps are needed for correlations - normalizations
+% before looking at covariance
+if strcmp(metric, 'corr')
+    % for measuring the piecewise contributions of each edge to the total
+    % result, we look at covariances on normalized data
+    tmpMeans = mean(dataLin, 1);
+    tmpSds = std(dataLin, 1, 1);
+    dataLin = (dataLin-tmpMeans)./tmpSds; % it is still crazy we can do this    
+end
+
+% calculation depends on metric type
 % loop through all edges
 for edgeIdx = 1:edgeNo
     % define edge data we work with
     edgeData = dataLin(edgeIdx, :);
-    
+
     % loops through all epoch-pairings
     for epochOne = 1:epochNo*condNo
         for epochTwo = 1:epochNo*condNo
@@ -183,17 +181,16 @@ for edgeIdx = 1:edgeNo
             end
         end  % for epochTwo
     end  % for epochOne
+
+end  % for edgeIdx        
     
-end  % for edgeIdx
-
 % user message
-disp([char(10), 'Calculated similarity across all epoch-pairings, all edges']);
+disp([char(10), 'Calculated similarity for all epoch-pairings, for all edges!']);
+    
 
+%% Compare similarity values between within- and across-condition pairings
 
-%% Compare similarity values between within- and across-condition pairings 
-
-% preallocate results struct
-
+% preallocate results vars
 withinCondMean = nan(edgeNo, condNo);
 withinCondSD = nan(edgeNo, condNo);
 withinCondMedian = nan(edgeNo, condNo);
@@ -205,6 +202,21 @@ permDiffMean = nan(edgeNo, condNo);
 permDiffSD = nan(edgeNo, condNo);
 pEst = nan(edgeNo, condNo);
 cohend = nan(edgeNo, condNo);
+withinAllMean = nan(edgeNo, 1);
+withinAllSD = nan(edgeNo, 1);
+withinAllMedian = nan(edgeNo, 1);
+acrossAllMean = nan(edgeNo, 1);
+acrossAllSD = nan(edgeNo, 1);
+acrossAllMedian = nan(edgeNo, 1);
+realDiffAll = nan(edgeNo, 1);
+permDiffAllMean = nan(edgeNo, 1);
+permDiffAllSD = nan(edgeNo, 1);
+pEstAll = nan(edgeNo, 1);
+cohendAll = nan(edgeNo, 1);
+anovaP = nan(edgeNo, 1);
+anovaTab = cell(edgeNo, 1);
+anovaStats = cell(edgeNo, 1);
+anovaComp = nan(edgeNo, (condNo*condNo-1)/2, (condNo*condNo-1)/2);
 
 % clock for measuring elapsed time
 startClock = tic;
@@ -220,17 +232,19 @@ parfor edgeIdx = 1:edgeNo
     % mirror the upper triangular part of connSim matrix to the lower
     % half
     edgeData = triu(edgeData, 1) + triu(edgeData, 1)'; 
+
+    % preallocate vars holding within- and across condition/stimulus similarities
+    withinCondSim = nan((epochNo^2-epochNo)/2, condNo);
+    acrossCondSim = nan(epochNo^2*(condNo-1), condNo);
+
     
-    % loop through conditions / stimuli
-    for condIdx = 1:condNo    
-        
+    %% Comparisons separately for each condition / stimulus
+    
+    for condIdx = 1:condNo
+
         % within-cond epoch pairing similarities for given condition
-        tmp = edgeData((condIdx-1)*epochNo+1:condIdx*epochNo, (condIdx-1)*epochNo+1:condIdx*epochNo);
-        tmp = triu(tmp, 1);  
-        % linearize to vector
-        tmpT = tmp';
-        idx = tril(true(size(tmpT)), -1);
-        withinCondSim = tmpT(idx)';
+        tmp = edgeData((condIdx-1)*epochNo+1:condIdx*epochNo, (condIdx-1)*epochNo+1:condIdx*epochNo); 
+        withinCondSim(:, condIdx) = tmp(triu(true(epochNo), 1));
 
         % across-condition pairings for epochs in given condition
         tmpParts = cell(2, 1);
@@ -249,45 +263,77 @@ parfor edgeIdx = 1:edgeNo
             tmpAll = [tmpParts{1}, tmpParts{2}];
         end
         % linearize into a vector
-        acrossCondSim = reshape(tmpAll', [1, epochNo^2*(condNo-1)]);
+        acrossCondSim(:, condIdx) = reshape(tmpAll', [epochNo^2*(condNo-1), 1]);
 
         % store descriptives in result struct
-        withinCondMean(edgeIdx, condIdx) = mean(withinCondSim);
-        withinCondSD(edgeIdx, condIdx) = std(withinCondSim);
-        withinCondMedian(edgeIdx, condIdx) = median(withinCondSim);
-        acrossCondMean(edgeIdx, condIdx) = mean(acrossCondSim);
-        acrossCondSD(edgeIdx, condIdx) = std(acrossCondSim); 
-        acrossCondMedian(edgeIdx, condIdx) = median(acrossCondSim);
+        withinCondMean(edgeIdx, condIdx) = mean(withinCondSim(:, condIdx));
+        withinCondSD(edgeIdx, condIdx) = std(withinCondSim(:, condIdx));
+        withinCondMedian(edgeIdx, condIdx) = median(withinCondSim(:, condIdx));
+        acrossCondMean(edgeIdx, condIdx) = mean(acrossCondSim(:, condIdx));
+        acrossCondSD(edgeIdx, condIdx) = std(acrossCondSim(:, condIdx)); 
+        acrossCondMedian(edgeIdx, condIdx) = median(acrossCondSim(:, condIdx));
 
         % permutation test across the two groups of connectivity similarity
         % values
-        [pEst(edgeIdx, condIdx), realDiff(edgeIdx, condIdx),... 
-            permDiff, cohend(edgeIdx, condIdx)] = permTest(withinCondSim, acrossCondSim, permNo, permStat, 'silent');  % suppress permTest outputs to command prompt
-        % save out the mean and SD of permited differences
-        permDiffMean(edgeIdx, condIdx) = mean(permDiff);
-        permDiffSD(edgeIdx, condIdx) = std(permDiff);
+        [pEst(edgeIdx, condIdx),... 
+         realDiff(edgeIdx, condIdx),... 
+         tmpPermDiff,... 
+         cohend(edgeIdx, condIdx)] = permTest(withinCondSim(:, condIdx),... 
+                                             acrossCondSim(:, condIdx),... 
+                                             permNo,... 
+                                             permStat,...
+                                             'silent');
+         % get only mean and SD from the distribution of permuted stats                                
+         permDiffMean(edgeIdx, condIdx) = mean(tmpPermDiff);
+         permDiffSD(edgeIdx, condIdx) = std(tmpPermDiff);
 
-    end  % for condIdx
+    end
     
-%     % user message after each Nth edge
-%     if mod(edgeNo, 50) == 0
-%         elapsedTime = round(toc(startClock), 2);
-%         disp([char(10), 'Done with edge no. ', num2str(edgeNo),... 
-%             ', took ', num2str(elapsedTime), ' secs so far']);
-%     end
-   
-   % user message about progress
-   elapsedTime = round(toc(startClock), 2);
-   disp(['Done with edge no. ', num2str(edgeIdx), ', took ', num2str(elapsedTime), ' secs so far']);
+    
+    %% Comparison between within- and across-condition pairings across all conditions / stimuli
+    
+    % store descriptives in result struct
+    withinAllMean(edgeIdx) = mean(withinCondSim(:));
+    withinAllSD(edgeIdx) = std(withinCondSim(:));
+    withinAllMedian(edgeIdx) = median(withinCondSim(:));
+    acrossAllMean(edgeIdx) = mean(acrossCondSim(:));
+    acrossAllSD(edgeIdx) = std(acrossCondSim(:)); 
+    acrossAllMedian(edgeIdx) = median(acrossCondSim(:));
+
+    % permutation test on vectorized withinCondSim and acrossCondSim matrices
+    [pEstAll(edgeIdx),... 
+     realDiffAll(edgeIdx),... 
+     tmpPermDiff,... 
+     cohendAll(edgeIdx)] = permTest(withinCondSim(:),... 
+                                          acrossCondSim(:),... 
+                                          permNo,... 
+                                          permStat,...
+                                          'silent');
+    % get only mean and SD from the distribution of permuted stats                                
+    permDiffAllMean(edgeIdx) = mean(tmpPermDiff);
+    permDiffAllSD(edgeIdx) = std(tmpPermDiff);          
+     
+    
+    %% ANOVA for comparing within-cond similarities across conditions/stimuli
+    
+    [anovaP(edgeIdx), anovaTab(edgeIdx), stats] = anova1(withinCondSim, [], 'off');
+    anovaComp(edgeIdx, :, :) = multcompare(stats, 'ctype', 'lsd', 'display', 'off');
+    anovaStats(edgeIdx) = stats;
+    
+    %% user message about progress
+    elapsedTime = round(toc(startClock), 2);
+    disp(['Done with edge no. ', num2str(edgeIdx), ', took ', num2str(elapsedTime), ' secs so far']);     
+     
     
 end  % parfor edgeIdx
 
 % user message
-disp([char(10), 'Compared similarity within- versus across-condition epoch-pairings']);
+disp([char(10), 'Finished comparing similarity within- versus across-condition epoch-pairings!']);
 
 
-%% Save and return
+%% Collect resutls 
 
+% all permutation test results into one struct
 permRes = struct;
 permRes.withinCondMean = withinCondMean;
 permRes.withinCondSD = withinCondSD;
@@ -300,9 +346,31 @@ permRes.realDiff = realDiff;
 permRes.permDiffMean = permDiffMean;
 permRes.permDiffSD = permDiffSD;
 permRes.cohend = cohend;
+permRes.withinAllMean = withinAllMean;
+permRes.withinAllSD = withinAllSD;
+permRes.withinAllMedian = withinAllMedian;
+permRes.acrossAllMean = acrossAllMean;
+permRes.acrossAllSD = acrossAllSD;
+permRes.acrossAllMedian = acrossAllMedian;
+permRes.pEstAll = pEstAll;
+permRes.realDiffAll = realDiffAll;
+permRes.permDiffAllMean = permDiffAllMean;
+permRes.permDiffAllSD = permDiffAllSD;
+permRes.cohendAll = cohendAll;
+
+% all anova results into other struct
+withinCondAnova = struct;
+withinCondAnova.anovaP = anovaP;
+withinCondAnova.anovaTab = anovaTab;
+withinCondAnova.anovaStats = anovaStats;
+withinCondAnova.anovaComp = anovaComp;
+
+% user message
+disp([char(10), 'Done with everything, returning results']);
 
 
 return
+
 
 
 
