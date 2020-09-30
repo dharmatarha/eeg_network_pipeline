@@ -142,8 +142,12 @@ connData = reshape(connData, [roiNo, roiNo, epochNo*condNo]);
 
 %% Get similarity score from all epoch-pairings
 
+% clock for measuring time for similarity measurements
+simClock = tic;
+
 % preallocate
 % connectivity pattern similarity across epochs, for each edge
+edgeNo = roiNo*(roiNo-1)/2;
 connSim = nan(edgeNo, epochNo*condNo, epochNo*condNo);  
 
 % extract upper triangles above the main diagonal
@@ -185,7 +189,9 @@ for edgeIdx = 1:edgeNo
 end  % for edgeIdx        
     
 % user message
-disp([char(10), 'Calculated similarity for all epoch-pairings, for all edges!']);
+simTime = round(toc(simClock), 2);
+disp([char(10), 'Calculated similarity for all epoch-pairings, ',...
+    'for all edges, took ', num2str(simTime), ' secs!']);
     
 
 %% Compare similarity values between within- and across-condition pairings
@@ -216,7 +222,7 @@ cohendAll = nan(edgeNo, 1);
 anovaP = nan(edgeNo, 1);
 anovaTab = cell(edgeNo, 1);
 anovaStats = cell(edgeNo, 1);
-anovaComp = nan(edgeNo, (condNo*condNo-1)/2, (condNo*condNo-1)/2);
+anovaComp = nan(edgeNo, condNo*(condNo-1)/2, condNo*(condNo-1)/2);
 
 % clock for measuring elapsed time
 startClock = tic;
@@ -225,7 +231,8 @@ startClock = tic;
 %%%%% PARFOR!!! %%%%%
 %%%%%%%%%%%%%%%%%%%%%
 % loop through edges
-parfor edgeIdx = 1:edgeNo
+% parfor edgeIdx = 1:edgeNo
+parfor edgeIdx = 1:4
 
     % define data for edge
     edgeData = squeeze(connSim(edgeIdx, :, :));
@@ -316,9 +323,9 @@ parfor edgeIdx = 1:edgeNo
     
     %% ANOVA for comparing within-cond similarities across conditions/stimuli
     
-    [anovaP(edgeIdx), anovaTab(edgeIdx), stats] = anova1(withinCondSim, [], 'off');
+    [anovaP(edgeIdx), anovaTab{edgeIdx}, stats] = anova1(withinCondSim, [], 'off');
     anovaComp(edgeIdx, :, :) = multcompare(stats, 'ctype', 'lsd', 'display', 'off');
-    anovaStats(edgeIdx) = stats;
+    anovaStats{edgeIdx} = stats;
     
     %% user message about progress
     elapsedTime = round(toc(startClock), 2);
