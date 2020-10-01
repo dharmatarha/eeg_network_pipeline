@@ -81,6 +81,7 @@ withinConn = nan(moduleNo, 1);
 % modules
 allWithinEdges = [];
 
+
 %% Looop through modules, extract within-module connections
 
 for m = 1:moduleNo
@@ -99,7 +100,7 @@ for m = 1:moduleNo
         % loop through all nodes in module
         for n = 1:length(nodes)
             % first we collect all end nodes for all possible edges
-            nodePairs((n-1)*length(nodes)+1:n*length(nodes), :) = [repmat(nodes(n), [length(nodes), 1]), nodes'];
+            nodePairs((n-1)*length(nodes)+1:n*length(nodes), :) = [repmat(nodes(n), [length(nodes), 1]), nodes];
         end
         
         % then we trim edges not in the upper triangle above the main
