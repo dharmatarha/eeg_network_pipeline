@@ -23,7 +23,7 @@ function [res, paramPairLoopTime] = multiCommDetectNullWrapper(realConn, nullCon
 % (gamma, omega) pair).
 %
 % Randomization is performed inside the repetitions loop, that is, for each
-% run with a give (gamma, omega) pair a newly randomized connectivity
+% run with a given (gamma, omega) pair a newly randomized connectivity
 % tensor is used.
 %
 % The function requires the GenLouvain toolbox, functions 
