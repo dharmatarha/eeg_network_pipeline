@@ -206,7 +206,7 @@ baseEdgeColor = [0.5, 0.5, 0.5];
 % irrespective of actual weights 
 baseEdgeWidthRange = [0.1, 4];
 % multiplier for the width of within-module edges
-withinEdgeWidthMultip = 1.7;
+withinEdgeWidthMultip = 2;
 % edge line styles for within- and between-module edges
 %edgeTypes = {'-', 'none'};
 edgeTypes = {'-', '-'};
@@ -241,11 +241,11 @@ elseif doubleTrim
 end
 trimmingBoxPos = [0.01, 0.01, 0.4, 0.03];
 
-% % for subFig that contains the module-level graph plots, we define subplot
-% % positions depending on module number
-% % modules are plotted into subplots, the positions of subplots depend on
-% % the number of modules
-% subPlotPos = subPlotPositions(modNo);
+% for subFig that contains the module-level graph plots, we define subplot
+% positions depending on module number
+% modules are plotted into subplots, the positions of subplots depend on
+% the number of modules
+subPlotPos = subPlotPositions(modNo);
 
 % if ROIs are grouped into lobules, we draw lines and annotations, set
 % their params
@@ -351,6 +351,19 @@ edgeStyle = repmat(edgeTypes(1), [size(weights, 1), 1]);
 edgeStyle(betweenModEdgeIdx) = repmat(edgeTypes(2), [sum(betweenModEdgeIdx, 1), 1]);
 
 
+%% Define a subgraph for each module
+   
+% subgraphs are defined before removing any edges
+
+% subgraphs are stored in a cell array
+subGraphs = cell(modNo, 1);
+
+for i = 1:modNo
+    moduleNodes = labels(membership == moduleIndices(i));  % node indices (as binary vector) for given module
+    subGraphs{i} = subgraph(G, moduleNodes);
+end
+
+
 %% Trimming edges
 
 % preallocate variable to collect edges to be deleted
@@ -380,19 +393,6 @@ if ~isempty(edgesToTrim)
     edgeWidth(edgesToTrim) = [];
     edgeStyle(edgesToTrim) = [];
 end
-
-
-% %% Define a subgraph for each module
-%    
-% % subgraphs are defined before removing any edges
-% 
-% % subgraphs are stored in a cell array
-% subGraphs = cell(modNo, 1);
-% 
-% for i = 1:modNo
-%     moduleNodes = labels(membership == moduleIndices(i));  % node indices (as binary vector) for given module
-%     subGraphs{i} = subgraph(G, moduleNodes);
-% end
 
 
 %% Plot main graph
@@ -435,42 +435,42 @@ set(gca,'XColor', gcaLinesColor,'YColor', gcaLinesColor);
 % set axes position relative to figure
 set(gca, 'Position', gcaPosInFig);
 
-% 
-% %% Plot sub graphs
-% 
-% % module-level graphs figure
-% subFig = figure;
-% 
-% % set figure size and background color
-% set(gcf, 'Units', 'Normalized', 'OuterPosition', gcfSubPos);
-% set(gcf, 'Color', gcfColor);
-% 
-% for s = 1:modNo
-%     
-%     % positioned in lower half, one next to the other
-%     subplot('position', subPlotPos(s, :));
-%     
-%     % edge and node color for given module
-%     subModColor = colorTriplets(mod2color(mod2color(:,1)==moduleIndices(s), 2), :);
-%     
-%     % module subplot
-%     subGraphs{s}.plot('Layout', graphSubLayout,... 
-%         'LineWidth', subGraphs{s}.Edges.Weight*withinEdgeWidthMultip,... 
-%         'EdgeColor', subModColor,... 
-%         'EdgeAlpha', edgeAlpha,... 
-%         'NodeColor', subModColor,...
-%         'MarkerSize', nodeSize,...
-%         'LineStyle', edgeTypes{1});
-% 
-%     % set axes boundary line colors
-%     set(gca,'XColor', gcaLinesColor,'YColor', gcaLinesColor);
-% 
-% end
-% 
-% % title
-% suptitle(subFigTitle);
-% % extra annotation displaying trimming info
-% annotation('textbox', trimmingBoxPos, 'String', trimmingText, 'EdgeColor', gcaLinesColor);
+
+%% Plot sub graphs
+
+% module-level graphs figure
+subFig = figure;
+
+% set figure size and background color
+set(gcf, 'Units', 'Normalized', 'OuterPosition', gcfSubPos);
+set(gcf, 'Color', gcfColor);
+
+for s = 1:modNo
+    
+    % positioned in lower half, one next to the other
+    subplot('position', subPlotPos(s, :));
+    
+    % edge and node color for given module
+    subModColor = colorTriplets(mod2color(mod2color(:,1)==moduleIndices(s), 2), :);
+    
+    % module subplot
+    subGraphs{s}.plot('Layout', graphSubLayout,... 
+        'LineWidth', subGraphs{s}.Edges.Weight*withinEdgeWidthMultip,... 
+        'EdgeColor', subModColor,... 
+        'EdgeAlpha', edgeAlpha,... 
+        'NodeColor', subModColor,...
+        'MarkerSize', nodeSize,...
+        'LineStyle', edgeTypes{1});
+
+    % set axes boundary line colors
+    set(gca,'XColor', gcaLinesColor,'YColor', gcaLinesColor);
+
+end
+
+% title
+suptitle(subFigTitle);
+% extra annotation displaying trimming info
+annotation('textbox', trimmingBoxPos, 'String', trimmingText, 'EdgeColor', gcaLinesColor);
 
 
 return
