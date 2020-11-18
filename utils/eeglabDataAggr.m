@@ -32,7 +32,8 @@ function EEG = eeglabDataAggr(subFolder, subjectID, fs)
 % EEG       - EEGLAB-style dataset structure. EEG.data contains the
 %           aggregated data (channels X samples X epochs). We set EEG.srate
 %           to input arg "fs", EEG.event to empty, EEG.pnts to no. of
-%           samples in one epoch, and EEG.trials to the number of epochs. 
+%           samples in one epoch, EEG.nbchan to number of channels in data 
+%           (its first dimension), and EEG.trials to the number of epochs. 
 %
 % 
 %
@@ -107,7 +108,7 @@ if ~problemFlag
         warning([newline, 'Epoch numbers in file names do not form a continuous ',...
             'increasing integer vector starting from 1! ',...
             'Cannot treat files as ordered series of epochs!']);
-        
+        problemFlag = 1;
     end
 end
 
@@ -171,11 +172,19 @@ if ~problemFlag
     EEG.trials = epochMax;
     EEG.event = [];
     EEG.pnts = sampleNo;
+    EEG.nbchan = channelNo;
     
     % user feedback
     disp([newline, 'Created EEGLAB-style EEG struct for data with common fields:']);
     disp(EEG);
     
+end
+
+
+%% User feedback in case of problems
+
+if problemFlag
+    error('Better safe than sorry! To avoid problems that might be hard to detect later, we prefer to error out now. Sorry!');
 end
 
 
