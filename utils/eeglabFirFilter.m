@@ -153,17 +153,17 @@ else
     firParams.theta.ripple = [0.002, 0.002];
     firParams.theta.wtype = 'kaiser';
     % ALPHA
-    firParams.alpha.cutoffs = [13.5, 7];
-    firParams.alpha.transBW = [3, 2];
+    firParams.alpha.cutoffs = [13, 7];
+    firParams.alpha.transBW = [2, 2];
     firParams.alpha.ripple = [0.002, 0.002];
     firParams.alpha.wtype = 'kaiser';
     % BETA
-    firParams.beta.cutoffs = [33, 10.5];
-    firParams.beta.transBW = [6, 3];
+    firParams.beta.cutoffs = [31.5, 10.5];
+    firParams.beta.transBW = [3, 3];
     firParams.beta.ripple = [0.002, 0.002];
     firParams.beta.wtype = 'kaiser';
     % GAMMA
-    firParams.gamma.cutoffs = [NaN, 30];
+    firParams.gamma.cutoffs = [NaN, 27];
     firParams.gamma.transBW = [NaN, 6];
     firParams.gamma.ripple = [0.002, 0.002];
     firParams.gamma.wtype = 'kaiser';  
@@ -308,6 +308,13 @@ for i = 1:length(freqNames)
         firParams.(currentFreq).hpCoeffs = firws(firParams.(currentFreq).hpOrder, firParams.(currentFreq).cutoffsNormed(2), 'high', firParams.(currentFreq).hpWindow);  % highpass filter coeffs
     end  
     
+    
+    %% Convolve filters if both are requested
+    
+    if all(~isnan(firParams.(currentFreq).cutoffs))
+        firParams.(currentFreq).lphpCoeffs = conv(firParams.(currentFreq).lpCoeffs, firParams.(currentFreq).hpCoeffs, 'same');
+    end
+    
     % user feedback
     disp([newline, 'Filter params for ', currentFreq, ':']);
     disp(firParams.(currentFreq));
@@ -368,22 +375,21 @@ for s = 1:length(subIds)
         % save file for given freq
         freqSaveP = [subFolder, '/', currentFreq, '/', subIds{s}, '_', currentFreq, '.mat'];
         
-        % lowpass filter
+        % convolved filter if both low- and highpass were requested
+        if all(~isnan(firParams.(currentFreq).cutoffs))
+            EEG = firfilt(EEG, firParams.(currentFreq).lphpCoeffs);
+            
+        % if only lowpass filter was requested
+        elseif ~isnan(firParams.(currentFreq).cutoffs(1))
+            EEG = firfilt(EEG, firParams.(currentFreq).lpCoeffs);
         
-        % if lowpass filtering is requested
-        if ~isnan(firParams.(currentFreq).cutoffs(1))
-            EEG = firfilt(EEG, firParams.(currentFreq).lpCoeffs, EEG.pnts);
-        end
-
-        % highpass filter
-        
-        % if highpass filtering is requested
-        if ~isnan(firParams.(currentFreq).cutoffs(2))
-            EEG = firfilt(EEG, firParams.(currentFreq).hpCoeffs, EEG.pnts);
+        % if only highpass filter was requested    
+        elseif ~isnan(firParams.(currentFreq).cutoffs(2))
+            EEG = firfilt(EEG, firParams.(currentFreq).hpCoeffs);
         end
         
         % save out filtered data
-        EEG.history = ['filtered to frequency band ', currentFreq];  % add note about filtering
+        EEG.history = ['Filtered to ', currentFreq, '. See filter details in var "firParams".'];  % add note about filtering
         save(freqSaveP, 'EEG', 'firParams');
         
     end  % for i

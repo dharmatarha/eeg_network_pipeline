@@ -15,8 +15,10 @@ t = (0:dt:stopTime-dt)';
 signalF = 60;   
 % generate sample
 x = sin(2*pi*signalF*t);
-% add noise
-xn = x + randn([length(t), 1]);
+% only noise
+n = randn([length(t), 1]);
+% add noise to signal
+xn = x + n;
 
 
 %% Get phase of original signal
@@ -25,7 +27,7 @@ analyticSignal = hilbert(x);
 xphase = angle(analyticSignal);
 
 
-%% Check spectrum of signal and noisy signal
+%% Check spectrum of signal, noise and noisy signal
 
 % get fft
 xfft = fft(x);
@@ -62,6 +64,17 @@ title('Periodogram for sinusiod sample with white noise');
 xlabel('Frequency (Hz)');
 ylabel('Power/Frequency (dB/Hz)');
 
+% same for noise
+nfft = fft(n);
+nfft_pow = abs(nfft(1:floor(L/2+1))).^2;
+nfft_pow(2:end-1) = nfft_pow(2:end-1)*2;
+npsd = nfft_pow/(Fs*L);
+figure;
+plot(freq, 10*log10(npsd));
+title('Periodogram for white noise');
+xlabel('Frequency (Hz)');
+ylabel('Power/Frequency (dB/Hz)');
+
 
 %% Get FIR filters using EEGLAB functions
 
@@ -75,7 +88,7 @@ eeglab nogui;
 lpRipple = 0.004;
 lpBW = 3;
 lpWtype = 'kaiser';
-lpCutoff = 62;
+lpCutoff = signalF + 2;
 lpCutoffNorm = lpCutoff/(Fs/2);  % normalized freq to rad/sample
 % get Kaiser beta
 lpBeta = kaiserbeta(lpRipple);
@@ -92,7 +105,7 @@ lpCoeffs = firws(lpOrder, lpCutoffNorm, lpWindow);
 hpRipple = 0.004;
 hpBW = 3;
 hpWtype = 'kaiser';
-hpCutoff = 58;
+hpCutoff = signalF - 2;
 hpCutoffNorm = hpCutoff/(Fs/2);  % normalized freq to rad/sample
 % get Kaiser beta
 hpBeta = kaiserbeta(hpRipple);
@@ -115,28 +128,55 @@ xeeg.data = x';
 xeeg.trials = 1;
 xeeg.pnts = L;
 xeeg.event = [];
-xeeg = firfilt(xeeg, lpCoeffs, length(xeeg.data));
 
 % signal + noise
 xneeg = struct;
 xneeg.srate = Fs;
-xneeg.data=xn';
+xneeg.data = xn';
 xneeg.trials = 1;
 xneeg.pnts = L;
 xneeg.event = [];
-xneeg = firfilt(xneeg, lpCoeffs, length(xneeg.data));
 
+% noise
+% signal + noise
+neeg = struct;
+neeg.srate = Fs;
+neeg.data = n';
+neeg.trials = 1;
+neeg.pnts = L;
+neeg.event = [];
+
+
+% lowpass
+% x_lp = firfilt(xeeg, lpCoeffs, length(xeeg.data));
+% xn_lp = firfilt(xneeg, lpCoeffs, length(xneeg.data));
+% n_lp = firfilt(neeg, lpCoeffs, length(neeg.data));
+x_lp = firfilt(xeeg, lpCoeffs);
+xn_lp = firfilt(xneeg, lpCoeffs);
+n_lp = firfilt(neeg, lpCoeffs);
 
 % highpass
 
-xeeg = firfilt(xeeg, hpCoeffs, length(xeeg.data));
-xneeg = firfilt(xneeg, hpCoeffs, length(xneeg.data));
+% x_lphp = firfilt(x_lp, hpCoeffs, length(x_lp.data));
+% xn_lphp = firfilt(xn_lp, hpCoeffs, length(xn_lp.data));
+% n_lphp = firfilt(n_lp, hpCoeffs, length(n_lp.data));
+x_lphp = firfilt(x_lp, hpCoeffs);
+xn_lphp = firfilt(xn_lp, hpCoeffs);
+n_lphp = firfilt(n_lp, hpCoeffs);
+
+
+% filtering in one step (convolution)
+lphpCoeffs = conv(lpCoeffs, hpCoeffs, 'same');
+x_conv = firfilt(xeeg, lphpCoeffs);
+xn_conv = firfilt(xneeg, lphpCoeffs);
+n_conv = firfilt(neeg, lphpCoeffs);
 
 
 %% Check filtering results
 
 % get fft
-xfft = fft(xeeg.data);
+% xfft = fft(x_lphp.data);
+xfft = fft(x_conv.data);
 % get only half of it 
 xfft_part = xfft(1:floor(L/2)+1);
 % get amplitude values 
@@ -160,7 +200,8 @@ xlabel('Frequency (Hz)');
 ylabel('Power/Frequency (dB/Hz)');
 
 % same for noisy data
-xnfft = fft(xneeg.data);
+% xnfft = fft(xn_lphp.data);
+xnfft = fft(xn_conv.data);
 xnfft_pow = abs(xnfft(1:floor(L/2+1))).^2;
 xnfft_pow(2:end-1) = xnfft_pow(2:end-1)*2;
 xnpsd = xnfft_pow/(Fs*L);
@@ -170,12 +211,29 @@ title('Periodogram for sinusiod sample with white noise after filtering');
 xlabel('Frequency (Hz)');
 ylabel('Power/Frequency (dB/Hz)');
 
+% same for noise
+% nfft = fft(n_lphp.data);
+nfft = fft(n_conv.data);
+nfft_pow = abs(nfft(1:floor(L/2+1))).^2;
+nfft_pow(2:end-1) = nfft_pow(2:end-1)*2;
+npsd = nfft_pow/(Fs*L);
+figure;
+plot(freq, 10*log10(npsd));
+title('Periodogram for white noise after filtering');
+xlabel('Frequency (Hz)');
+ylabel('Power/Frequency (dB/Hz)');
+
+
 
 %% Get phase of filtered signal and noisy signal
 
-analyticSignal = hilbert(xeeg.data');
+analyticSignal = hilbert(x_lphp.data');
 filt_xphase = angle(analyticSignal);
 
-analyticSignal = hilbert(xneeg.data');
+analyticSignal = hilbert(xn_lphp.data');
 filt_xnphase = angle(analyticSignal);
+
+analyticSignal = hilbert(n_lphp.data');
+filt_nphase = angle(analyticSignal);
+
 
