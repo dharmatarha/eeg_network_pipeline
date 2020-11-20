@@ -56,35 +56,31 @@ function eeglabFirFilter(subFolder, subIds, firParams)
 % 
 % Defaults for firParams:
 %
-% DELTA
-% firParams.delta.cutoffs = [5, NaN];
+% % DELTA
+% firParams.delta.cutoffs = [4.5, NaN];
 % firParams.delta.transBW = [2, NaN];
 % firParams.delta.ripple = [0.002, 0.002];
 % firParams.delta.wtype = 'kaiser';
-% 
-% THETA
-% firParams.theta.cutoffs = [9, 3]
-% firParams.theta.transBW = [2, 2]
+% % THETA
+% firParams.theta.cutoffs = [8.5, 3.5];
+% firParams.theta.transBW = [2, 2];
 % firParams.theta.ripple = [0.002, 0.002];
-% firParams.theta.wtype = 'kaiser'
-%
-% ALPHA
-% firParams.alpha.cutoffs = [13.5, 7];
-% firParams.alpha.transBW = [3, 2];
+% firParams.theta.wtype = 'kaiser';
+% % ALPHA
+% firParams.alpha.cutoffs = [12.5, 7.5];
+% firParams.alpha.transBW = [2, 2];
 % firParams.alpha.ripple = [0.002, 0.002];
 % firParams.alpha.wtype = 'kaiser';
-%
-% BETA
-% firParams.beta.cutoffs = [33, 10.5];
-% firParams.beta.transBW = [6, 3];
+% % BETA
+% firParams.beta.cutoffs = [31, 11];
+% firParams.beta.transBW = [3, 3];
 % firParams.beta.ripple = [0.002, 0.002];
 % firParams.beta.wtype = 'kaiser';
-%
-% GAMMA
-% firParams.gamma.cutoffs = [NaN, 30];
+% % GAMMA
+% firParams.gamma.cutoffs = [NaN, 29];
 % firParams.gamma.transBW = [NaN, 6];
 % firParams.gamma.ripple = [0.002, 0.002];
-% firParams.gamma.wtype = 'kaiser';
+% firParams.gamma.wtype = 'kaiser'; 
 %
 %
 % NOTES:
@@ -143,27 +139,27 @@ else
         firParams.(f{:}) = struct;
     end
     % DELTA
-    firParams.delta.cutoffs = [5, NaN];
+    firParams.delta.cutoffs = [4.5, NaN];
     firParams.delta.transBW = [2, NaN];
     firParams.delta.ripple = [0.002, 0.002];
     firParams.delta.wtype = 'kaiser';
     % THETA
-    firParams.theta.cutoffs = [9, 3];
+    firParams.theta.cutoffs = [8.5, 3.5];
     firParams.theta.transBW = [2, 2];
     firParams.theta.ripple = [0.002, 0.002];
     firParams.theta.wtype = 'kaiser';
     % ALPHA
-    firParams.alpha.cutoffs = [13, 7];
+    firParams.alpha.cutoffs = [12.5, 7.5];
     firParams.alpha.transBW = [2, 2];
     firParams.alpha.ripple = [0.002, 0.002];
     firParams.alpha.wtype = 'kaiser';
     % BETA
-    firParams.beta.cutoffs = [31.5, 10.5];
+    firParams.beta.cutoffs = [31, 11];
     firParams.beta.transBW = [3, 3];
     firParams.beta.ripple = [0.002, 0.002];
     firParams.beta.wtype = 'kaiser';
     % GAMMA
-    firParams.gamma.cutoffs = [NaN, 27];
+    firParams.gamma.cutoffs = [NaN, 29];
     firParams.gamma.transBW = [NaN, 6];
     firParams.gamma.ripple = [0.002, 0.002];
     firParams.gamma.wtype = 'kaiser';  
@@ -230,6 +226,17 @@ if ischar(subIds)
                 'lv_s26', 'lv_s27', 'lv_s28'};     
     end  % switch subIds
 end  % if ischar(subIds)
+
+% user feedback
+disp([newline, 'Called eeglabFirFilter with input args: ',...
+    newline, 'Subject data folder: ', subFolder,...
+    newline, 'Subject identifiers: ']);
+disp(subIds);
+disp('FIR filter parameters: ');
+freqNames = fieldnames(firParams);
+for i = 1:length(freqNames)
+    disp(firParams.(freqNames{i}));
+end
 
 
 %% Get sampling rate from first file
@@ -312,12 +319,19 @@ for i = 1:length(freqNames)
     %% Convolve filters if both are requested
     
     if all(~isnan(firParams.(currentFreq).cutoffs))
-        firParams.(currentFreq).lphpCoeffs = conv(firParams.(currentFreq).lpCoeffs, firParams.(currentFreq).hpCoeffs, 'same');
+        if isequal(firParams.(currentFreq).lpOrder, firParams.(currentFreq).hpOrder)
+            firParams.(currentFreq).lphpCoeffs = conv(firParams.(currentFreq).lpCoeffs, firParams.(currentFreq).hpCoeffs, 'same');
+        else
+            error(['It is not fully straightforward how to convolve the low- and highpass filters for band ',... 
+                currentFreq, ' due to different orders. ',...
+                'Choose the same transition bandwidth values and ripple values for both filters']);
+        end
     end
     
     % user feedback
     disp([newline, 'Filter params for ', currentFreq, ':']);
     disp(firParams.(currentFreq));
+    
     
 end  % for i = 1:length(freqNames)
     
@@ -348,22 +362,22 @@ for s = 1:length(subIds)
     % load subject-level data
     subFile = [subFolder, '/', subIds{s}, '.mat'];
     data = load(subFile);
-    EEG = data.EEG;
+    subEEG = data.EEG;
 
     % sanity checks
-    if ~isequal(EEG.srate, Fs) || isempty(EEG.data)
+    if ~isequal(subEEG.srate, Fs) || isempty(subEEG.data)
         error(['Bad sampling rate or missing data at ', subFile, '!']);
     end
 
     % treat a problem with earlier processing of epoch-data - missing
     % nbchan field
-    if ~isfield(EEG, 'nbchan')
-        EEG.nbchan = size(EEG.data, 1);
+    if ~isfield(subEEG, 'nbchan')
+        subEEG.nbchan = size(subEEG.data, 1);
     end
     
     % user feedback
     disp(['Loaded data for subject ', subIds{s}, ', data size is:']);
-    disp(size(EEG.data));
+    disp(size(subEEG.data));
     
     % loop over frequency bands
     for i = 1:length(freqNames)
@@ -372,24 +386,28 @@ for s = 1:length(subIds)
         % user feedback
         disp(['Filtering for ', currentFreq, '...']);
         
+        % copy subject data for filtering
+        tmpData = subEEG;
+        
         % save file for given freq
         freqSaveP = [subFolder, '/', currentFreq, '/', subIds{s}, '_', currentFreq, '.mat'];
         
         % convolved filter if both low- and highpass were requested
         if all(~isnan(firParams.(currentFreq).cutoffs))
-            EEG = firfilt(EEG, firParams.(currentFreq).lphpCoeffs);
+            tmpData = firfilt(tmpData, firParams.(currentFreq).lphpCoeffs);
             
         % if only lowpass filter was requested
         elseif ~isnan(firParams.(currentFreq).cutoffs(1))
-            EEG = firfilt(EEG, firParams.(currentFreq).lpCoeffs);
+            tmpData = firfilt(tmpData, firParams.(currentFreq).lpCoeffs);
         
         % if only highpass filter was requested    
         elseif ~isnan(firParams.(currentFreq).cutoffs(2))
-            EEG = firfilt(EEG, firParams.(currentFreq).hpCoeffs);
+            tmpData = firfilt(tmpData, firParams.(currentFreq).hpCoeffs);
         end
         
         % save out filtered data
-        EEG.history = ['Filtered to ', currentFreq, '. See filter details in var "firParams".'];  % add note about filtering
+        tmpData.history = ['Filtered to ', currentFreq, '. See filter details in var "firParams".'];  % add note about filtering
+        EEG = tmpData;
         save(freqSaveP, 'EEG', 'firParams');
         
     end  % for i

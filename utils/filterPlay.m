@@ -200,8 +200,8 @@ xlabel('Frequency (Hz)');
 ylabel('Power/Frequency (dB/Hz)');
 
 % same for noisy data
-% xnfft = fft(xn_lphp.data);
-xnfft = fft(xn_conv.data);
+xnfft = fft(xn_lphp.data);
+% xnfft = fft(xn_conv.data);
 xnfft_pow = abs(xnfft(1:floor(L/2+1))).^2;
 xnfft_pow(2:end-1) = xnfft_pow(2:end-1)*2;
 xnpsd = xnfft_pow/(Fs*L);
@@ -224,7 +224,6 @@ xlabel('Frequency (Hz)');
 ylabel('Power/Frequency (dB/Hz)');
 
 
-
 %% Get phase of filtered signal and noisy signal
 
 analyticSignal = hilbert(x_lphp.data');
@@ -232,6 +231,9 @@ filt_xphase = angle(analyticSignal);
 
 analyticSignal = hilbert(xn_lphp.data');
 filt_xnphase = angle(analyticSignal);
+
+analyticSignal = hilbert(xn_conv.data');
+filt_xnconvphase = angle(analyticSignal);
 
 analyticSignal = hilbert(n_lphp.data');
 filt_nphase = angle(analyticSignal);
