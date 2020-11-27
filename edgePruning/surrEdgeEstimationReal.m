@@ -1,15 +1,15 @@
-function surrEdgeEstimation(freq, varargin)
+function surrEdgeEstimationReal(freq, varargin)
 
 %% Estimate distribution of edge weights (adj. matrix) for surrogate / null data
-% To be used on analytic data (separate angle and envelope files).
+% To be used on real data, not analytic.
 %
-% USAGE: surrEdgeEstimation(freq,
-%                           dirName = pwd, 
-%                           subjects = {'s02', 's03', ...}, 
-%                           method = 'iplv',
-%                           dRate = 1,
-%                           surrNo = 1000,
-%                           truncated = 'yes')
+% USAGE: surrEdgeEstimationReal(freq,
+%                               dirName = pwd, 
+%                               subjects = {'s02', 's03', ...}, 
+%                               method = 'iplv',
+%                               dRate = 1,
+%                               surrNo = 1000,
+%                               truncated = 'yes')
 %
 % Fits edge weights for phase-scrambling-based surrogate data with a 
 % (truncated) normal distribution, estimating the parameters (mean and std). 
@@ -21,7 +21,7 @@ function surrEdgeEstimation(freq, varargin)
 %
 % Results are saved into the provided
 % directory (or into current working directory), named
-% 'SUBJECTNUMBER_FREQUENCYBAND_surrEdgeEstimate.mat'.
+% 'SUBJECTNUMBER_FREQUENCYBAND_surrEdgeEstReal.mat'.
 %
 % Output files contain the parameters of the fitted (truncated) normal
 % distributions and the results of goodness-of-fit tests
@@ -29,13 +29,13 @@ function surrEdgeEstimation(freq, varargin)
 %
 % Assumes that the data is in EEGlab structures and that file naming
 % follows the 'SUBJECTNUMBER_FREQUENCYBAND.mat' (e.g. 's05_alpha.mat')
-% convention. 
-%
-% Further assumes that data is in analytic form, with angle and
-% envelope data in separate folders (e.g.
-% ["dirName"/angle/"freq"/"subId"_alpha.mat] and
-% ["dirName"/envelope/"freq"/"subId"_alpha.mat]. For a surrogate 
-% estimation function that expects real input see surrEdgeEstimationReal.m.
+% convention. Files are expected to be under a FREQUENCYBAND subfolder in
+% "dirName" (e.g. [dirName, '/', FREQUENCYBAND, '/s05_alpha.mat']).
+% 
+% Further assumes that data is in not in analytic form, but 
+% is real valued time series. For a surrogate estimation 
+% function that expects analytic input (with separate angle and 
+% envelope files) see surrEdgeEstimation.m.
 %
 % Also assumes that all relevant files are in the working directory.
 %
@@ -51,13 +51,11 @@ function surrEdgeEstimation(freq, varargin)
 % dirName   - Directory path (string) pointing to 'angle' and 'envelope' 
 %       folders. Also used for creating a 'connectivity' folder for saving 
 %       out results. Default is current working directory (pwd).
-% subjects  - List of subjects (cell array) whose data we process. 
+% subjects  - Cell array, list of subjects whose data we process. 
 %       Each cell contains a subject ID also used in the filenames 
 %       (e.g. 's01' for files like 's01_alpha.mat'). If empty, 
-%       we use the default cell arrray of:
-%       subjects={'s02','s03','s04','s05','s06','s07','s08','s09'...
-%           ,'s11','s12','s13','s14','s15','s16','s17','s18','s19','s20',...
-%           's21','s22','s23','s24','s25','s26','s27','s28'}
+%       we use the default cell arrray defined in
+%       "restingStateSubjects.mat" (var "subjectsRS").
 % method    - Connectivity measure compatible with phase data, one of 
 %       {'plv', 'iplv', 'pli'}. Defaults to 'iplv'.
 % dRate     - Decimation rate. We usually work with bandpass-filtered data
@@ -118,7 +116,7 @@ function surrEdgeEstimation(freq, varargin)
 
 % check for mandatory argument
 if ~ismembertol(nargin, 1:7)
-    error(['Function surrEdgeEstimation requires input arg "freq" ',...
+    error(['Function surrEdgeEstimationReal requires input arg "freq" ',...
         '(frequency band) while args "dirName", "subjects", "method", ',...
         '"dRate", "surrNo" and "truncated" are optional!']);
 end
@@ -152,9 +150,12 @@ if ~exist('dirName', 'var')
     dirName = pwd;
 end
 if ~exist('subjects', 'var')
-    subjects = {'s02','s03','s04','s05','s06','s07','s08','s09'...
-     ,'s11','s12','s13','s14','s15','s16','s17','s18','s19','s20',...
-     's21','s22','s23','s24','s25','s26','s27','s28'};
+    if exist('restingStateSubjects.mat' ,'file')
+        tmp = load('restingStateSubjects.mat');
+        subjects = tmp.subjectsRS;
+    else
+        error('Couldn''t find subject list in "restingStateSubjects.mat", no subject list to work on!');
+    end
 end
 if ~exist('method', 'var')
     method = 'iplv';
@@ -176,7 +177,7 @@ elseif strcmp(truncated, 'yes')
 end
 
 % user message
-disp([char(10), 'Starting surrEdgeEstimation function with following arguments: ',...
+disp([char(10), 'Starting surrEdgeEstimationReal function with following arguments: ',...
     char(10), 'Frequency band: ', freq,...
     char(10), 'Working directory: ', dirName,...
     char(10), 'Connectivity measure: ', method,...
@@ -192,39 +193,36 @@ disp(subjects);
 % number of subjects
 subNo = length(subjects);
 
-% angle and envelope folders
-angleDir = [dirName, '/angle/', freq, '/'];
-envDir = [dirName, '/envelope/', freq, '/'];
+% standardize dirName format with regards to last char
+if dirName(end) == '/'
+    dirName = dirName(1:end-1);
+end
+
+% data folder
+dataDir = [dirName, '/', freq, '/'];
 
 % list all angle and envelope files we will use
-angleFiles = cell(subNo, 1);
-envFiles = cell(subNo, 1);
+dataFiles = cell(subNo, 1);
 for s = 1:subNo
-    angleFiles{s} = [angleDir, subjects{s}, '_', freq, '.mat'];
-    envFiles{s} = [envDir, subjects{s}, '_', freq, '.mat'];
+    dataFiles{s} = [dataDir, subjects{s}, '_', freq, '.mat'];
 end
 
-% load first data files, both angle and envelope, check dimensions
-disp([char(10), 'Sanity checks on the first angle and envelope data sets...']);
-phaseData = load(angleFiles{1}, 'EEG');
-phaseData = phaseData.EEG.data;
-[roiNo, sampleNo, epochNo, stimNo] = size(phaseData);
-% sanity check - is it phase data?
-if any(any(any(any(phaseData>pi, 1), 2), 3), 4) || any(any(any(any(phaseData<-pi, 1), 2), 3), 4)
-    error('There is data here outside the [-pi +pi] range, is it really phase data?');
-end
-% error if angle data has different size than envelope data
-envData = load(envFiles{1}, 'EEG');
-envData = envData.EEG.data;
-if ~isequal([roiNo, sampleNo, epochNo, stimNo], size(envData))
-    error('Angle and envelope data matrices have different dimensions, investigate!');
+% load first data file, check dimensions
+disp([char(10), 'Size check on the first data set...']);
+subData = load(dataFiles{1});
+subData = subData.EEG.data;
+if numel(size(subData)) ~= 3
+    error(['Expected 3D array for subject data, received ',... 
+        num2str(numel(size(subData))), 'D data. Investigate!']);
+else
+    [roiNo, sampleNo, epochNo] = size(subData);
 end
 
-% decimation 
+% if decimation, update sample number accordingly
 if dRate ~= 1
-    phaseData = phaseData(:, 1:dRate:end, :, :);
+    subData = subData(:, 1:dRate:end, :, :);
     sampleNoOrig = sampleNo;
-    sampleNo = size(phaseData, 2);
+    sampleNo = size(subData, 2);
 end
 
 % define helper functions if truncated normal is to be fitted
@@ -244,14 +242,12 @@ end
 % user message
 if dRate == 1
     disp([char(10), 'First data file had ', num2str(roiNo), ' channels/ROIs, ',... 
-        num2str(stimNo), ' different stimuli (stories), ',...
         num2str(epochNo), ' epochs and ', num2str(sampleNo), ... 
-        ' samples for each epoch. Assuming same dimensions for each data file.']);
+        ' samples for each epoch. Assuming same channel and sample size for each data file.']);
 else
     disp([char(10), 'First data file had ', num2str(roiNo), ' channels/ROIs, ',... 
-        num2str(stimNo), ' different stimuli (stories), ',...
         num2str(epochNo), ' epochs and ', num2str(sampleNoOrig), ... 
-        ' samples for each epoch. Assuming same dimensions for each data file.']);
+        ' samples for each epoch. Assuming same same channel and sample size for each data file.']);
     disp([char(10), 'After decimation (dRate = ', num2str(dRate), '), there ',...
         'are ', num2str(sampleNo), ' samples for each epoch.']);
 end
@@ -274,90 +270,72 @@ parfor subIdx = 1:subNo
     % loaded it in previous block, but due to how parfor works we need to
     % do so here again:
     
-    % angle data
-    phaseData = load(angleFiles{subIdx}, 'EEG');
-    phaseData = phaseData.EEG.data;
+    % subject's EEG data
+    subData = load(dataFiles{subIdx});
+    subData = subData.EEG.data;
     if dRate ~= 1
-        phaseData = phaseData(:, 1:dRate:end, :, :);
+        subData = subData(:, 1:dRate:end, :, :);
     end
     % check data size
-    if ~isequal(size(phaseData), [roiNo, sampleNo, epochNo, stimNo])
-        error(['Angle data for subject ', subjects{subIndex}, ' has unexpected size, investigate!']);
-    end
-    % sanity check - is it really phase data, i.e. between -pi +pi
-    if any(any(any(any(phaseData>pi, 1), 2), 3), 4) || any(any(any(any(phaseData<-pi, 1), 2), 3), 4)
-        error('There is data here outside the [-pi +pi] range, is it really phase data?');
-    end
-    % envelope data
-    envData = load(envFiles{subIdx}, 'EEG');
-    envData = envData.EEG.data;    
-    if dRate ~= 1
-        envData = envData(:, 1:dRate:end, :, :);
-    end
-    % check data size
-    if ~isequal(size(envData), [roiNo, sampleNo, epochNo, stimNo])
-        error(['Envelope data for subject ', subjects{subIdx}, ' has unexpected size, investigate!']);
-    end        
+    [sizeTmp1, sizeTmp2, ~] = size(subData);
+    if ~isequal([sizeTmp1, sizeTmp2], [roiNo, sampleNo])
+        error(['Data for subject ', subjects{subIndex}, ' has unexpected size, investigate!']);
+    end 
     
     % preallocate result matrices
-    surrNormalMu = nan(roiNo, roiNo, epochNo, stimNo);  % for storing "mu" of fitted normals
-    surrNormalSigma = nan(roiNo, roiNo, epochNo, stimNo);  % for storing "sigma" of fitted normals
-    surrNormalP = nan(roiNo, roiNo, epochNo, stimNo);  % for storing the p-value from kstest
-    surrNormalH = nan(roiNo, roiNo, epochNo, stimNo);  % for storing "h" (hypothesis test outcome) from kstest
+    surrNormalMu = nan(roiNo, roiNo, epochNo);  % for storing "mu" of fitted normals
+    surrNormalSigma = nan(roiNo, roiNo, epochNo);  % for storing "sigma" of fitted normals
+    surrNormalP = nan(roiNo, roiNo, epochNo);  % for storing the p-value from kstest
+    surrNormalH = nan(roiNo, roiNo, epochNo);  % for storing "h" (hypothesis test outcome) from kstest
     
-    % loop through stimulus type / stories
-    for stimIdx = 1:stimNo       
-        % loop through epochs
-        for epochIdx = 1:epochNo
-            
-            % get real-valued time series data from polar analytic
-            [realData, ~] = pol2cart(squeeze(phaseData(:, :, epochIdx, stimIdx)), squeeze(envData(:, :, epochIdx, stimIdx))); 
-                    
-            % generate surrogate datasets and calculate
-            % connectivity matrices for them
-            surrConnData = getSurrConn(realData, surrNo, method);
-            
-            % fit a normal distribution to each group of edge values
-            for roi1 = 1:roiNo
-                for roi2 = 1:roiNo
-                    % only go through edges in the upper triangle,
-                    % excluding the diagonal as well
-                    if roi2 > roi1
-                        tmp = squeeze(surrConnData(:, roi1, roi2));
-                        
-                        % if truncated normal is to be fitted
-                        if truncated
-                            % fit truncated normal
-                            phat = mle(tmp , 'pdf', norm_trunc, 'start', [mean(tmp), std(tmp)]);
-                            % save out main params from fitted normal
-                            surrNormalMu(roi1, roi2, epochIdx, stimIdx) = phat(1);
-                            surrNormalSigma(roi1, roi2, epochIdx, stimIdx) = phat(2);
-                            % create a probability distribution for the
-                            % truncated normal with fitted params
-                            pd = makedist('normal', 'mu', phat(1), 'sigma', phat(2));
-                            pdToTest = truncate(pd, x_min, x_max);       
-                        % if standard normal is to be fitted, not truncated    
-                        else
-                            % fitting
-                            pdToTest = fitdist(tmp, 'normal');  % output is a prob.NormalDistribution object
-                            % save out main params from fitted normal
-                            surrNormalMu(roi1, roi2, epochIdx, stimIdx) = pd.mu;
-                            surrNormalSigma(roi1, roi2, epochIdx, stimIdx) = pd.sigma;                     
-                        end  % if truncated
-                        
-                        % test the goodness-of-fit with single sample
-                        % Kolmogorov-Smirnov
-                        [surrNormalH(roi1, roi2, epochIdx, stimIdx), surrNormalP(roi1, roi2, epochIdx, stimIdx)] = kstest(tmp, 'CDF', pdToTest);
-                        
-                    end  % if roi2 > roi1
-                end  % for roi2 loop
-            end  % for roi1 loop          
-            
-        end  % for epochIdx  loop
-    end  % for stimIdx loop
+   
+    % loop through epochs
+    for epochIdx = 1:epochNo
+
+        % generate surrogate datasets and calculate
+        % connectivity matrices for them
+        surrConnData = getSurrConn(subData, surrNo, method);
+
+        % fit a normal distribution to each group of edge values
+        for roi1 = 1:roiNo
+            for roi2 = 1:roiNo
+                % only go through edges in the upper triangle,
+                % excluding the diagonal as well
+                if roi2 > roi1
+                    tmp = squeeze(surrConnData(:, roi1, roi2));
+
+                    % if truncated normal is to be fitted
+                    if truncated
+                        % fit truncated normal
+                        phat = mle(tmp , 'pdf', norm_trunc, 'start', [mean(tmp), std(tmp)]);
+                        % save out main params from fitted normal
+                        surrNormalMu(roi1, roi2, epochIdx) = phat(1);
+                        surrNormalSigma(roi1, roi2, epochIdx) = phat(2);
+                        % create a probability distribution for the
+                        % truncated normal with fitted params
+                        pd = makedist('normal', 'mu', phat(1), 'sigma', phat(2));
+                        pdToTest = truncate(pd, x_min, x_max);       
+                    % if standard normal is to be fitted, not truncated    
+                    else
+                        % fitting
+                        pdToTest = fitdist(tmp, 'normal');  % output is a prob.NormalDistribution object
+                        % save out main params from fitted normal
+                        surrNormalMu(roi1, roi2, epochIdx) = pd.mu;
+                        surrNormalSigma(roi1, roi2, epochIdx) = pd.sigma;                     
+                    end  % if truncated
+
+                    % test the goodness-of-fit with single sample
+                    % Kolmogorov-Smirnov
+                    [surrNormalH(roi1, roi2, epochIdx), surrNormalP(roi1, roi2, epochIdx)] = kstest(tmp, 'CDF', pdToTest);
+
+                end  % if roi2 > roi1
+            end  % for roi2 loop
+        end  % for roi1 loop          
+
+    end  % for epochIdx  loop
     
     % get a subject-specific file name for saving results
-    saveF = [dirName, '/' , subjects{subIdx}, '_', freq, '_surrEdgeEstimate.mat'];
+    saveF = [dirName, '/' , subjects{subIdx}, '_', freq, '_surrEdgeEstReal.mat'];
     
     % save results using matfile - this is mostly allowed in a parfor loop,
     % unlike the save command
