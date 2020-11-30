@@ -294,7 +294,7 @@ parfor subIdx = 1:subNo
 
         % generate surrogate datasets and calculate
         % connectivity matrices for them
-        surrConnData = getSurrConn(subData, surrNo, method);
+        surrConnData = getSurrConn(subData(:,:,epochIdx), surrNo, method);
 
         % fit a normal distribution to each group of edge values
         for roi1 = 1:roiNo
