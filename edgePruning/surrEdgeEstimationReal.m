@@ -277,20 +277,20 @@ parfor subIdx = 1:subNo
         subData = subData(:, 1:dRate:end, :, :);
     end
     % check data size
-    [sizeTmp1, sizeTmp2, ~] = size(subData);
-    if ~isequal([sizeTmp1, sizeTmp2], [roiNo, sampleNo])
+    [subRoiNo, subSampleNo, subEpochNo] = size(subData);
+    if ~isequal([subRoiNo, subSampleNo], [roiNo, sampleNo])
         error(['Data for subject ', subjects{subIndex}, ' has unexpected size, investigate!']);
     end 
     
     % preallocate result matrices
-    surrNormalMu = nan(roiNo, roiNo, epochNo);  % for storing "mu" of fitted normals
-    surrNormalSigma = nan(roiNo, roiNo, epochNo);  % for storing "sigma" of fitted normals
-    surrNormalP = nan(roiNo, roiNo, epochNo);  % for storing the p-value from kstest
-    surrNormalH = nan(roiNo, roiNo, epochNo);  % for storing "h" (hypothesis test outcome) from kstest
+    surrNormalMu = nan(roiNo, roiNo, subEpochNo);  % for storing "mu" of fitted normals
+    surrNormalSigma = nan(roiNo, roiNo, subEpochNo);  % for storing "sigma" of fitted normals
+    surrNormalP = nan(roiNo, roiNo, subEpochNo);  % for storing the p-value from kstest
+    surrNormalH = nan(roiNo, roiNo, subEpochNo);  % for storing "h" (hypothesis test outcome) from kstest
     
    
     % loop through epochs
-    for epochIdx = 1:epochNo
+    for epochIdx = 1:subEpochNo
 
         % generate surrogate datasets and calculate
         % connectivity matrices for them
@@ -320,8 +320,8 @@ parfor subIdx = 1:subNo
                         % fitting
                         pdToTest = fitdist(tmp, 'normal');  % output is a prob.NormalDistribution object
                         % save out main params from fitted normal
-                        surrNormalMu(roi1, roi2, epochIdx) = pd.mu;
-                        surrNormalSigma(roi1, roi2, epochIdx) = pd.sigma;                     
+                        surrNormalMu(roi1, roi2, epochIdx) = pdToTest.mu;
+                        surrNormalSigma(roi1, roi2, epochIdx) = pdToTest.sigma;                     
                     end  % if truncated
 
                     % test the goodness-of-fit with single sample
@@ -335,7 +335,7 @@ parfor subIdx = 1:subNo
     end  % for epochIdx  loop
     
     % get a subject-specific file name for saving results
-    saveF = [dirName, '/' , subjects{subIdx}, '_', freq, '_surrEdgeEstReal.mat'];
+    saveF = [dirName, '/' , freq, '/', subjects{subIdx}, '_', freq, '_surrEdgeEstReal.mat'];
     
     % save results using matfile - this is mostly allowed in a parfor loop,
     % unlike the save command
