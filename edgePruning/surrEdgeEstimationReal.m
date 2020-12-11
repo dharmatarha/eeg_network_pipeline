@@ -266,10 +266,6 @@ parfor subIdx = 1:subNo
     % for timekeeping start a subject-level clock
     subClock = tic;
     
-    % load angle and envelope data - for the first subject we have already 
-    % loaded it in previous block, but due to how parfor works we need to
-    % do so here again:
-    
     % subject's EEG data
     subData = load(dataFiles{subIdx});
     subData = subData.EEG.data;
@@ -303,30 +299,48 @@ parfor subIdx = 1:subNo
                 % excluding the diagonal as well
                 if roi2 > roi1
                     tmp = squeeze(surrConnData(:, roi1, roi2));
+                    
+                    % fitting
+                    
+                    kstestFlag = 0;  % flag for proceeding with Kolmogorov-Smirnov test
 
                     % if truncated normal is to be fitted
                     if truncated
-                        % fit truncated normal
-                        phat = mle(tmp , 'pdf', norm_trunc, 'start', [mean(tmp), std(tmp)]);
-                        % save out main params from fitted normal
-                        surrNormalMu(roi1, roi2, epochIdx) = phat(1);
-                        surrNormalSigma(roi1, roi2, epochIdx) = phat(2);
-                        % create a probability distribution for the
-                        % truncated normal with fitted params
-                        pd = makedist('normal', 'mu', phat(1), 'sigma', phat(2));
-                        pdToTest = truncate(pd, x_min, x_max);       
+                        % use try - catch in case fitting errors out (happens when param would reach Inf / NaN value)
+                        try
+                            % fit truncated normal
+                            phat = mle(tmp , 'pdf', norm_trunc, 'start', [mean(tmp), std(tmp)]);
+                            % save out main params from fitted normal
+                            surrNormalMu(roi1, roi2, epochIdx) = phat(1);
+                            surrNormalSigma(roi1, roi2, epochIdx) = phat(2);
+                            % create a probability distribution for the
+                            % truncated normal with fitted params
+                            pd = makedist('normal', 'mu', phat(1), 'sigma', phat(2));
+                            pdToTest = truncate(pd, x_min, x_max);      
+                            kstestFlag = 1;
+                        catch ME
+                            disp(ME);
+                        end
                     % if standard normal is to be fitted, not truncated    
                     else
-                        % fitting
-                        pdToTest = fitdist(tmp, 'normal');  % output is a prob.NormalDistribution object
-                        % save out main params from fitted normal
-                        surrNormalMu(roi1, roi2, epochIdx) = pdToTest.mu;
-                        surrNormalSigma(roi1, roi2, epochIdx) = pdToTest.sigma;                     
+                        % use try - catch in case fitting errors out (happens when param would reach Inf / NaN value)
+                        try
+                            % fit simple normal
+                            pdToTest = fitdist(tmp, 'normal');  % output is a prob.NormalDistribution object
+                            % save out main params from fitted normal
+                            surrNormalMu(roi1, roi2, epochIdx) = pdToTest.mu;
+                            surrNormalSigma(roi1, roi2, epochIdx) = pdToTest.sigma;      
+                            kstestFlag = 1;
+                        catch ME
+                            disp(ME);
+                        end
                     end  % if truncated
 
                     % test the goodness-of-fit with single sample
                     % Kolmogorov-Smirnov
-                    [surrNormalH(roi1, roi2, epochIdx), surrNormalP(roi1, roi2, epochIdx)] = kstest(tmp, 'CDF', pdToTest);
+                    if kstestFlag  % only if fitting succeeded
+                        [surrNormalH(roi1, roi2, epochIdx), surrNormalP(roi1, roi2, epochIdx)] = kstest(tmp, 'CDF', pdToTest);
+                    end
 
                 end  % if roi2 > roi1
             end  % for roi2 loop
