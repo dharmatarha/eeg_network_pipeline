@@ -65,7 +65,7 @@ if ~isempty(varargin)
             subjects = varargin{v};
         elseif ischar(varargin{v}) && ~exist('dirName', 'var') && exist(varargin{v}, 'dir')
             dirName = varargin{v};
-        elseif ischar(varargin{v}) && ~exist('method', 'var') && ismember(varargin{v}, {'pli', 'plv', 'iplv'})
+        elseif ischar(varargin{v}) && ~exist('method', 'var') && ismember(varargin{v}, {'pli', 'plv', 'iplv', 'ampCorr'})
             method = varargin{v};           
         else
             error(['There are either too many input args or they are not ',...
@@ -161,7 +161,7 @@ parfor subIdx = 1:subNo
                 connRes(epochIdx, :, :) = pli(subDataPhase, 0);  % suppress messages from pli function
             case 'ampCorr'
                 rho = corr(subDataEnv')';  % we keep the dim order channels/ROIs X samples
-                rho(tril(true(refRoiNo1))) = NaN;  % lower triangle is set to NaN, as with symmetric phase-based measures    
+                rho(tril(true(roiNo))) = NaN;  % lower triangle is set to NaN, as with symmetric phase-based measures    
                 connRes(epochIdx, :, :) = rho;
         end  % switch method
 
