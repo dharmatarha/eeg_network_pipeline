@@ -3,12 +3,30 @@ function simRes = connSimTest_subject(connArray, varargin)
 %
 % USAGE: simRes = connSimTest_subject(connArray, permNo=1000, metric='corr') 
 %
+% If given connectivity (adjacency) matrices for a set of epochs, across
+% multiple subjects (in input arg "connArray"), the function calculates the
+% similarity (reliability) of average connectivity matrices derived from 
+% random divisions of the epochs into two groups, separately for each
+% subject.
+%
+% Workflow, separately performed for each subject:
+% (1) Randomly divide epochs into two groups
+% (2) Average the connectivity (adjacency) matrices of the two groups of
+% epochs
+% (3) Calculate the similarity of the two averaged conenctivity matrices
+% (4) Repeat steps (1)-(3) "permNo" times (default is 1000) 
+%
+% At the moment, support similarity metrics (1) correlation (input arg
+% "metric" = 'corr'), (2) Inverse Eucledian distance ('eucl'), and (3)
+% DeltaCon ('deltaCon', see /networkSimilarity/deltaCon.m for details).
+%
 % Mandatory inputs:
-% connArray     - 4D numeric array, with dimensions subjects X epochs X
+% connArray     - 4D numeric array, with dimensions: subjects X epochs X
 %               ROIs X ROIs. Contains a connectivity matrix for each epoch
 %               of each subject. Might only contain valid data in the upper
 %               triangles of the connectivity matrices, the rest might be
 %               NaN (in case of symmetric connectivity measures).
+%
 % Optional inputs:
 % permNo        - Numeric value, one of 10:10:10^6. Number of random
 %               permutations for epoch grouping. Defaults to 1000.
@@ -26,12 +44,15 @@ function simRes = connSimTest_subject(connArray, varargin)
 
 %% Input checks
 
+% cehck no. if inputs
 if ~ismember(nargin, 1:3)
     error('Function connSimTest_subject requires input arg "connArray" while args "permNo" and "metric" are optional!');
 end
+% check mandatory input
 if ~isnumeric(connArray) || numel(size(connArray))~=4 || size(connArray, 3)~=size(connArray ,4)
     error('Input rag "connArray" should be a 4D numeric array where the 3rd and 4th dimensions have the same size!');
 end
+% check optional inputs
 if ~isempty(varargin)
     for v = 1:length(varargin)
         if isnumeric(varargin{v}) && ismembertol(varargin{v}, 10:10:10^6) && ~exist('permNo', 'var')
@@ -43,6 +64,7 @@ if ~isempty(varargin)
         end
     end
 end
+% assign default values if necessary
 if ~exist('permNo', 'var')
     permNo = 1000;
 end
@@ -50,11 +72,11 @@ if ~exist('metric', 'var')
     metric = 'corr';
 end
 
+% user message
 disp([char(10), 'Called connSimTest_subject with input args: ',...
     char(10), 'Input array sized ', num2str(size(connArray)), ...
     char(10), 'Numer of permutations: ', num2str(permNo),...
     char(10), 'Similarity metric: ', metric]);
-
 
 
 %% Calculate similarities
