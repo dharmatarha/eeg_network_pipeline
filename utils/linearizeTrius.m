@@ -31,7 +31,7 @@ function dataLin = linearizeTrius(dataArray, k)
 %% Input checks
 
 if ~ismember(nargin, 1:2)
-    error('Function linTrius requires input arg "dataArray", while input arg "k" is optional!');
+    error('Function linearizeTrius requires input arg "dataArray", while input arg "k" is optional!');
 end
 if ~isnumeric(dataArray) || ~ismember(length(size(dataArray)), 3:4)
     error('Input arg "dataArray" should be a 3D or 4D numeric array!');
