@@ -117,6 +117,10 @@ for subIdx = 1:subNo
         if ismember(metric, {'eucl', 'deltaCon'})
             permMatrixA = triu(permMatrixA, 1) + triu(permMatrixA, 1)'; 
             permMatrixB = triu(permMatrixB, 1) + triu(permMatrixB, 1)';
+            % also standardize the scale of connections across the two
+            % matrices to a common sum (=10)
+            permMatrixA = 10*permMatrixA./sum(permMatrixA(:));
+            permMatrixB = 10*permMatrixB./sum(permMatrixB(:));
         end
 
         % calculate similarity according to arg "metric"
@@ -129,12 +133,18 @@ for subIdx = 1:subNo
                 simRes(subIdx, permIdx) = corr(linA, linB);
                 
             case 'eucl'
-                % similarity is based on norm of difference
-                simRes(subIdx, permIdx) = 1/(1 + norm(permMatrixA-permMatrixB, 'fro'));
+%                 % similarity is based on norm of difference
+%                 simRes(subIdx, permIdx) = 1/(1 + norm(permMatrixA-permMatrixB, 'fro'));
+                % we use a distance measure if 'eucl' is selected
+                % (Frobenius norm)
+                simRes(subIdx, permIdx) = norm(permMatrixA-permMatrixB, 'fro');
                 
             case 'deltaCon'
-                % first output arg of deltaCon is similarity
-                simRes(subIdx, permIdx) = deltaCon(permMatrixA, permMatrixB, false);  % "false" is for verbosity
+%                 % first output arg of deltaCon is similarity
+%                 simRes(subIdx, permIdx) = deltaCon(permMatrixA, permMatrixB, false);  % "false" is for verbosity
+                % we use a distance measure (DeltaCon distance) if
+                % 'deltaCon' is selected (second output of deltaCon.m)
+                [~, simRes(subIdx, permIdx)] = deltaCon(permMatrixA, permMatrixB, false);  % "false" is for verbosity
                 
         end  % switch metric
         
