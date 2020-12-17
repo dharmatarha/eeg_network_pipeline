@@ -33,7 +33,7 @@ function simRes = connSimTest_betweenSubject(connArray, varargin)
 % Output:
 % simRes        - 2D numeric array sized subjects X subjects. Contains
 %               connectivity matrix similarity values for all possible
-%               pairings of all subjects.
+%               pairings of all subjects. Only upper triangle is populated.
 %
 
 
@@ -79,6 +79,10 @@ funcClock = tic;
 % preallocate results var
 simRes = nan(subNo, subNo);
 
+% average over epochs before subject-to-subject
+% comparisons
+connArray = squeeze(mean(connArray, 2));
+
 % user message
 disp([char(10), 'Calculating...']);
 
@@ -88,23 +92,24 @@ for subIdx = 1:subNo
     % subject-level clock
     subClock = tic;
     
-    % select subject's data
-    subData = squeeze(connArray(subIdx, :, :, :));
+    % select subject's connectivity data (averaged over epochs)
+    subMatrixA = squeeze(connArray(subIdx, :, :));
     
     % loop through compared subjects
     for compSubIdx = subIdx+1 : subNo
         
-        % select compared subject's data
-        compSubData = squeeze(connArray(compSubIdx, :, :, :));
-
-        % calculated average connectivity matrix for both subjects
-        subMatrixA = squeeze(mean(subData, 1));
-        subMatrixB = squeeze(mean(compSubData, 1));
+        % select compared subject's connectivity data (averaged over
+        % epochs)
+        subMatrixB = squeeze(connArray(compSubIdx, :, :));
         
         % for certain metrics get symmetric adjacency matrices with zeros at diagonal
         if ismember(metric, {'eucl', 'deltaCon'})
             subMatrixA = triu(subMatrixA, 1) + triu(subMatrixA, 1)'; 
             subMatrixB = triu(subMatrixB, 1) + triu(subMatrixB, 1)';
+            % also standardize the scale of connections across the two
+            % matrices to a common sum (=10)
+            subMatrixA = 10*subMatrixA./sum(subMatrixA(:));
+            subMatrixB = 10*subMatrixB./sum(subMatrixB(:));            
         end
 
         % calculate similarity according to arg "metric"
@@ -114,15 +119,21 @@ for subIdx = 1:subNo
                 % linearize upper triangles of mean connectivity matrices
                 linA = subMatrixA(triu(true(roiNo), 1));
                 linB = subMatrixB(triu(true(roiNo), 1));
-                simRes(subIdx, compSubIdx) = corr(linA, linB);
+                simRes(subIdx, compSubIdx) = corr(linA, linB);              
                 
             case 'eucl'
-                % similarity is based on norm of difference
-                simRes(subIdx, compSubIdx) = 1/(1 + norm(subMatrixA-subMatrixB, 'fro'));
+%                 % similarity is based on norm of difference
+%                 simRes(subIdx, compSubIdx) = 1/(1 + norm(subMatrixA-subMatrixB, 'fro'));
+                % we use a distance measure if 'eucl' is selected
+                % (Frobenius norm)
+                simRes(subIdx, compSubIdx) = norm(subMatrixA-subMatrixB, 'fro');                  
                 
             case 'deltaCon'
-                % first output arg of deltaCon is similarity
-                simRes(subIdx, compSubIdx) = deltaCon(subMatrixA, subMatrixB, false);  % "false" is for verbosity
+%                 % first output arg of deltaCon is similarity
+%                 simRes(subIdx, compSubIdx) = deltaCon(subMatrixA, subMatrixB, false);  % "false" is for verbosity
+                % we use a distance measure (DeltaCon distance) if
+                % 'deltaCon' is selected (second output of deltaCon.m)
+                [~, simRes(subIdx, compSubIdx)] = deltaCon(subMatrixA, subMatrixB, false);  % "false" is for verbosity                
                 
         end  % switch metric
         

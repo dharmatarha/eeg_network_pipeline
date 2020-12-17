@@ -91,6 +91,10 @@ funcClock = tic;
 % preallocate results var
 simRes = nan(1, permNo);
 
+% average over epochs before subject-to-subject
+% comparisons
+connArray = squeeze(mean(connArray, 2));
+
 % user message
 disp([char(10), 'Calculating...']);
 
@@ -101,23 +105,22 @@ for permIdx = 1:permNo
     permIndicesA = randperm(subNo, round(subNo/2));
     permIndicesB = setdiff(1:subNo, permIndicesA);
     
-    % divide epochs according to random indices 
-    permTensorA = connArray(permIndicesA, :, :, :);
-    permTensorB = connArray(permIndicesB, :, :, :);
+    % divide subjects according to random indices 
+    permTensorA = squeeze(connArray(permIndicesA, :, :));
+    permTensorB = squeeze(connArray(permIndicesB, :, :));
     
-    % resize tensors such a way, that averaging 
-    % across epochs could be calculated along one
-    % dimension
-    permTensorA = squeeze(reshape(permTensorA, 1, [], roiNo, roiNo));
-    permTensorB = squeeze(reshape(permTensorB, 1, [], roiNo, roiNo));
-    % average epochs in two groups
+    % average subjects' data in the two groups
     permMatrixA = squeeze(mean(permTensorA, 1));
-    permMatrixB = squeeze(mean(permTensorB, 1));
+    permMatrixB = squeeze(mean(permTensorB, 1));    
     
     % for certain metrics get symmetric adjacency matrices with zeros at diagonal
     if ismember(metric, {'eucl', 'deltaCon'})
         permMatrixA = triu(permMatrixA, 1) + triu(permMatrixA, 1)';
         permMatrixB = triu(permMatrixB, 1) + triu(permMatrixB, 1)';
+        % also standardize the scale of connections across the two
+        % matrices to a common sum (=10)
+        permMatrixA = 10*permMatrixA./sum(permMatrixA(:));
+        permMatrixB = 10*permMatrixB./sum(permMatrixB(:));        
     end
     
     % calculate similarity according to arg "metric"
@@ -130,12 +133,18 @@ for permIdx = 1:permNo
             simRes(permIdx) = corr(linA, linB);
             
         case 'eucl'
-            % similarity is based on norm of difference
-            simRes(permIdx) = 1/(1 + norm(permMatrixA-permMatrixB, 'fro'));
+%             % similarity is based on norm of difference
+%             simRes(permIdx) = 1/(1 + norm(permMatrixA-permMatrixB, 'fro'));
+            % we use a distance measure if 'eucl' is selected
+            % (Frobenius norm)
+            simRes(permIdx) = norm(permMatrixA-permMatrixB, 'fro');            
             
         case 'deltaCon'
-            % first output arg of deltaCon is similarity
-            simRes(permIdx) = deltaCon(permMatrixA, permMatrixB, false);  % "false" is for verbosity
+%             % first output arg of deltaCon is similarity
+%             simRes(permIdx) = deltaCon(permMatrixA, permMatrixB, false);  % "false" is for verbosity
+            % we use a distance measure (DeltaCon distance) if
+            % 'deltaCon' is selected (second output of deltaCon.m)
+            [~, simRes(permIdx)] = deltaCon(permMatrixA, permMatrixB, false);  % "false" is for verbosity            
             
     end  % switch metric
     
