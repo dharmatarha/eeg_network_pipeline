@@ -224,7 +224,7 @@ parfor subIdx = 1:subNo
                 % lower triangle is set to NaN
                 tmp(tril(true(roiNo))) = NaN;  
                 % collect results in the connectivity results var
-                connRes(epochIdx, :, :) = (triu(tmp, 1) + tril(tmp, -1)')/2;
+                connRes(epochIdx, :, :) = tmp;
                             
         end  % switch method
 
