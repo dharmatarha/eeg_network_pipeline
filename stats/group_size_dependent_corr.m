@@ -40,6 +40,7 @@ for index = 1 : 4
     xticklabels({'1', '10', '20', '30', '40', '50', '60', '70', '80', '90', '100'});
     xlabel('Number of subjects in groups');
     ylabel('Between-group correlation');
+    ylim([-0.2 1])
     hold on;
     connectingLineXvalues = [1 10 20 30 40 50 60 70 80 90 100]/10;
     connectingLineYvalues = MX;
