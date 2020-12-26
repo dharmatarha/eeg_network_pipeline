@@ -42,7 +42,7 @@ function [simRes, edgeContr] = connSimTest_group_edgeContr(connArray, varargin)
 % simRes        - 1D numeric array sized 1 X permutations. Contains
 %               group similarity values for each permutation.
 %
-% edgeContr     - 2D numeric array sized (number of edges) X permutations.
+% edgeContr     - 3D numeric array sized ROIs X ROIs X permutations.
 %               Contains edge contribution values to the similarity
 %               for each permutation and edge.
 %
@@ -95,11 +95,13 @@ funcClock = tic;
 
 % preallocate results var
 simRes = nan(1, permNo);
-edgeContr = nan(((roiNo*roiNo-roiNo)/2), permNo);
+edgeContr = nan(roiNo, roiNo, permNo);
 
 % average over epochs before subject-to-subject
 % comparisons
 connArray = squeeze(mean(connArray, 2));
+
+temporaryMatrix = nan(roiNo, roiNo);
 
 % user message
 disp([char(10), 'Calculating...']);
@@ -140,7 +142,8 @@ for permIdx = 1:permNo
             
             zA = (linA - mean(linA)) ./ norm(linA - mean(linA));
             zB = (linB - mean(linB)) ./ norm(linB - mean(linB));
-            edgeContr(:, permIdx) = (zA .* zB) ./ sum(zA .* zB);
+            temporaryMatrix(triu(true(roiNo), 1)) = (zA .* zB) ./ sum(zA .* zB);
+            edgeContr(:, :, permIdx) = temporaryMatrix;
             
         case 'eucl'
 %             % similarity is based on norm of difference
