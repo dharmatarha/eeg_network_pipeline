@@ -35,7 +35,18 @@ for index = 1 : 4
     end
     
     subplot(2, 2, index);
-    [h,L,MX,MED] = violin(matrixOfCorrValues, 'x', [1 10 20 30 40 50 60 70 80 90 100]/10);
+    switch index
+        case 1
+            [h,L,MX,MED] = violin(matrixOfCorrValues, 'x', [1 10 20 30 40 50 60 70 80 90 100]/10, 'mc', [], 'medc', 'k', 'facecolor', [0, 0.4470, 0.7410]);
+        case 2
+            [h,L,MX,MED] = violin(matrixOfCorrValues, 'x', [1 10 20 30 40 50 60 70 80 90 100]/10, 'mc', [], 'medc', 'k', 'facecolor', [0.8500, 0.3250, 0.0980]);
+        case 3
+            [h,L,MX,MED] = violin(matrixOfCorrValues, 'x', [1 10 20 30 40 50 60 70 80 90 100]/10, 'mc', [], 'medc', 'k', 'facecolor', [0.4660, 0.6740, 0.1880]);
+        case 4
+            [h,L,MX,MED] = violin(matrixOfCorrValues, 'x', [1 10 20 30 40 50 60 70 80 90 100]/10, 'mc', [], 'medc', 'k', 'facecolor', [0.6350, 0.0780, 0.1840]);
+        otherwise
+    end
+    
     xticks([1 10 20 30 40 50 60 70 80 90 100]/10);
     xticklabels({'1', '10', '20', '30', '40', '50', '60', '70', '80', '90', '100'});
     xlabel('Number of subjects in groups');
@@ -44,17 +55,19 @@ for index = 1 : 4
     hold on;
     connectingLineXvalues = [1 10 20 30 40 50 60 70 80 90 100]/10;
     connectingLineYvalues = MX;
-    plot(connectingLineXvalues, connectingLineYvalues, 'k');
+    plot(connectingLineXvalues, connectingLineYvalues, 'k', 'LineWidth', 1);
+    set(gca, 'FontSize', 16);
+    grid on;
     
     switch index
         case 1
-            title('Group Alpha PLV');
+            title('PLV (alpha band)');
         case 2
-            title('Group Alpha iPLV');
+            title('iPLV (alpha band)');
         case 3
-            title('Group Alpha ampCorr');
+            title('ampCorr (alpha band)');
         case 4
-            title('Group Alpha orthAmpCorr');
+            title('orthAmpCorr (alpha band)');
         otherwise
     end
 
