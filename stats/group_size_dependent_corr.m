@@ -50,6 +50,8 @@ for index = 1 : 4
     xticks([1 10 20 30 40 50 60 70 80 90 100]/10);
     xticklabels({'1', '10', '20', '30', '40', '50', '60', '70', '80', '90', '100'});
     xlabel('Number of subjects in groups');
+    yticks([-0.2 0 0.2 0.4 0.6 0.8 1]);
+    yticklabels({'-0.2', '0', '0.2', '0.4','0.6', '0.8', '1'});
     ylabel('Between-group correlation');
     ylim([-0.2 1])
     hold on;
