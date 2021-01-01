@@ -32,14 +32,13 @@ end
 % clock for whole run
 funcClock = tic;
 
-% average over epochs before subject-to-subject
-% comparisons
+% average over epochs before group level averaging
 connArray = squeeze(mean(connArray, 2));
 
 % user message
 disp([char(10), 'Calculating...']);
 
-% average subjects' data
+% group level average connectivity
 meanConnMatrix = squeeze(mean(connArray, 1));
 
 
