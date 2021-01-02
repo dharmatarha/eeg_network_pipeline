@@ -49,6 +49,8 @@ xticks([1 2 3 4]);
 xticklabels({'PLV' 'iPLV' 'ampCorr' 'orthAmpCorr'});
 yticks([1 2 3 4]);
 yticklabels({'PLV' 'iPLV' 'ampCorr' 'orthAmpCorr'});
-colormap('jet'),
+title('Group level network correlation');
+colormap('jet');
 colorbar;
+set(gca, 'FontSize', 20);
 
