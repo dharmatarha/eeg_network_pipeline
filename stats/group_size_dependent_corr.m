@@ -37,13 +37,13 @@ for index = 1 : 4
     subplot(2, 2, index);
     switch index
         case 1
-            [h,L,MX,MED] = violin(matrixOfCorrValues, 'x', [1 10 20 30 40 50 60 70 80 90 100]/10, 'mc', [], 'medc', 'k', 'facecolor', [0, 0.4470, 0.7410]);
+            [h,L,MX,MED] = violin(matrixOfCorrValues, 'x', [1 10 20 30 40 50 60 70 80 90 100]/10, 'mc', [], 'medc', 'k', 'facecolor', [0, 0.4470, 0.7410], 'facealpha', 1);
         case 2
-            [h,L,MX,MED] = violin(matrixOfCorrValues, 'x', [1 10 20 30 40 50 60 70 80 90 100]/10, 'mc', [], 'medc', 'k', 'facecolor', [0.8500, 0.3250, 0.0980]);
+            [h,L,MX,MED] = violin(matrixOfCorrValues, 'x', [1 10 20 30 40 50 60 70 80 90 100]/10, 'mc', [], 'medc', 'k', 'facecolor', [0.9290, 0.6940, 0.1250], 'facealpha', 1);
         case 3
-            [h,L,MX,MED] = violin(matrixOfCorrValues, 'x', [1 10 20 30 40 50 60 70 80 90 100]/10, 'mc', [], 'medc', 'k', 'facecolor', [0.4660, 0.6740, 0.1880]);
+            [h,L,MX,MED] = violin(matrixOfCorrValues, 'x', [1 10 20 30 40 50 60 70 80 90 100]/10, 'mc', [], 'medc', 'k', 'facecolor', [0.4660, 0.6740, 0.1880], 'facealpha', 1);
         case 4
-            [h,L,MX,MED] = violin(matrixOfCorrValues, 'x', [1 10 20 30 40 50 60 70 80 90 100]/10, 'mc', [], 'medc', 'k', 'facecolor', [0.6350, 0.0780, 0.1840]);
+            [h,L,MX,MED] = violin(matrixOfCorrValues, 'x', [1 10 20 30 40 50 60 70 80 90 100]/10, 'mc', [], 'medc', 'k', 'facecolor', [0.6350, 0.0780, 0.1840], 'facealpha', 1);
         otherwise
     end
     
@@ -58,18 +58,18 @@ for index = 1 : 4
     connectingLineXvalues = [1 10 20 30 40 50 60 70 80 90 100]/10;
     connectingLineYvalues = MX;
     plot(connectingLineXvalues, connectingLineYvalues, 'k', 'LineWidth', 1);
-    set(gca, 'FontSize', 16);
+    set(gca, 'FontSize', 10);
     grid on;
     
     switch index
         case 1
-            title('PLV (alpha band)');
+            title('PLV');
         case 2
-            title('iPLV (alpha band)');
+            title('iPLV');
         case 3
-            title('ampCorr (alpha band)');
+            title('ampCorr');
         case 4
-            title('orthAmpCorr (alpha band)');
+            title('orthAmpCorr');
         otherwise
     end
 
