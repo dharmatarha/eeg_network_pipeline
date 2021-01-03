@@ -312,6 +312,7 @@ edgeColors = repmat(baseEdgeColor, [size(weights, 1), 1]);  % preallocate variab
 
 % set edge width values based on weights
 edgeWidth = weights./mean(weights).*mean(baseEdgeWidthRange);
+edgeColor = weights;
 
 % prepare binary vectors identifying edges per group (one column per group)
 groupEdges = zeros(size(weights, 1), groupNo); 
@@ -330,6 +331,7 @@ for i = 1:groupNo
     edgeColors(logical(groupEdges(:, i)), :) = repmat(edgeGroupColor, [sum(groupEdges(:, i)), 1]);  % set edge color for edges within current group
     % for highlighted edge groups, apply the corresponding width multiplier
     edgeWidth(logical(groupEdges(:, i))) = edgeWidth(logical(groupEdges(:, i)))*highlEdgeWidthMultip;  % set edge width for current module
+    edgeColor(logical(groupEdges(:, i))) = edgeColor(logical(groupEdges(:, i)));
 end
 
 % identify not-highlighted edges
@@ -351,6 +353,7 @@ G = G.rmedge(edgesToTrim);
 if ~isempty(edgesToTrim)
     edgeColors(edgesToTrim, :) = [];
     edgeWidth(edgesToTrim) = [];
+    edgeColor(edgesToTrim) = [];
     edgeStyle(edgesToTrim) = [];
 end
 
@@ -369,13 +372,17 @@ if ~drawFlag
 end
 
 % graph plot
-G.plot('Layout', graphMainLayout,... 
+h = G.plot('Layout', graphMainLayout,... 
     'LineWidth', edgeWidth,... 
     'EdgeColor', edgeColors,... 
     'EdgeAlpha', edgeAlpha,... 
     'NodeColor', nodeColors,...
     'MarkerSize', nodeSize,...
     'LineStyle', edgeStyle);
+
+h.EdgeCData = edgeColor;
+colormap('jet');
+colorbar;
 
 % title
 title(mainFigTitle, 'Interpreter', 'none');
