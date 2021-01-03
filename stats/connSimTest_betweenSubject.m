@@ -13,8 +13,8 @@ function simRes = connSimTest_betweenSubject(connArray, varargin)
 % (2) Calculate the similarity of two averaged conenctivity matrices
 % for all possible pairing of all subjects.
 %
-% At the moment, support similarity metrics (1) correlation (input arg
-% "metric" = 'corr'), (2) Inverse Eucledian distance ('eucl'), and (3)
+% At the moment, supports similarity / distance metrics (1) correlation 
+% (input arg "metric" = 'corr'), (2) Eucledian distance ('eucl'), and (3)
 % DeltaCon ('deltaCon', see /networkSimilarity/deltaCon.m for details).
 %
 % Mandatory inputs:
@@ -28,7 +28,7 @@ function simRes = connSimTest_betweenSubject(connArray, varargin)
 % metric        - Char array, one of {'corr', 'eucl', 'deltaCon'}.
 %               Similarity metric for comparing connectivity matrices.
 %               DeltaCon relies on the similarly named function in
-%               /networkSimilarity. Defautls to 'corr'.
+%               /networkSimilarity. Defaults to 'corr'.
 %
 % Output:
 % simRes        - 2D numeric array sized subjects X subjects. Contains

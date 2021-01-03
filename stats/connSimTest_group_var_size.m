@@ -1,7 +1,7 @@
 function simRes = connSimTest_group_var_size(connArray, varargin)
 %% Testing the similarity of connectivity data across epoch groupings on the group level
 %
-% USAGE: simRes = connSimTest_group_var_size(connArray, permNo=1000, metric='corr') 
+% USAGE: simRes = connSimTest_group_var_size(connArray, groupSize=floor(size(connArray, 1))/2, permNo=1000, metric='corr') 
 %
 % If given connectivity (adjacency) matrices for a set of epochs, across
 % multiple subjects (in input arg "connArray"), the function calculates the
@@ -10,7 +10,7 @@ function simRes = connSimTest_group_var_size(connArray, varargin)
 % each subject within a single group).
 %
 % Workflow, separately performed for each subject:
-% (1) Randomly divide epochs into two groups (keeping all epochs for
+% (1) Randomly divide subjects into two groups (keeping all epochs for
 % each subject within a single group)
 % (2) Average the connectivity (adjacency) matrices of the two groups of
 % epochs
@@ -18,8 +18,12 @@ function simRes = connSimTest_group_var_size(connArray, varargin)
 % (4) Repeat steps (1)-(3) "permNo" times (default is 1000) 
 %
 % At the moment, support similarity metrics (1) correlation (input arg
-% "metric" = 'corr'), (2) Inverse Eucledian distance ('eucl'), and (3)
+% "metric" = 'corr'), (2) Eucledian distance ('eucl'), and (3)
 % DeltaCon ('deltaCon', see /networkSimilarity/deltaCon.m for details).
+%
+% IMPORTANT! Optional input arguments are recognized based on type and
+% value. For args "groupSize" and "permNo" though, it is based on relative
+% position: the numeric value occuring earlier is assigned to "groupSize".
 %
 % Mandatory inputs:
 % connArray     - 4D numeric array, with dimensions: subjects X epochs X
@@ -29,18 +33,19 @@ function simRes = connSimTest_group_var_size(connArray, varargin)
 %               NaN (in case of symmetric connectivity measures).
 %
 % Optional inputs:
+% groupSize     - Numeric value, one of 1:1:10^3. Number of subjects
+%               in each group. Defaults to floor(size(connArray, 1))/2, 
+%               that is, to "no. of subjects"/2 rounded down.
 % permNo        - Numeric value, one of 10:10:10^6. Number of random
 %               permutations for epoch grouping. Defaults to 1000.
-% groupSize     - Numeric value, one of 1:1:10^6. Number of subjects
-%               in each group. Defaults to 1000.
 % metric        - Char array, one of {'corr', 'eucl', 'deltaCon'}.
 %               Similarity metric for comparing connectivity matrices.
 %               DeltaCon relies on the similarly named function in
-%               /networkSimilarity. Defautls to 'corr'.
+%               /networkSimilarity. Defaults to 'corr'.
 %
 % Output:
-% simRes        - 2D numeric array sized subjects X permutations. Contains
-%               connectivity matrix similarity values for each subject and
+% simRes        - 1D numeric array sized 1 X permutations. Contains
+%               connectivity matrix similarity values for each
 %               permutation.
 %
 
@@ -58,23 +63,23 @@ end
 % check optional inputs
 if ~isempty(varargin)
     for v = 1:length(varargin)
-        if isnumeric(varargin{v}) && ismembertol(varargin{v}, 10:10:10^6) && ~exist('permNo', 'var')
-            permNo = varargin{v};
-        elseif isnumeric(varargin{v}) && ismembertol(varargin{v}, 1:1:10^6) && ~exist('groupSize', 'var')
+        if isnumeric(varargin{v}) && ismembertol(varargin{v}, 1:1:10^3) && ~exist('groupSize', 'var')
             groupSize = varargin{v};
+        elseif isnumeric(varargin{v}) && ismembertol(varargin{v}, 10:10:10^6) && ~exist('permNo', 'var')
+            permNo = varargin{v};
         elseif ischar(varargin{v}) && ismember(varargin{v}, {'corr', 'eucl', 'deltaCon'}) && ~exist('metric', 'var')
             metric = varargin{v};
         else
-            error('At least one input could not ba mapped nicely to args "permNo", "groupSize" or "metric"!');
+            error('At least one input could not ba mapped nicely to args "groupSize", "permNo" or "metric"!');
         end
     end
 end
 % assign default values if necessary
+if ~exist('groupSize', 'var')
+    groupSize = floor(size(connArray, 1))/2;
+end
 if ~exist('permNo', 'var')
     permNo = 1000;
-end
-if ~exist('groupSize', 'var')
-    groupSize = 1000;
 end
 if ~exist('metric', 'var')
     metric = 'corr';
@@ -83,8 +88,8 @@ end
 % user message
 disp([char(10), 'Called connSimTest_group with input args: ',...
     char(10), 'Input array sized ', num2str(size(connArray)), ...
-    char(10), 'Numer of permutations: ', num2str(permNo),...
     char(10), 'Group size: ', num2str(groupSize),...
+    char(10), 'Number of permutations: ', num2str(permNo),...
     char(10), 'Similarity metric: ', metric]);
 
 
@@ -96,17 +101,10 @@ funcClock = tic;
 % get subject, epoch and channel/ROI numbers
 [subNo, ~, roiNo, ~] = size(connArray);
 
-% set maximum group size to (number of subjects) / 2
-if groupSize > round(subNo/2)
-    groupSize = round(subNo/2);
-    warning('Group size was set to (number of subjects) / 2');
-end
-
 % preallocate results var
 simRes = nan(1, permNo);
 
-% average over epochs before subject-to-subject
-% comparisons
+% average over epochs before subgroup comparisons
 connArray = squeeze(mean(connArray, 2));
 
 % user message
@@ -118,8 +116,10 @@ for permIdx = 1:permNo
     % permute random subject indices
     permIndicesA = randperm(subNo, groupSize);
     permIndicesB = setdiff(1:subNo, permIndicesA);
-    permIndicesOfIndicesB = randperm(numel(permIndicesB), groupSize);
-    permIndicesB = permIndicesB(permIndicesOfIndicesB);
+    if numel(permIndicesB) > groupSize
+        permIndicesOfIndicesB = randperm(numel(permIndicesB), groupSize);
+        permIndicesB = permIndicesB(permIndicesOfIndicesB);
+    end
     
     % divide subjects according to random indices 
     permTensorA = squeeze(connArray(permIndicesA, :, :));

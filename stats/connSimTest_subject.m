@@ -33,7 +33,7 @@ function simRes = connSimTest_subject(connArray, varargin)
 % metric        - Char array, one of {'corr', 'eucl', 'deltaCon'}.
 %               Similarity metric for comparing connectivity matrices.
 %               DeltaCon relies on the similarly named function in
-%               /networkSimilarity. Defautls to 'corr'.
+%               /networkSimilarity. Defaults to 'corr'.
 %
 % Output:
 % simRes        - 2D numeric array sized subjects X permutations. Contains
@@ -75,7 +75,7 @@ end
 % user message
 disp([char(10), 'Called connSimTest_subject with input args: ',...
     char(10), 'Input array sized ', num2str(size(connArray)), ...
-    char(10), 'Numer of permutations: ', num2str(permNo),...
+    char(10), 'Number of permutations: ', num2str(permNo),...
     char(10), 'Similarity metric: ', metric]);
 
 
