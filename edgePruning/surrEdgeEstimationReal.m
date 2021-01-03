@@ -257,18 +257,20 @@ if ismember(method, {'ampCorr', 'orthAmpCorr'})
 end
 
 % define helper functions if truncated normal is to be fitted
-if truncated
-    % bounds - currently supported methods all have a range of [0 1]
-    x_min = 0;
-    x_max = 1;
-    % define heaviside as we would use it, with 1 at origin
-    heaviside_l = @(x) 1.0*(x>=0);
-    heaviside_r = @(x) 1.0*(x<=0);
-    % cdf of normal between bounds - needed for normalization
-    normcdf_lr =@(mu, sigma) (normcdf(x_max, mu, sigma) - normcdf(x_min, mu, sigma));
-    % truncated normal pdf
-    norm_trunc =@(x, mu, sigma) normpdf(x , mu, sigma)./normcdf_lr(mu, sigma) .* heaviside_l(x - x_min) .* heaviside_r(x - x_max);
-end
+% Due to parfor, we need to declare it even if it is not used (truncated is
+% false)
+%if truncated
+% bounds - currently supported methods all have a range of [0 1]
+x_min = 0;
+x_max = 1;
+% define heaviside as we would use it, with 1 at origin
+heaviside_l = @(x) 1.0*(x>=0);
+heaviside_r = @(x) 1.0*(x<=0);
+% cdf of normal between bounds - needed for normalization
+normcdf_lr =@(mu, sigma) (normcdf(x_max, mu, sigma) - normcdf(x_min, mu, sigma));
+% truncated normal pdf
+norm_trunc =@(x, mu, sigma) normpdf(x , mu, sigma)./normcdf_lr(mu, sigma) .* heaviside_l(x - x_min) .* heaviside_r(x - x_max);
+%end
 
 % user message
 if dRate == 1
@@ -301,7 +303,7 @@ parfor subIdx = 1:subNo
     subData = load(dataFiles{subIdx});
     subData = subData.EEG.data;
     if dRate ~= 1
-        subData = subData(:, 1:dRate:end, :, :);
+        subData = subData(:, 1:dRate:end, :);
     end
     % check data size
     [subRoiNo, subSampleNo, subEpochNo] = size(subData);
