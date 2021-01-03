@@ -15,13 +15,20 @@ function surrEdgeEstimationReal(freq, varargin)
 % (truncated) normal distribution, estimating the parameters (mean and std). 
 % USES PARFOR!
 %
-% Connectivity is measured by calling functions (plv, iplv or pli) defined 
-% outside this script. IMPORTANT: We only support phase-based
-% connectivity-measures as of now.
+% Connectivity is measured by calling functions (plv, iplv, pli, ampCorr or orthAmpCorr)
+% defined outside this script. 
+%
+% NOTE that for envelope correlation measures you should fit a
+% non-truncated normal to the (Fisher-z tranformed) surrogate values.
+%
+% NOTE that for envelope correlation measures we perform a hard-coded
+% lowpass filtering with 10 Hz passbandedge on the envelopes before calculating 
+% correlations. This step - currently - requires Signal Processing
+% Toolbox!!!
 %
 % Results are saved into the provided
 % directory (or into current working directory), named
-% 'SUBJECTNUMBER_FREQUENCYBAND_surrEdgeEstReal.mat'.
+% 'SUBJECTNUMBER_FREQUENCYBAND_surrEdgeEstReal_METHOD.mat'.
 %
 % Output files contain the parameters of the fitted (truncated) normal
 % distributions and the results of goodness-of-fit tests
@@ -56,8 +63,8 @@ function surrEdgeEstimationReal(freq, varargin)
 %       (e.g. 's01' for files like 's01_alpha.mat'). If empty, 
 %       we use the default cell arrray defined in
 %       "restingStateSubjects.mat" (var "subjectsRS").
-% method    - Connectivity measure compatible with phase data, one of 
-%       {'plv', 'iplv', 'pli'}. Defaults to 'iplv'.
+% method    - Char array, one of {'plv', 'iplv', 'pli', 'ampCorr', 'orthAmpCorr'}. 
+%       Specifies the connectivity measure. Defaults to 'iplv'.
 % dRate     - Decimation rate. We usually work with bandpass-filtered data
 %       that nevertheless retains the original (1000 or 500 Hz) sampling
 %       rate. For efficiency, we can decimate this data by providing a
@@ -72,27 +79,29 @@ function surrEdgeEstimationReal(freq, varargin)
 %       truncated normal distribution should be fitted to surrogate edge 
 %       data. If 'yes', that is, a truncated normal is fitted, we
 %       truncate with bounds [0 1], corresponding to the range of the 
-%       phase-based connectivity measures. Defaults to 'yes'.
+%       phase-based connectivity measures. Defaults to 'yes' for 
+%       phase-based connectivity measures and to 'no' for envelope 
+%       correlation. The latter is Fisher-Z transformed before fitting.
 % 
 % Output:
 % The following variables are saved out for each subject.
-% surrNormalMu      - Numeric array, sized (node no. X node no. X layer no. X
-%               stim no.). Contains the estimated "mu" param for the normal
+% surrNormalMu      - Numeric array, sized (node no. X node no. X layer
+%               no.). Contains the estimated "mu" param for the normal
 %               / truncated normal distribution fitted to the surrogate
 %               connectivity data.
-% surrNormalSigma   - Numeric array, sized (node no. X node no. X layer no. X
-%               stim no.). Contains the estimated "sigma" param for the normal
+% surrNormalSigma   - Numeric array, sized (node no. X node no. X layer
+%               no.). Contains the estimated "sigma" param for the normal
 %               / truncated normal distribution fitted to the surrogate
 %               connectivity data.
-% surrNormalH       - Numeric array, sized (node no. X node no. X layer no. X
-%               stim no.). Elements are either 0 or 1. Contains the main 
+% surrNormalH       - Numeric array, sized (node no. X node no. X layer
+%               no.). Elements are either 0 or 1. Contains the main 
 %               result of the Kolmogorov-Smirnov goodness-of-fit test 
 %               (kstest) testing if the surrogate connectivity data for 
 %               each edge indeed corresponds to the fitted (truncated) 
 %               normal distribution. 1 = rejected at 0.05 level, 0 = null
 %               hypothesis cannot be rejected.
-% surrNormalP       - Numeric array, sized (node no. X node no. X layer no. X
-%               stim no.). Elements are in the range [0 1]. Contains the 
+% surrNormalP       - Numeric array, sized (node no. X node no. X layer
+%               no.). Elements are in the range [0 1]. Contains the 
 %               probability that the surrogate connectivity data 
 %               corresponds to the fitted (truncated) normal distribution. 
 %               Outcome of the Kolmogorov-Smirnov goodness-of-fit test 
@@ -105,10 +114,14 @@ function surrEdgeEstimationReal(freq, varargin)
 %               saved out to.
 %
 %
-% NOTES:
+% NOTES: 
 % (1) % The method for truncated normal is from:
 % https://www.mathworks.com/matlabcentral/fileexchange/64040-fitting-a-truncated-normal-gaussian-distribution
 % Alexey Ryabov
+%
+% TODO:
+% - switch to EEGLAB filters
+% - support calculating multiple connectivity measures in one pass (getSurrConn) 
 %
 
 
@@ -131,7 +144,7 @@ if ~isempty(varargin)
             subjects = varargin{v};
         elseif ischar(varargin{v}) && ~exist('dirName', 'var') && exist(varargin{v}, 'dir')
             dirName = varargin{v};
-        elseif ischar(varargin{v}) && ~exist('method', 'var') && ismember(varargin{v}, {'pli', 'iplv', 'plv'})
+        elseif ischar(varargin{v}) && ~exist('method', 'var') && ismember(varargin{v}, {'plv', 'iplv', 'pli', 'ampCorr', 'orthAmpCorr'})
             method = varargin{v};     
         elseif isnumeric(varargin{v}) && ~exist('dRate', 'var') && ismember(varargin{v}, 1:20)
             dRate = varargin{v};
@@ -176,6 +189,12 @@ elseif strcmp(truncated, 'yes')
     truncated = true;
 end
 
+% issue warning if envelope correlation is paired with truncated normals
+if truncated && ismember(method, {'ampCorr', 'orthAmpCorr'})
+    warning(['Envelope correlation methods should be paired with a non-truncated normal fit. ',...
+        'We procedd, but please double-check your use case.']);
+end
+
 % user message
 disp([char(10), 'Starting surrEdgeEstimationReal function with following arguments: ',...
     char(10), 'Frequency band: ', freq,...
@@ -201,7 +220,7 @@ end
 % data folder
 dataDir = [dirName, '/', freq, '/'];
 
-% list all angle and envelope files we will use
+% list all files we will use
 dataFiles = cell(subNo, 1);
 for s = 1:subNo
     dataFiles{s} = [dataDir, subjects{s}, '_', freq, '.mat'];
@@ -223,6 +242,18 @@ if dRate ~= 1
     subData = subData(:, 1:dRate:end, :, :);
     sampleNoOrig = sampleNo;
     sampleNo = size(subData, 2);
+end
+
+% prepare a lowpass filter if envelope correlation is used
+if ismember(method, {'ampCorr', 'orthAmpCorr'})
+    lpFilter = designfilt('lowpassiir',... 
+            'PassbandFrequency', 10,...
+            'StopbandFrequency', 13,... 
+            'PassbandRipple', 0.1,... 
+            'StopbandAttenuation', 50,... 
+            'SampleRate', 1000/dRate,... 
+            'MatchExactly',... 
+            'passband');
 end
 
 % define helper functions if truncated normal is to be fitted
@@ -290,7 +321,13 @@ parfor subIdx = 1:subNo
 
         % generate surrogate datasets and calculate
         % connectivity matrices for them
-        surrConnData = getSurrConn(subData(:,:,epochIdx), surrNo, method);
+        
+        % for envelope correlations pass the lowpass filter object
+        if ismember(method, {'ampCorr', 'orthAmpCorr'})  
+            surrConnData = getSurrConn(subData(:,:,epochIdx), surrNo, method, lpFilter);
+        else
+            surrConnData = getSurrConn(subData(:,:,epochIdx), surrNo, method);
+        end
 
         % fit a normal distribution to each group of edge values
         for roi1 = 1:roiNo
@@ -299,6 +336,10 @@ parfor subIdx = 1:subNo
                 % excluding the diagonal as well
                 if roi2 > roi1
                     tmp = squeeze(surrConnData(:, roi1, roi2));
+                    
+                    % for envelope correlations, first use Fisher-Z
+                    % transform on values
+                    tmp = atanh(tmp);
                     
                     % fitting
                     
@@ -349,7 +390,7 @@ parfor subIdx = 1:subNo
     end  % for epochIdx  loop
     
     % get a subject-specific file name for saving results
-    saveF = [dirName, '/' , freq, '/', subjects{subIdx}, '_', freq, '_surrEdgeEstReal.mat'];
+    saveF = [dirName, '/' , freq, '/', subjects{subIdx}, '_', freq, '_surrEdgeEstReal_', method, '.mat'];
     
     % save results using matfile - this is mostly allowed in a parfor loop,
     % unlike the save command
