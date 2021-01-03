@@ -56,9 +56,10 @@ for index = 1 : 4
     ylim([-0.2 1])
     hold on;
     connectingLineXvalues = [1 10 20 30 40 50 60 70 80 90 100]/10;
-    connectingLineYvalues = MX;
+    connectingLineYvalues = MED;
     plot(connectingLineXvalues, connectingLineYvalues, 'k', 'LineWidth', 1);
     set(gca, 'FontSize', 10);
+    set(gcf, 'Color', 'w');
     grid on;
     
     switch index
@@ -74,20 +75,3 @@ for index = 1 : 4
     end
 
 end
-
-
-% for iterationIndex = 1 : numberOfGroupSizes
-%     simRes_correlation = connSimTest_group_var_size(connectivityTensor, numberOfPermutations, arrayOfGroupNumbers(iterationIndex), 'corr');
-%     matrixOfCorrValues(:, iterationIndex) = simRes_correlation';
-% end
-
-% [h,L,MX,MED] = violin(matrixOfCorrValues, 'x', [1 10 20 30 40 50 60 70 80 90 100]/10);
-% xticks([1 10 20 30 40 50 60 70 80 90 100]/10);
-% xticklabels({'1', '10', '20', '30', '40', '50', '60', '70', '80', '90', '100'});
-% xlabel('Number of subjects in groups');
-% ylabel('Between-group correlation');
-% hold on;
-% connectingLineXvalues = [1 10 20 30 40 50 60 70 80 90 100]/10;
-% connectingLineYvalues = MX;
-% plot(connectingLineXvalues, connectingLineYvalues, 'k');
-
