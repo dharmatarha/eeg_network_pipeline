@@ -79,34 +79,53 @@ end
 
 %% Loops through all ROI/channel pairings
 
+epochData = epochData';
+
 % temp var for connectivity res
 res = nan(roiNo);
 
+% vector norms (Euclidean) of all channels 
+roiNorms = sqrt(sum(epochData.^2, 1));  % roiNorms is a row vector
+
+% get envelopes for all channels
+epochDataEnv = envelope(epochData);  % keep dims ROIs/channels X samples
+
+% filter all channels if lowpass filter was provided
+if ~isempty(lpFilter)
+    epochDataEnv = (filter(lpFilter, epochDataEnv));
+end
+
 % loops trough ROIs
-for roi1 = 1:roiNo 
-    for roi2 = 1:roiNo
-        if roi1 ~= roi2
+for roiIdx = 1:roiNo 
+    
+    % select one ROI/channel to correlate with all others, replicate it
+    % roiNo times
+    roiData = repmat(epochData(:, roiIdx), [1, 62]);  
 
-            % orthogonalize dataOne with respect to dataTwo
-            data1 = squeeze(epochData(roi1, :));  
-            data2 = squeeze(epochData(roi2, :));
-            projScalar = dot(data1, data2)/norm(data2);  % scalar projection of dataOne on dataTwo
-            projVector = projScalar*(data2./norm(data2));  % projection vector of dataOne on dataTwo
-            orthVector = data1 - projVector;  % orthogonalized dataOne
-            % get envelope of both data 
-            data1Env = envelope(orthVector);
-            data2Env = envelope(data2);
-            % filter envelopes
-            if ~isempty(lpFilter)
-                data1Env = filter(lpFilter, data1Env);
-                data2Env = filter(lpFilter, data2Env);
-            end
-            % get amplitude correlation
-            res(roi1, roi2) = corr(data1Env', data2Env');
-
-        end  % if
-    end  % for roiTwo
-end  % for roiOne
+    % scalar projections of data1 on all ROIs/channels
+    projScalars = dot(roiData, epochData)./roiNorms;  % projScalar is 1 X roiNo
+    
+    % projection vectors of data1 on all ROIs/channels
+    projVectors = (epochData./roiNorms).*projScalars;  
+    
+    % orthogonalized data1 with regards to all other channels
+    orthVectors = roiData - projVectors;
+    
+    % get envelopes
+    roiDataEnv = envelope(orthVectors);  
+    
+    % filter envelopes
+    if ~isempty(lpFilter)
+        roiDataEnv = (filter(lpFilter, roiDataEnv));
+    end
+    
+    % get correlations
+    rhos = corr(roiDataEnv, epochDataEnv);
+    
+    % take only the diagonal for the results matrix
+    res(roiIdx, :) = diag(rhos);
+    
+end
 
 % average the upper and lower triangles into the upper
 % triangle
