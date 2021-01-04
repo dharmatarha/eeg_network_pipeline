@@ -245,6 +245,8 @@ if dRate ~= 1
 end
 
 % prepare a lowpass filter if envelope correlation is used
+% Due to parfor, we need to define lpFilter even for cases when it is not
+% used
 if ismember(method, {'ampCorr', 'orthAmpCorr'})
     lpFilter = designfilt('lowpassiir',... 
             'PassbandFrequency', 10,...
@@ -254,6 +256,8 @@ if ismember(method, {'ampCorr', 'orthAmpCorr'})
             'SampleRate', 1000/dRate,... 
             'MatchExactly',... 
             'passband');
+else
+    lpFilter = [];
 end
 
 % define helper functions if truncated normal is to be fitted
