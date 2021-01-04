@@ -20,7 +20,7 @@ function pValues = surrConnStats(realConnData, surrConnData)
 %                   matrix "realConnData", contains empirical p-values.
 %
 % Notes: It is assumed that the input matrix "realConnData" is symmetrical
-% and p-values are calculated only for elements over the main diagonal.
+% and p-values are calculated only for elements above the main diagonal.
 %
 
 %% Input checks
