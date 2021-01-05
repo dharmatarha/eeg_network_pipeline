@@ -1,7 +1,7 @@
 function sortSurrConn(selectedConnFile, surrDataDir, freq, method)
 %% Function to assign surrogate-data derived statistics to connectivity data
 %
-% USAGE: sortSurrConn(selectedConnFile, surrDataDir)
+% USAGE: sortSurrConn(selectedConnFile, surrDataDir, freq, method)
 %
 % In the resting-state EEG dataset, we calculate connectivity values for
 % the data of each subject with "connectivityWrapperReal" then randomly 
@@ -29,8 +29,9 @@ function sortSurrConn(selectedConnFile, surrDataDir, freq, method)
 
 
 %% Input checks
-if nargin ~= 2
-    error('Function sortSurrConn requires input args "selectedConnFile" and "surrDataDir"!');
+
+if nargin ~= 4
+    error('Function sortSurrConn requires input args "selectedConnFile", "surrDataDir", "freq" and "method"!');
 end
 if ~exist(selectedConnFile, 'file')
     error(['Input arg "selectedConnFile" should point to a file containing ',...
@@ -39,6 +40,12 @@ end
 if ~exist(surrDataDir, 'dir')
     error(['Input arg "surrDataDir" should point to a directory containing ',...
         'the surrogate connectivity data (outputs of "surrEdgeEstimationReal")!']);
+end
+if ~ismember(freq, {'alpha', 'beta', 'gamma', 'delta', 'theta'})
+    error('Input arg "freq" should be one of {"alpha", "beta", "gamma", "delta", "theta"}!');
+end
+if ~ismember(method, {'plv', 'iplv', 'pli', 'ampCorr', 'orthAmpCorr'})
+    error('Input arg "freq" should be one of {"plv", "iplv", "pli", "ampCorr", "orthAmpCorr"}!');
 end
 
 if strcmp(surrDataDir(end), '/')
@@ -66,12 +73,12 @@ maskedConn = surrNormalMu;
 criticalP = nan(subNo, epochNo);
 survivalRate = nan(subNo, epochNo);
 
-for s = 1:subNo
+for subIdx = 1:subNo
     
     subClock = tic;
     
     % get current subject's surrogate connectivity data file
-    subID = subjects{s};
+    subID = subjects{subIdx};
     subSurrFile = [surrDataDir, '/', subID, '_', freq, '_surrEdgeEstReal_', method, '.mat'];
     if ~exist(subSurrFile, 'file')
         error(['Cannot find surrogate data file for subject ', subID, '!']);
@@ -79,7 +86,7 @@ for s = 1:subNo
     tmp = load(subSurrFile);
     
     % get epoch indices for current subject
-    subEpochs = epochIndices{s};
+    subEpochs = epochIndices{subIdx};
     if isempty(subEpochs)
         subEpochs = 1:epochNo;
     end
@@ -88,9 +95,18 @@ for s = 1:subNo
     tmpMu = permute(tmp.surrNormalMu, [3 1 2]);
     tmpSigma = permute(tmp.surrNormalSigma, [3 1 2]);
     tmpP = permute(tmp.surrNormalP, [3 1 2]);
-    surrNormalMu(s, :, :, :) = tmpMu(subEpochs, :, :);
-    surrNormalSigma(s, :, :, :) = tmpSigma(subEpochs, :, :);
-    surrNormalP(s, :, :, :) = tmpP(subEpochs, :, :);
+    
+    % !!! IMPORTANT !!!
+    % "selectConnEpochs" epochIndices index epochs after every second was
+    % discarded!
+    tmpMu = tmpMu(1:2:end, :, :);
+    tmpSigma = tmpSigma(1:2:end, :, :);
+    tmpP = tmpP(1:2:end, :, :);
+    
+    % collect subject-level (truncated) normal params to group-level var
+    surrNormalMu(subIdx, :, :, :) = tmpMu(subEpochs, :, :);
+    surrNormalSigma(subIdx, :, :, :) = tmpSigma(subEpochs, :, :);
+    surrNormalP(subIdx, :, :, :) = tmpP(subEpochs, :, :);
     
     % estimate p-values for real connectivity
     for epochIdx = 1:epochNo
@@ -100,29 +116,30 @@ for s = 1:subNo
                     
                     % get p-value based on normal distribution of surrogate
                     % values, multiply by 2 for 2-sided test
-                    normalP = normcdf(connData(s, epochIdx, roi1, roi2),... 
-                                        surrNormalMu(s, epochIdx, roi1, roi2),... 
-                                        surrNormalSigma(s, epochIdx, roi1, roi2));
+                    normalP = normcdf(connData(subIdx, epochIdx, roi1, roi2),... 
+                                        surrNormalMu(subIdx, epochIdx, roi1, roi2),... 
+                                        surrNormalSigma(subIdx, epochIdx, roi1, roi2));
                     if normalP > 0.5
                         normalP = 1-normalP;
                     end                                         
-                    realConnP(s, epochIdx, roi1, roi2) = normalP*2;
+                    realConnP(subIdx, epochIdx, roi1, roi2) = normalP*2;
                     
                 end
             end
         end
         
         % FDR correction on epoch-level
-        realPs = realConnP(s, epochIdx, :, :); 
+        realPs = realConnP(subIdx, epochIdx, :, :); 
         realPs = realPs(:); realPs(isnan(realPs)) = [];
-        [~, criticalP(s, epochIdx)] = fdr(realPs, 0.05, 'bh'); 
+        [~, criticalP(subIdx, epochIdx)] = fdr(realPs, 0.05, 'bh'); 
         
         % create masked connectivity tensor
-        epochConnData = squeeze(connData(s, epochIdx, :, :));
-        epochConnData(epochConnData < criticalP(s)) = 0;
-        maskedConn(s, epochIdx, :, :) = epochConnData;
+        epochConnData = squeeze(connData(subIdx, epochIdx, :, :));
+        epochConnData(epochConnData < criticalP(subIdx)) = 0;
+        maskedConn(subIdx, epochIdx, :, :) = epochConnData;
         % survived edges
-        survivalRate(s, epochIdx) = sum(epochConnData(:, :) >= criticalP(s))/(roiNo*(roiNo-1)/2);
+        edgesAboveCrit = epochConnData(:, :) >= criticalP(subIdx);
+        survivalRate(subIdx, epochIdx) = sum(edgesAboveCrit(:), 'omitnan')/(roiNo*(roiNo-1)/2);
         
     end
     
