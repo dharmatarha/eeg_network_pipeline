@@ -135,11 +135,13 @@ for subIdx = 1:subNo
         
         % create masked connectivity tensor
         epochConnData = squeeze(connData(subIdx, epochIdx, :, :));
-        epochConnData(epochConnData < criticalP(subIdx)) = 0;
+        epochP = squeeze(realConnP(subIdx, epochIdx, :, :));
+        epochConnData(epochP > criticalP(subIdx, epochIdx)) = 0;
         maskedConn(subIdx, epochIdx, :, :) = epochConnData;
-        % survived edges
-        edgesAboveCrit = epochConnData(:, :) >= criticalP(subIdx);
-        survivalRate(subIdx, epochIdx) = sum(edgesAboveCrit(:), 'omitnan')/(roiNo*(roiNo-1)/2);
+        % get ratio of edges below the threshold (edges surviving the
+        % pruning)
+        edgesBelowCrit = epochP <= criticalP(subIdx, epochIdx);
+        survivalRate(subIdx, epochIdx) = sum(edgesBelowCrit(:), 'omitnan')/(roiNo*(roiNo-1)/2);
         
     end
     
@@ -149,7 +151,11 @@ for subIdx = 1:subNo
 end
 
 
+%% Save out
 
+saveF = [surrDataDir, '/surrConn_', freq, '_', method, '.mat'];
+save(saveF, 'surrNormalMu', 'surrNormalSigma', 'surrNormalP',... 
+    'realConnP', 'maskedConn', 'criticalP', 'survivalRate');
 
 
 

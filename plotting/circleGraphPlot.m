@@ -49,8 +49,8 @@ function [mainFig, subFig] = circleGraphPlot(connMatrix, membership, colorTriple
 %               module identifiers, the second corresponding row numbers of
 %               the input arg "colorTriplets". Defaults to empty, in which
 %               case module-to-color assignment is automatic and based on
-%               ascending corresponding numbers (e.g., lowest module indice is
-%               assinged to first row of "colorTriplets", and so on).
+%               ascending corresponding numbers (e.g., lowest module index is
+%               assigned to first row of "colorTriplets", and so on).
 % trimmingThr     - One- or two-element vector containing threshold(s) 
 %               for trimming (deleting) weak connections before plotting.
 %               If trimmingThr is only one value, the same threshold is
@@ -204,9 +204,9 @@ end
 baseEdgeColor = [0.5, 0.5, 0.5];
 % base edge width range - we map the supplied data to this range 
 % irrespective of actual weights 
-baseEdgeWidthRange = [0.1, 4];
+baseEdgeWidthRange = [0.5, 4];
 % multiplier for the width of within-module edges
-withinEdgeWidthMultip = 2;
+withinEdgeWidthMultip = 1.75;
 % edge line styles for within- and between-module edges
 %edgeTypes = {'-', 'none'};
 edgeTypes = {'-', '-'};
@@ -336,12 +336,21 @@ moduleEdges = zeros(size(weights, 1), modNo);  % binary vectors identifying with
 for i = 1:modNo
     moduleNodes = labels(membership == moduleIndices(i));  % node indices (as binary vector) for given module
     moduleEdges(:, i) = ismember(nodesPerEdge(:, 1), moduleNodes) & ismember(nodesPerEdge(:, 2), moduleNodes);  % edge indices (as binary vector) for edges within given module
-    moduleEdgeColor = colorTriplets(mod2color(mod2color(:, 1) == moduleIndices(i), 2), :);  % get RGB color for current module
-    edgeColors(logical(moduleEdges(:, i)), :) = repmat(moduleEdgeColor, [sum(moduleEdges(:, i)), 1]);  % set edge color for edges within current module
+    
+    % get RGB color for current module
+    if isempty(mod2color)
+        moduleEdgeColor = colorTriplets(i, :);
+    else
+        moduleEdgeColor = colorTriplets(mod2color(mod2color(:, 1) == moduleIndices(i), 2), :);
+    end
+    
+    % set edge color for edges within current module
+    edgeColors(logical(moduleEdges(:, i)), :) = repmat(moduleEdgeColor, [sum(moduleEdges(:, i)), 1]);
+    
 %     edgeColors(logical(moduleEdges(:, i)), :) = repmat(colorTriplets(i, :), [sum(moduleEdges(:, i)), 1]);  % set edge color for current module
 %     edgeWidth(logical(moduleEdges(:, i))) = weights(logical(moduleEdges(:, i)))*withinEdgeWidthMultip;  % set edge width for current module
     edgeWidth(logical(moduleEdges(:, i))) = edgeWidth(logical(moduleEdges(:, i)))*withinEdgeWidthMultip;  % set edge width for current module
-    edgeWidth(logical(moduleEdges( moduleEdges(:, i)<1 , i))) = edgeWidth(logical(moduleEdges( moduleEdges(:, i)<1 , i)))*20;  % HACK!
+%     edgeWidth(logical(moduleEdges( moduleEdges(:, i)<1 , i))) = edgeWidth(logical(moduleEdges( moduleEdges(:, i)<1 , i)))*20;  % HACK!
 end
 
 % identify between-module edges
@@ -413,8 +422,8 @@ G.plot('Layout', graphMainLayout,...
     'MarkerSize', nodeSize,...
     'LineStyle', edgeStyle);
 
-% title
-title(mainFigTitle, 'Interpreter', 'none');
+% % title
+% title(mainFigTitle, 'Interpreter', 'none');
 
 % lines and text boxes highlight the ROIs in each lobule in case of a
 % specific ROI set (labels)
@@ -427,13 +436,16 @@ if lobuleFlag
     end
 end
 
-% extra annotation displaying trimming info
-annotation('textbox', trimmingBoxPos, 'String', trimmingText, 'EdgeColor', gcaLinesColor);
+% % extra annotation displaying trimming info
+%annotation('textbox', trimmingBoxPos, 'String', trimmingText, 'EdgeColor', gcaLinesColor);
 
 % set axes boundary line colors 
 set(gca,'XColor', gcaLinesColor,'YColor', gcaLinesColor);
 % set axes position relative to figure
 set(gca, 'Position', gcaPosInFig);
+
+% set font size
+set(gca, 'Fontsize', 20);
 
 
 %% Plot sub graphs
@@ -451,7 +463,11 @@ for s = 1:modNo
     subplot('position', subPlotPos(s, :));
     
     % edge and node color for given module
-    subModColor = colorTriplets(mod2color(mod2color(:,1)==moduleIndices(s), 2), :);
+    if isempty(mod2color)
+        subModColor = colorTriplets(s, :);
+    else
+        subModColor = colorTriplets(mod2color(mod2color(:,1)==moduleIndices(s), 2), :);
+    end
     
     % module subplot
     subGraphs{s}.plot('Layout', graphSubLayout,... 
