@@ -1,25 +1,39 @@
-function [elapsedTime, connResults, pairingsNo] = connectivitySpeedtest(channelNo, epochL, measure)
+function [elapsedTime, connResults, pairingsNo] = connectivitySpeedtest(metric, channelNo, sampleNo, varargin)
 
 %% Estimating the speed of connectivity calculations
 %
-% USAGE: [elapsedTime, connResults, pairingsNo] = connectivitySpeedtest(channelNo, epochL, measure)
+% USAGE: [elapsedTime, connResults, pairingsNo] = connectivitySpeedtest(metric, channelNo, sampleNo, repNo=10)
 %
-% The function generates random complex data as specified in the inputs and
-% then calculates PLI, PLV, iPLV or wPLI across all unique channel pairings. 
-% Generated data has size of [channelNo, epochL]
+% The function generates random data (size as specified by inputs 
+% "channelNo" and "sampleNo"), estimates connectivity ("metric") 
+% across all unique channel pairings, then returns the time required for 
+% connectivity estimation. 
 %
-% Input(s):
-% channelNo     - number of channels to generate random phase data for
-% epochL        - epoch length in samples 
-% measure       - string specifying the connectivity measure:
-%               'PLI', 'PLV', 'iPLV' or 'wPLI'
+% Connectivity metrics are defined outside this function. Note that all
+% available metrics - as of now - are symmetric (=undirected).
 %
-% Output(s):
-% elapsedTime   - time it took for the function to finish
-% connResults   - connectivity results in a matrix of size [channelNo, channelNo],
-%           note that the diagonal and the lower half is filled with NaN
-% pairingsNo    - number of unique channel pairings ( = no. of connectivity
-%           calculations performed)
+% Mandatory inputs:
+% metric       - Char array specifying the connectivity measure, one of
+%               {'pli', 'wpli', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'}
+% channelNo     - Numeric value, number of channels to generate random 
+%               data for. In range 1:1000.
+% sampleNo      - Numeric value, epoch length in samples. In range of
+%               1:10^6.
+%
+% Optional input:
+% repNo         - Numeric value, number of runs / repetitions for
+%               estimation. In range 1:1000, defaults to 10.
+%
+% Outputs:
+% elapsedTime   - Numeric vector, time required for connectivity
+%               estimation, its values are in secs.
+% connResults   - Numeric array, contains the connectivity results. Its 
+%               dimensions are repNo X ROIs/channels X ROIs/channels. 
+%               Note that the diagonal and the lower half is filled with 
+%               NaN, only upper triangle is populated with values.
+% pairingsNo    - Numeric value, number of unique channel pairings per
+%               repetition ( = no. of connectivity calculations performed), 
+%               equals (N-1)*N/2 where N is the number of ROIs/channels.
 %
 % Relevant papers for each connectivity measurement type:
 %
@@ -46,27 +60,37 @@ function [elapsedTime, connResults, pairingsNo] = connectivitySpeedtest(channelN
 %   electrophysiological data in the presence of volume-conduction, noise 
 %   and sample-size bias. NeuroImage.
 %
+% orthAmpCorr:
+% Coquelet et al., 2020. Comparing MEG and high-density EEG for intrinsic 
+%   functional connectivity mapping. NeuroImage.
+%
+% ampCorr: 
+% Standing for amplitude envelope correlation, widely used, self-evident.
+%
 % These papers might be of interest to you as well:
 % Nolte et al., 2004. Identifying true brain interaction from EEG data 
 %   using the imaginary part of coherency. Clin. Neurophys.
-%
 %
 
 
 %% Input checks
 
-if nargin ~= 3
-    error('Need input args "channelNo", "epochL" and "measure"');
+if ~ismember(nargin, 3:4)
+    error(['Function connectivitySpeedtest requires input args "metric", ',...
+        '"channelNo" and "sampleNo" while arg "repNo" is optional!']);
 end
-% sanity checking inputs
+% mandatory args
+if ~ismember(metric, {'pli', 'wpli', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'})
+    error('Input arg "measure" should be one of {''pli'', ''wpli'', ''plv'', ''iplv'', ''ampCorr'', ''orthAmpCorr''}');
+end
 if ~ismember(channelNo, 1:1000)
     error('Are you sure about input arg "channelNo"? Prefer integer in the 1:1000 range...');
 end
-if ~ismember(epochL, 10:10:10^9)
-    error('Are you sure about input arg "epochL"? Prefer integer in the 10:10:10^9 range...');
+if ~ismember(sampleNo, 1:10^6)
+    error('Inop "sampleNo"? Prefer integer in the 1:10^6 range...');
 end
-if ~ismember(measure, {'PLI', 'PLV', 'iPLV', 'wPLI'})
-    error('Input arg "measure" should be one of the following: "PLI", "PLV", "iPLV" or "wPLI"');
+if ~ismember(metric, {'pli', 'wpli', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'})
+    error('Input arg "measure" should be one of {''pli'', ''wpli'', ''plv'', ''iplv'', ''ampCorr'', ''orthAmpCorr''}');
 end
 
 % user message
