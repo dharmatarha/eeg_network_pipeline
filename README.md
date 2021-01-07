@@ -3,7 +3,7 @@ Functions for functional connectivity estimation, network discovery and comparis
 
 We collect in this repo the Matlab scripts/functions used for network-based analyses of EEG data in the **Sound and Speech Perception Research Group** at TTK, Budapest (PI: Istvan Winkler). Development is ongoing, changes might occur at any time at any level.
 
-## [References for the Sfn poster are here](https://github.com/dharmatarha/eeg_network_pipeline/)
+## [References for the Sfn poster are here](https://github.com/dharmatarha/eeg_network_pipeline/blob/master/Sfn_poster_refs.md)
 
 ## Dependencies / compatilibity:
 - Development is primarily with Matlab 2017a or higher, Octave compatibility is rarely - if ever - tested. 
