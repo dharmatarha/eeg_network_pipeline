@@ -3,15 +3,15 @@ Functions for functional connectivity estimation, network discovery and comparis
 
 We collect in this repo the Matlab scripts/functions used for network-based analyses of EEG data in the **Sound and Speech Perception Research Group** at TTK, Budapest (PI: Istvan Winkler). Development is ongoing, changes might occur at any time at any level.
 
-## [References for the Sfn poster are here](https://github.com/dharmatarha/eeg_network_pipeline/blob/master/Sfn_poster_refs.md)
+### [References for the Sfn poster are here](https://github.com/dharmatarha/eeg_network_pipeline/blob/master/Sfn_poster_refs.md)
 
-## Dependencies / compatilibity:
+### Dependencies / compatilibity:
 - Development is primarily with Matlab 2017a or higher, Octave compatibility is rarely - if ever - tested. 
 - Some functions (mostly the surrogate data generator wrappers found in `/edgePruning`) use `parfor` for across-subject loops, requiring Parallel Computing Toolbox for optimal performance. Note that without the Parallel Computing Toolbox `parfor` loops work essentially as for loops with scrambled index order. 
 - Some functions rely on Statistics and Machine Learning Toolbox (occasional calls to `normcdf`, `normpdf`, `kstest`, etc.). It is a (very) long-term goal to not rely on the Stat. Toolbox.
 - Occasionally we might rely on Signal Processing Toolbox, hopefully only for stopgap measures. 
 
-## EEG data format
+### EEG data format
 We assume that data is already preprocessed (e.g. re-referenced, filtered for muscle and other artefacts, bandpass filtered to ranges of interest, source-reconstructed, averaged into ROIs based on a parcellation). We expect preprocessed data in 3D/4D arrays, with dimensions ROIs/channels X samples X epochs (X conditions), in one .mat file per subject.
 
 Main analysis steps include: 
