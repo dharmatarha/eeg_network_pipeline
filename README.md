@@ -7,8 +7,8 @@ We collect in this repo the Matlab scripts/functions used for network-based anal
 
 ## Dependencies / compatilibity:
 - Development is primarily with Matlab 2017a or higher, Octave compatibility is rarely - if ever - tested. 
-- Some functions (mostly the surrogate data generator wrappers found in '''/edgePruning''') use '''parfor''' for across-subject loops, requiring Parallel Computing Toolbox for optimal performance. Note that without the Parallel Computing Toolbox '''parfor'' loops work essentially as for loops with scrambled index order. 
-- Some functions rely on Statistics and Machine Learning Toolbox (occasional calls to '''normcdf''', 'normpdf''', '''kstest''', etc.). It is a (very) long-term goal to not rely on the Stat. Toolbox.
+- Some functions (mostly the surrogate data generator wrappers found in `/edgePruning`) use `parfor` for across-subject loops, requiring Parallel Computing Toolbox for optimal performance. Note that without the Parallel Computing Toolbox `parfor` loops work essentially as for loops with scrambled index order. 
+- Some functions rely on Statistics and Machine Learning Toolbox (occasional calls to `normcdf`, `normpdf`, `kstest`, etc.). It is a (very) long-term goal to not rely on the Stat. Toolbox.
 - Occasionally we might rely on Signal Processing Toolbox, hopefully only for stopgap measures. 
 
 ## EEG data format
