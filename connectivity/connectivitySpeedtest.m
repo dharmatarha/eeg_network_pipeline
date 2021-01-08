@@ -12,6 +12,8 @@ function [elapsedTime, connResults, pairingsNo] = connectivitySpeedtest(metric, 
 % Connectivity metrics are defined outside this function. Note that all
 % available metrics - as of now - are symmetric (=undirected).
 %
+% Generated data is normally distributed pseudorandom (randn)
+%
 % Mandatory inputs:
 % metric       - Char array specifying the connectivity measure, one of
 %               {'pli', 'wpli', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'}
@@ -84,101 +86,87 @@ if ~ismember(metric, {'pli', 'wpli', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'})
     error('Input arg "measure" should be one of {''pli'', ''wpli'', ''plv'', ''iplv'', ''ampCorr'', ''orthAmpCorr''}');
 end
 if ~ismember(channelNo, 1:1000)
-    error('Are you sure about input arg "channelNo"? Prefer integer in the 1:1000 range...');
+    error('Input arg "channelNo" should be a numeric value in the 1:1000 range!');
 end
 if ~ismember(sampleNo, 1:10^6)
-    error('Inop "sampleNo"? Prefer integer in the 1:10^6 range...');
+    error('Input arg "sampleNo" should be a numeric value in the 1:10^6 range!');
 end
-if ~ismember(metric, {'pli', 'wpli', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'})
-    error('Input arg "measure" should be one of {''pli'', ''wpli'', ''plv'', ''iplv'', ''ampCorr'', ''orthAmpCorr''}');
+% optional args
+if ~isempty(varargin)
+    if isnumeric(varargin{1}) && ismember(varargin{1}, 1:1000)
+        repNo = varargin{1};
+    end
+else
+    repNo = 10;
 end
 
 % user message
 disp([char(10), 'Called connectivitySpeedtest with input args:',...
-    char(10), 'number of channels: ', num2str(channelNo),...
-    char(10), 'epoch length in samples: ', num2str(epochL),...
-    char(10), 'connectivity measure: ', measure]);
+    char(10), 'Connectivity metric: ', metric,...
+    char(10), 'Number of channels: ', num2str(channelNo),...
+    char(10), 'Epoch length in samples: ', num2str(sampleNo),...
+    char(10), 'Number of runs: ', num2str(repNo)]);
 
 
-%% Basics: generate data, start timer
+%% Preallocate output vars
 
-% generate complex data with real and imaginary parts both between -1:1 
-data = (rand(epochL, channelNo)-0.5)*2*1i+(rand(epochL, channelNo)-0.5)*2;
-% get phase for PLI, PLV and iPLV calculations
-phaseData = angle(data);
-
-% preallocate results matrix
-connResults = nan(channelNo);
-
-% user message
-disp('Generated random data, calculating connectivity for all unique channel pairings...');
-
-startTime = tic;
+elapsedTime = nan(repNo, 1);
+connResults = nan(repNo, channelNo, channelNo);
+pairingsNo = (channelNo-1)*channelNo/2;
 
 
-%% Loop through channel pairings, calculate PLI/PLV/iPLV/wPLI
+%% Runs / repetititions loop
 
-for channelOne = 1:channelNo  
-    for channelTwo = 1:channelNo
-        
-        % only calculate connectivity for upper triangle of connResults
-        % matrix
-        if channelOne < channelTwo
-            
-            % check connectivity measure type
-            switch measure
-                
-                case 'PLI'
-                    % PLI - relevant paper:
-                    % Stam et al., 2007. Phase lag index: Assessment of functional connectivity from multi channel EEG and MEG with diminished bias from common sources. Hum. Brain Mapp.
-                    connResults(channelOne, channelTwo) = abs(mean(sign(phaseData(:, channelOne)-phaseData(:, channelTwo))));
-            
-                case 'PLV'
-                    % PLV
-                    % We use the Mormann et al. version here:
-                    connResults(channelOne, channelTwo) = abs(sum(exp(1i*(phaseData(:, channelOne)-phaseData(:, channelTwo))))/epochL);
-
-                case 'iPLV'
-                    % iPLV
-                    % Simply the imaginary part of PLV:
-                    connResults(channelOne, channelTwo) = abs(imag(sum(exp(1i*(phaseData(:, channelOne)-phaseData(:, channelTwo))))/epochL));                    
-                    
-                case 'wPLI'
-                    % weighted PLI
-                    % Note that the Vinck et al. paper defines wPLI based
-                    % on cross-spectral density and requires data over many
-                    % trials for estimation. Here we use a version for
-                    % a narrowband-filtered analytical signal. The idea is
-                    % the same - the magnitude of the "difference" 
-                    % (division) of complexes can be used for weighting 
-                    
-                    % For readability we separately declare the imaginary
-                    % difference data we work with 
-                    diffData = imag(data(:, channelOne)./data(:, channelTwo));
-                    
-                    % wPLI
-                    connResults(channelOne, channelTwo) = abs(mean(abs(diffData).*sign(diffData)))/mean(abs(diffData));      
-                    
-            end  % switch measure
-                       
-        end  % if
-        
-    end  % channelTwo
+for repIdx = 1:repNo
     
-end  % channelOne
+    % Generate data
+    data = randn(channelNo, sampleNo);
+    
+    % Get complex / phase data if the metric requires it as input
+    if ismember(metric, {'pli', 'wpli', 'plv', 'iplv'})
+        data = hilbert(data')';
+        if ismember(metric, {'pli', 'plv', 'iplv'})
+            data = angle(data);
+        end
+    end
+    
+    % timer
+    startTime = tic;
+    
+    % connectivity estimation
+    switch metric
+        
+        case 'pli'
+            connResults(repIdx, :, :) = pli(data, 0);
+        case 'wpli'
+            connResults(repIdx, :, :) = wpli(data, 0);
+        case 'plv'
+            connResults(repIdx, :, :) = plv(data, 0);
+        case 'iplv'
+            connResults(repIdx, :, :) = iplv(data, 0);
+        case 'ampCorr'
+            connResults(repIdx, :, :) = ampCorr(data, 0);
+        case 'orthAmpCorr'
+            connResults(repIdx, :, :) = orthAmpCorr(data, 0);    
+            
+    end
+    
+    % get elapsed time
+    elapsedTime(repIdx) = toc(startTime); 
+    
+end
 
 
-%% Finish, return 
+%% User feedback, returning
 
-elapsedTime = toc(startTime); 
-pairingsNo = channelNo*(channelNo-1)/2;
-
-disp(['Done!', ...
-    char(10), 'Overall time elapsed: ', num2str(round(elapsedTime, 4)), ' secs',...
-    char(10), 'Number of unique channel pairings: ', num2str(pairingsNo),...
-    char(10), 'Elapsed time per channel pairing: ',...
-    num2str(round(elapsedTime/pairingsNo, 4)), ' secs']);
-
-
+disp([char(10), 'Done!', ...
+    char(10), 'Overall time spent on connectivity estimation (full ', num2str(repNo), ' runs): ',... 
+    num2str(round(sum(elapsedTime), 5)), ' secs',...
+    char(10), 'Median time for connectivity estimation on one epoch: ',... 
+    num2str(round(median(elapsedTime), 5)), ' secs',...
+    char(10), 'Median time per channel pairing: ',...
+    num2str(round(median(elapsedTime)/pairingsNo, 5)), ' secs']);
+    
+    
 return
 
