@@ -1,7 +1,7 @@
 baseDir = '/media/adamb/bonczData/EEG_resting_state/alpha';
 freq = 'alpha';
 method = 'orthAmpCorr';
-gammaParam = 1.05;
+gammaParam = 1.00;
 repNo = 1;
 groupNumbers = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 permNo = 1000;
@@ -20,6 +20,9 @@ zrandRes = nan(permNo, length(groupNumbers));
 for groupIdx = 1:length(groupNumbers)
     groupN = groupNumbers(groupIdx);
 
+    % user message
+    disp(['working on groupN = ', num2str(groupN)]);
+    
     % permutations
     for permIdx = 1:permNo
 
@@ -70,7 +73,7 @@ for groupIdx = 1:length(groupNumbers)
             zrandRes(permIdx, groupIdx) = zrand(group1part, group2part);
 
         else
-            zrandRes(permIdx, groupIdx) = zrand(part1, part1);
+            zrandRes(permIdx, groupIdx) = zrand(part1, part2);
 
         end
 

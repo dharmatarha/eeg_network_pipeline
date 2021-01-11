@@ -27,3 +27,6 @@ plot(connectingLineXvalues, connectingLineYvalues, 'k', 'LineWidth', 1);
 set(gca, 'FontSize', 12);
 set(gcf, 'Color', 'w');
 grid on;
+
+L.String = L.String(1);
+L.Location = 'southeast';
