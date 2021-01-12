@@ -23,13 +23,18 @@ We collect in this repo the Matlab scripts/functions used for network-based anal
 <br> As with the Network Community Toolbox, we felt free to do so since there is no mention of a specific license / any restrictions on their website - we treat these functions as if under MIT license. Please cite the [Brain Connectivity Toolbox](https://sites.google.com/site/bctnet/) and the corresponding papers (see on their website and in the helps of the functions) whenever using their work. 
 
 ### EEG data format
-We assume that data is already preprocessed (e.g. re-referenced, filtered for muscle and other artefacts, bandpass filtered to ranges of interest, source-reconstructed, averaged into ROIs based on a parcellation). We expect preprocessed data in 3D/4D arrays, with dimensions ROIs/channels X samples X epochs (X conditions), in one .mat file per subject.
+We assume that data is already preprocessed (e.g. re-referenced, filtered for muscle and other artefacts, bandpass filtered to ranges of interest, source-reconstructed, averaged into ROIs based on a parcellation). We expect preprocessed data in 3D/4D arrays, with dimensions `[ROIs/channels X samples X epochs (X conditions)]`, in one .mat file per subject.
 
-Main analysis steps include: 
+### Main analysis steps and corresponding functions
 
-1. Connectivity measurements;
+1. __Connectivity estimation:__
+<br> Functions under `/connectivity` are used for connectivity estimation on epoch-level data (matrices with dimensions `[ROIs/channels X samples]`). 
+<br> Currently we only support undirected metrics: PLV, iPLV, PLI, wPLI, ampCorr, orthAmpCorr. Corresponding functions have the same name.
+<br> Further functions
+<br>  `connectivitySpeedtest`   - Helper function to estimate the speed of per-epoch connectivity estimations. Especially helpful before surrogate data testing. 
+<br>  `connectivityWrapperReal` - Wrapper for connectivity estimation on a whole dataset. 
 
-2. Edge pruning and other network discovery/construction methods;
+2. __Edge pruning and other network discovery/construction methods:__
 
 3. Clustering / modularity / other network structure discovery methods;
 
