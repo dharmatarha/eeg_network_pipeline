@@ -15,12 +15,25 @@ We collect in this repo the Matlab scripts/functions used for network-based anal
 
 ### Functions from other collections
 - We pulled functions (ones we rely on) from the great [Network Community Toolbox](http://commdetect.weebly.com/):
-<br>`/modularity/zrand.m`
+<br>`/modularity/consensus_iterative`
 <br>`/modularity/consensus_similarity`
+<br>`/modularity/multislice_static_unsigned`
+<br>`/modularity/zrand.m`
 We felt free to do so since there is no mention of a specific license / any restrictions on their website - we treat these as if under MIT license. Please cite the [Network Community Toolbox](http://commdetect.weebly.com/) and their corresponding papers (see on their website) whenever using their functions. 
 - We also pulled functions (ones we rely on) from the great [Brain Connectivity Toolbox](https://sites.google.com/site/bctnet/):
-<br>`/measures/zrand.m`
-<br>`/measures/consensus_similarity`
+<br>`/measures/betweenness_wei.m`
+<br>`/measures/charpath.m`
+<br>`/measures/clustering_coef_wu.m`
+<br>`/measures/distance_wei.m`
+<br>`/measures/edge_betweenness_wei.m`
+<br>`/measures/efficiency_wei.m`
+<br>`/measures/module_degree_zscore.m`
+<br>`/measures/participation_coef.m`
+<br>`/measures/rich_club_wu.m`
+<br>`/measures/strengths_und.m`
+<br>`/measures/weight_conversion.m`
+<br>`/modularity/null_model_und_sign_mod`
+<br>`/modularity/randmio_und_signed_mod`
 As with the Network Community Toolbox, we felt free to do so since there is no mention of a specific license / any restrictions on their website - we treat these functions as if under MIT license. Please cite the Brain Connectivity Toolbox](https://sites.google.com/site/bctnet/) and their corresponding papers (see on their website) whenever using their functions. 
 
 ### EEG data format
