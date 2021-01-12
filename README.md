@@ -19,7 +19,7 @@ We collect in this repo the Matlab scripts/functions used for network-based anal
 <br>`/modularity/consensus_similarity`
 <br>`/modularity/multislice_static_unsigned`
 <br>`/modularity/zrand.m`
-We felt free to do so since there is no mention of a specific license / any restrictions on their website - we treat these as if under MIT license. Please cite the [Network Community Toolbox](http://commdetect.weebly.com/) and their corresponding papers (see on their website) whenever using their functions. 
+We felt free to do so since there is no mention of a specific license / any restrictions on their website - we treat these as if under MIT license. Please cite the [Network Community Toolbox](http://commdetect.weebly.com/) and the corresponding papers (see on their website and in the helps of the functions) whenever using their work. 
 - We also pulled functions (ones we rely on) from the great [Brain Connectivity Toolbox](https://sites.google.com/site/bctnet/):
 <br>`/measures/betweenness_wei.m`
 <br>`/measures/charpath.m`
@@ -34,7 +34,7 @@ We felt free to do so since there is no mention of a specific license / any rest
 <br>`/measures/weight_conversion.m`
 <br>`/modularity/null_model_und_sign_mod`
 <br>`/modularity/randmio_und_signed_mod`
-As with the Network Community Toolbox, we felt free to do so since there is no mention of a specific license / any restrictions on their website - we treat these functions as if under MIT license. Please cite the Brain Connectivity Toolbox](https://sites.google.com/site/bctnet/) and their corresponding papers (see on their website) whenever using their functions. 
+As with the Network Community Toolbox, we felt free to do so since there is no mention of a specific license / any restrictions on their website - we treat these functions as if under MIT license. Please cite the [Brain Connectivity Toolbox](https://sites.google.com/site/bctnet/) and the corresponding papers (see on their website and in the helps of the functions) whenever using their work. 
 
 ### EEG data format
 We assume that data is already preprocessed (e.g. re-referenced, filtered for muscle and other artefacts, bandpass filtered to ranges of interest, source-reconstructed, averaged into ROIs based on a parcellation). We expect preprocessed data in 3D/4D arrays, with dimensions ROIs/channels X samples X epochs (X conditions), in one .mat file per subject.
