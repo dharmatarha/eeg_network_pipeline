@@ -27,10 +27,10 @@ We assume that data is already preprocessed (e.g. re-referenced, filtered for mu
 
 ### Main analysis steps and corresponding functions
 
-1. __Connectivity estimation:__
+1. __Connectivity estimation (`/connectivity`):__
 <br> Functions under `/connectivity` are used for connectivity estimation on epoch-level data (matrices with dimensions `[ROIs/channels X samples]`). 
-<br> Currently we only support undirected metrics: PLV, iPLV, PLI, wPLI, ampCorr, orthAmpCorr. Corresponding functions have the same name.
-<br> Further functions
+<br> Currently we only support undirected metrics: PLV, iPLV, PLI, wPLI, ampCorr, orthAmpCorr. Their functions have the same name.
+<br> Further functions:
 <br>  `connectivitySpeedtest`   - Helper function to estimate the speed of per-epoch connectivity estimations. Especially helpful before surrogate data testing. 
 <br>  `connectivityWrapperReal` - Wrapper for connectivity estimation on a whole dataset. 
 
