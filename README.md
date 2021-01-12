@@ -33,16 +33,23 @@ We assume that data is already preprocessed (e.g. re-referenced, filtered for mu
 <br>  `connectivitySpeedtest`   - Helper function to estimate the speed of per-epoch connectivity estimations. Especially helpful before surrogate data testing. 
 <br>  `connectivityWrapperReal` - Wrapper for connectivity estimation on a whole dataset. 
 
-2. __Edge pruning and other network discovery/construction methods:__
+2. __Edge pruning and other network discovery/construction methods (`/edgePruning`):__
 
-3. Clustering / modularity / other network structure discovery methods;
+.
+.
+.
 
-4. Network similarity measures / network comparisons.
+3. __Clustering / modularity / other network structure discovery methods (`/modularity`):__
 
-Functions are grouped mostly according to the above classification.
+.
+.
+.
 
-We pulled a few functions from the great [Network Community Toolbox](http://commdetect.weebly.com/): 
-<br>`/modularity/zrand.m`
-<br>`/modularity/consensus_similarity`
+4. __Network similarity measures / network comparisons:__
+
+.
+.
+.
+
 
 
