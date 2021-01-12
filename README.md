@@ -15,25 +15,11 @@ We collect in this repo the Matlab scripts/functions used for network-based anal
 
 ### Functions from other collections
 - We pulled functions (ones we rely on) from the great [Network Community Toolbox](http://commdetect.weebly.com/):
-<br>`/modularity/consensus_iterative`
-<br>`/modularity/consensus_similarity`
-<br>`/modularity/multislice_static_unsigned`
-<br>`/modularity/zrand.m`
+<br>`/modularity/consensus_iterative`, `/modularity/consensus_similarity`, `/modularity/multislice_static_unsigned`, `/modularity/zrand.m`
 <br> We felt free to do so since there is no mention of a specific license / any restrictions on their website - we treat these as if under MIT license. Please cite the [Network Community Toolbox](http://commdetect.weebly.com/) and the corresponding papers (see on their website and in the helps of the functions) whenever using their work. 
 - We also pulled functions (ones we rely on) from the great [Brain Connectivity Toolbox](https://sites.google.com/site/bctnet/):
-<br>`/measures/betweenness_wei.m`
-<br>`/measures/charpath.m`
-<br>`/measures/clustering_coef_wu.m`
-<br>`/measures/distance_wei.m`
-<br>`/measures/edge_betweenness_wei.m`
-<br>`/measures/efficiency_wei.m`
-<br>`/measures/module_degree_zscore.m`
-<br>`/measures/participation_coef.m`
-<br>`/measures/rich_club_wu.m`
-<br>`/measures/strengths_und.m`
-<br>`/measures/weight_conversion.m`
-<br>`/modularity/null_model_und_sign_mod`
-<br>`/modularity/randmio_und_signed_mod`
+<br>`/measures/betweenness_wei.m`, `/measures/charpath.m`, `/measures/clustering_coef_wu.m`, `/measures/distance_wei.m`, `/measures/edge_betweenness_wei.m`, `/measures/efficiency_wei.m`, `/measures/module_degree_zscore.m`, `/measures/participation_coef.m`, `/measures/rich_club_wu.m`, `/measures/strengths_und.m`, `/measures/weight_conversion.m`, 
+<br>`/modularity/null_model_und_sign_mod`, `/modularity/randmio_und_signed_mod`
 <br> As with the Network Community Toolbox, we felt free to do so since there is no mention of a specific license / any restrictions on their website - we treat these functions as if under MIT license. Please cite the [Brain Connectivity Toolbox](https://sites.google.com/site/bctnet/) and the corresponding papers (see on their website and in the helps of the functions) whenever using their work. 
 
 ### EEG data format
