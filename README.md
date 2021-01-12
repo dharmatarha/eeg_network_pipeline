@@ -14,7 +14,14 @@ We collect in this repo the Matlab scripts/functions used for network-based anal
 - Functions under `/modularity` are mainly wrappers for calling the `genlouvain` and `iterated_genlouvain` functions from the great [Genlouvain toolbox](https://github.com/GenLouvain/GenLouvain)
 
 ### Functions from other collections
-
+- We pulled functions (ones we rely on) from the great [Network Community Toolbox](http://commdetect.weebly.com/):
+<br>`/modularity/zrand.m`
+<br>`/modularity/consensus_similarity`
+We felt free to do so since there is no mention of a specific license / any restrictions on their website - we treat these as if under MIT license. Please cite the [Network Community Toolbox](http://commdetect.weebly.com/) and their corresponding papers (see on their website) whenever using their functions. 
+- We also pulled functions (ones we rely on) from the great [Brain Connectivity Toolbox](https://sites.google.com/site/bctnet/):
+<br>`/measures/zrand.m`
+<br>`/measures/consensus_similarity`
+As with the Network Community Toolbox, we felt free to do so since there is no mention of a specific license / any restrictions on their website - we treat these functions as if under MIT license. Please cite the Brain Connectivity Toolbox](https://sites.google.com/site/bctnet/) and their corresponding papers (see on their website) whenever using their functions. 
 
 ### EEG data format
 We assume that data is already preprocessed (e.g. re-referenced, filtered for muscle and other artefacts, bandpass filtered to ranges of interest, source-reconstructed, averaged into ROIs based on a parcellation). We expect preprocessed data in 3D/4D arrays, with dimensions ROIs/channels X samples X epochs (X conditions), in one .mat file per subject.
