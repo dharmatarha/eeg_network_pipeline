@@ -68,7 +68,7 @@ function [W0,R] = null_model_und_sign_mod(W,bin_swaps,wei_freq)
 %   Elapsed time is 0.584797 seconds.
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%   Downloaded from the Network Community Toolbox in 08/2020:
+%   Downloaded from the Brain Connectivity Toolbox in 08/2020:
 %   https://sites.google.com/site/bctnet/null
 %
 %   Modified in a way that NaN entries of the connection matrix are ignored during 

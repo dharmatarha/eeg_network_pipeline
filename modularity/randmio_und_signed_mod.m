@@ -18,7 +18,7 @@ function [R,eff] = randmio_und_signed_mod(W, ITER)
 %               eff,    number of actual rewirings carried out
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%   Downloaded from the Network Community Toolbox in 08/2020:
+%   Downloaded from the Brain Connectivity Toolbox in 08/2020:
 %   https://sites.google.com/site/bctnet/null
 %
 %   Modified in a way that NaN entries of the connection matrix are ignored during 

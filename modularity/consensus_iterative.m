@@ -25,6 +25,18 @@ function [S2, Q2, X_new3, qpc] = consensus_iterative(C)
 %   J. M., & Mucha, P. J. (2013). Robust detection of dynamic community
 %   structure in networks. Chaos: An Interdisciplinary Journal of Nonlinear
 %   Science, 23(1), 013142.
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Downloaded from the Network Community Toolbox in 07/2020:
+% http://commdetect.weebly.com/
+%
+% Reference to cite:
+% Danielle S. Bassett, Mason A. Porter, Nicholas F. Wymbs, Scott T. Grafton, 
+% Jean M. Carlson, Peter J. Mucha. Robust detection of dynamic community 
+% structure in networks. Chaos, 2013, 23, 1. 
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
 npart = numel(C(:,1)); % number of partitions
 m = numel(C(1,:)); % size of the network
