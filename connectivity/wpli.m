@@ -25,7 +25,7 @@ function wpliRes = wpli(epochData)
 % Stam et al., 2007. Phase lag index: Assessment of functional connectivity 
 %   from multi channel EEG and MEG with diminished bias from common sources. 
 %   Hum. Brain Mapp.
-%
+
 % IMPORTANT NOTE:
 % The Vinck et al. paper defines wPLI based on cross-spectral density and 
 % requires data over many trials for estimation. Here we use a version for
