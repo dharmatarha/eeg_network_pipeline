@@ -26,8 +26,8 @@ function [pEst, realDiff, permDiff, CohenD, studentDiff] = permTest(a, b, vararg
 % a, b      - Data vectors.
 %
 % Optional inputs:
-% perm      - Numeric value, no. of permutations used for estimation. 
-%           Defaults to 10^4.
+% perm      - Numeric value, no. of permutations used for estimation. In 
+%           range 1:10^6. Defaults to 10^4.
 % stat      - Char array, one of {'mean', 'median', 'std'}. Test 
 %           statistic to use. Defaults to 'mean'.
 % student   - Char array, one of {'studentized', 'raw'}. Controls if test
@@ -65,9 +65,9 @@ function [pEst, realDiff, permDiff, CohenD, studentDiff] = permTest(a, b, vararg
 %% Input checks
 
 % need at least two args
-if ~ismember(nargin, 2:5)
+if ~ismember(nargin, 2:6)
     error(['Function permTest requires input args "a" and "b" (data vectors) ',...
-        'while input args "perm", "stat" and "verbosity" are optional (see the help)!']);
+        'while input args "perm", "stat", "student" and "verbosity" are optional (see the help)!']);
 end
 % check mandatory args    
 if ~isvector(a) || ~isvector(b)
