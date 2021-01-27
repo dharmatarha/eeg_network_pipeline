@@ -38,11 +38,9 @@ function mainFig = circleGraphPlot_edgeColorWeights(connMatrix, edgeColorWeights
 % colorMap      - Char array, name of valid Matlab colormap (e.g. "jet"). 
 % 
 % Optional inputs:
-% trimmingThr   - One- or two-element vector containing threshold(s) 
-%               for trimming (deleting) weak connections before plotting.
-%               If trimmingThr is only one value, the same threshold is
-%               applied to all connections. If two values, the first one is
-%               applied to highlighted edges, the second to all other edges. 
+% trimmingThr   - Numeric value. threshold for trimming (deleting) weak 
+%               connections before plotting. The same threshold is 
+%               applied to all connections.
 %               Defaults to [0.2], value(s) must be in range [0:0.001:0.9].
 % labels        - Cell array of node labels / names. Defaults to a cell
 %               array of numbers {'1', '2', ...}. 
@@ -83,7 +81,7 @@ else
     try
         tmp = mycmap(1);
         if numel(tmp)~=3 || any(tmp<0) || any(tmp>1)
-            error;
+            error('Oops, wrong colormap name');
         end
     catch ME
         error('Supplied char array in "colorMap" is not a valid colormap name!');
@@ -173,14 +171,14 @@ end
 baseEdgeColor = [0.5, 0.5, 0.5];
 % base edge width range - we map the supplied data to this range 
 % irrespective of actual weights 
-baseEdgeWidthRange = [0.1, 4];
+baseEdgeWidthRange = [0.1, 8];
 % multiplier for the width of highlighted edges
 highlEdgeWidthMultip = 2;
 % edge line styles for highlighted and not-highlighted edges
 %edgeTypes = {'-', 'none'};
 edgeTypes = {'-', '-'};
 % general transparency setting for edges
-edgeAlpha = 0.3;
+edgeAlpha = 0.5;
 % general node size setting
 nodeSize = 10;
 % graph plot layout
@@ -190,9 +188,9 @@ gcfColor = [1 1 1];
 % axes (gca) color in subplots
 gcaLinesColor = [1 1 1];
 % figure position and size in normalized units 
-gcfMainPos = [0.25, 0, 0.5, 1];
+gcfMainPos = [0, 0, 0.5, 1];
 % axes position relative to figure for main figure
-gcaPosInFig = [0.05, 0.05, 0.9, 0.9];
+gcaPosInFig = [0.05, 0.05, 0.95, 0.95];
 % figure title texts
 mainFigTitle = ['Graph with colored edges. ', figTitle];
 
@@ -220,7 +218,7 @@ if lobuleFlag
     xL = [xL*lineRatio; xL];  % add start points based on lineRatio
     yL = [yL*lineRatio; yL];
     % line properties
-    lineWidth = 1.5;
+    lineWidth = 2;
     lineColor = [0 0 0];
     lineStyle = '--';
 
@@ -230,13 +228,13 @@ if lobuleFlag
     posA = [0.39, 0.06, 0.1, 0.1;
         0.20, 0.15, 0.1, 0.1;
         0.09, 0.35, 0.1, 0.1;
-        0.08, 0.57, 0.1, 0.1;
-        0.30, 0.77, 0.1, 0.1; 
-        0.62, 0.77, 0.1, 0.1;
-        0.85, 0.57, 0.1, 0.1;
-        0.84, 0.35, 0.1, 0.1;
-        0.73, 0.15, 0.1, 0.1;
-        0.53, 0.06, 0.1, 0.1];
+        0.08, 0.59, 0.1, 0.1;
+        0.32, 0.77, 0.1, 0.1; 
+        0.66, 0.77, 0.1, 0.1;
+        0.85, 0.59, 0.1, 0.1;
+        0.87, 0.35, 0.1, 0.1;
+        0.77, 0.15, 0.1, 0.1;
+        0.57, 0.06, 0.1, 0.1];
     % lobule labels
     textA = {'L Occipital', 'L Parietal', 'L Temporal', 'L Cingulate', 'L Frontal',... 
         'R Frontal', 'R Cingulate', 'R Temporal', 'R Parietal', 'R Occipital'};
@@ -256,20 +254,21 @@ colorWeights = edgeColorWeights;
 colorWeights = colorWeights(triu(true(nodeNo),1));  % extract only upper triangle
 colorWeights(isnan(colorWeights)) = [];  % delete NaN values
 % get colors for the number of values we have
-edgeColors = mycmap(numel(colorWeights));  % get an RGB color for each value
+cmapColors = mycmap(numel(colorWeights));  % get an RGB color for each value
 % values ordered according to colors in "edgeColors"
-colorWeightsSorted = sort(colorWeights, 'ascend');
-% match color vectors to edges, in the same format as the connectivity
-% matrix but with three values per entry (matrix nodeNo X nodeNo X RGB)
-edgeColorsMatrix = nan(nodeNo, nodeNo, 3);
-for y = 1:numel(colorWeightsSorted)
-    [i, j] = find(edgeColorWeights==colorWeightsSorted(y));
-    if ~isempty(i)
-        for idxNo = 1: numel(i)
-            edgeColorsMatrix(i(idxNo), j(idxNo), :) = edgeColors(y);
-        end
-    end
-end
+colorWeightsSorted = sort(colorWeights, 'descend');
+
+% % match color vectors to edges, in the same format as the connectivity
+% % matrix but with three values per entry (matrix nodeNo X nodeNo X RGB)
+% edgeColorsMatrix = nan(nodeNo, nodeNo, 3);
+% for y = 1:numel(colorWeightsSorted)
+%     [i, j] = find(edgeColorWeights==colorWeightsSorted(y));
+%     if ~isempty(i)
+%         for idxNo = 1: numel(i)
+%             edgeColorsMatrix(i(idxNo), j(idxNo), :) = cmapColors(y);
+%         end
+%     end
+% end
         
 
 %% Init graph object, set properties of within- and between-module edges
@@ -285,39 +284,62 @@ weights = G.Edges.Weight;
 % edge ending nodes in a cell array
 nodesPerEdge = G.Edges.EndNodes;
 
-% go through all edge groups, set different edge properties per group
-edgeColors = repmat(baseEdgeColor, [size(weights, 1), 1]);  % preallocate variable for edge colors, filled with base color
-
+% % go through all edge groups, set different edge properties per group
+% edgeColors = repmat(baseEdgeColor, [size(weights, 1), 1]);  % preallocate variable for edge colors, filled with base color
+% 
 % map connectivity values to basic edge width range specified earlier
 % edgeWidth = (weights-min(weights))./(max(weights)-min(weights))*(baseEdgeWidthRange(2)-baseEdgeWidthRange(1))+baseEdgeWidthRange(1); 
 
 % set edge width values based on weights
 edgeWidth = weights./mean(weights).*mean(baseEdgeWidthRange);
 
-% prepare binary vectors identifying edges per group (one column per group)
-groupEdges = zeros(size(weights, 1), groupNo); 
+% % prepare binary vectors identifying edges per group (one column per group)
+% groupEdges = zeros(size(weights, 1), groupNo); 
+% 
+% % go through group edges
+% for i = 1:groupNo
+%     % find label pairs for edges in group "groupIndices(i)"
+%     currentGroupIdx = groupIndices(i);  % current edge group whose edges we work with
+%     [iRow, iCol] = ind2sub(size(edgeMembership), find(edgeMembership==currentGroupIdx));  % find row, col indices of edges in edgeMembership who belong to "currentGroupIdx"
+%     groupLabels = [labels(iRow), labels(iCol)];  % get cell array of node labels for each edge in current edge group
+%     % compare label pairs of edges in group "currentGroupIdx" to all edges, get binary
+%     % vector 
+%     groupEdges(:, i) = ismember(string(nodesPerEdge), string(groupLabels), 'rows');
+%     % assign RGB color for edges in group "currentGroupIdx"
+%     edgeGroupColor = colorTriplets(group2color(group2color(:, 1) == groupIndices(i), 2), :);  % get RGB color for current module
+%     edgeColors(logical(groupEdges(:, i)), :) = repmat(edgeGroupColor, [sum(groupEdges(:, i)), 1]);  % set edge color for edges within current group
+%     % for highlighted edge groups, apply the corresponding width multiplier
+%     edgeWidth(logical(groupEdges(:, i))) = edgeWidth(logical(groupEdges(:, i)))*highlEdgeWidthMultip;  % set edge width for current module
+% end
+% 
+% % identify not-highlighted edges
+% backgroundEdgeIdx = ~logical(sum(groupEdges, 2));
 
-% go through group edges
-for i = 1:groupNo
-    % find label pairs for edges in group "groupIndices(i)"
-    currentGroupIdx = groupIndices(i);  % current edge group whose edges we work with
-    [iRow, iCol] = ind2sub(size(edgeMembership), find(edgeMembership==currentGroupIdx));  % find row, col indices of edges in edgeMembership who belong to "currentGroupIdx"
-    groupLabels = [labels(iRow), labels(iCol)];  % get cell array of node labels for each edge in current edge group
-    % compare label pairs of edges in group "currentGroupIdx" to all edges, get binary
-    % vector 
-    groupEdges(:, i) = ismember(string(nodesPerEdge), string(groupLabels), 'rows');
-    % assign RGB color for edges in group "currentGroupIdx"
-    edgeGroupColor = colorTriplets(group2color(group2color(:, 1) == groupIndices(i), 2), :);  % get RGB color for current module
-    edgeColors(logical(groupEdges(:, i)), :) = repmat(edgeGroupColor, [sum(groupEdges(:, i)), 1]);  % set edge color for edges within current group
-    % for highlighted edge groups, apply the corresponding width multiplier
-    edgeWidth(logical(groupEdges(:, i))) = edgeWidth(logical(groupEdges(:, i)))*highlEdgeWidthMultip;  % set edge width for current module
-end
-
-% identify not-highlighted edges
-backgroundEdgeIdx = ~logical(sum(groupEdges, 2));
 % set line styles for highlighted and not-highlighted edges
 edgeStyle = repmat(edgeTypes(1), [size(weights, 1), 1]);
-edgeStyle(backgroundEdgeIdx) = repmat(edgeTypes(2), [sum(backgroundEdgeIdx, 1), 1]);
+
+% edgeStyle(backgroundEdgeIdx) = repmat(edgeTypes(2), [sum(backgroundEdgeIdx, 1), 1]);
+
+% Set edge colors
+edgeColors = nan(size(weights, 1), 3);
+for i = 1:numel(weights)
+    % find the corresponding edgeColorWeights value for current weight
+    idxM = connMatrix==weights(i);
+    tmpColorW = edgeColorWeights(idxM);
+    if numel(tmpColorW)>1
+        tmpColorW = tmpColorW(1);
+    end
+    % get corresponding color
+    tmpColor = cmapColors(colorWeightsSorted==tmpColorW, :);
+    if size(tmpColor, 1)>1
+        tmpColor = tmpColor(1,:);
+    end
+    % to edgeColors
+    edgeColors(i, :) = tmpColor;
+end
+    
+% Set node colors
+nodeColors = repmat(baseEdgeColor, [nodeNo, 1]);
 
 
 %% Trimming edges
@@ -328,19 +350,20 @@ edgesToTrim = [];
 if ~doubleTrim && trimmingThr ~= 0
     edgesToTrim = find(weights < trimmingThr);  % graph.rmedge does not work with logical indexing, requires numeric edge indices
     G = G.rmedge(edgesToTrim);
-% if there are different threshold values for highlighted and not-highlighted edges
-elseif doubleTrim && any(trimmingThr ~= 0)
-    % highlighted edges
-    highlEdges = logical(sum(groupEdges, 2));
-    edgesBelowThr = weights < trimmingThr(1);
-    highlEdgesToTrim = find(highlEdges & edgesBelowThr);
-    %  not-highlighted edges
-    edgesBelowThr = weights < trimmingThr(2);
-    backgrEdgesToTrim = find(~highlEdges & edgesBelowThr);
-    % summarize into one vector of indices and remove edges
-    edgesToTrim = sort([highlEdgesToTrim; backgrEdgesToTrim]);
-    G = G.rmedge(edgesToTrim);
 end
+% % if there are different threshold values for highlighted and not-highlighted edges
+% elseif doubleTrim && any(trimmingThr ~= 0)
+%     % highlighted edges
+%     highlEdges = logical(sum(groupEdges, 2));
+%     edgesBelowThr = weights < trimmingThr(1);
+%     highlEdgesToTrim = find(highlEdges & edgesBelowThr);
+%     %  not-highlighted edges
+%     edgesBelowThr = weights < trimmingThr(2);
+%     backgrEdgesToTrim = find(~highlEdges & edgesBelowThr);
+%     % summarize into one vector of indices and remove edges
+%     edgesToTrim = sort([highlEdgesToTrim; backgrEdgesToTrim]);
+%     G = G.rmedge(edgesToTrim);
+% end
 
 % delete corresponding rows from edge attribute arrays
 if ~isempty(edgesToTrim)
@@ -372,8 +395,8 @@ G.plot('Layout', graphMainLayout,...
     'MarkerSize', nodeSize,...
     'LineStyle', edgeStyle);
 
-% title
-title(mainFigTitle, 'Interpreter', 'none');
+% % title
+% title(mainFigTitle, 'Interpreter', 'none');
 
 % lines and text boxes highlight the ROIs in each lobule in case of a
 % specific ROI set (labels)
@@ -382,18 +405,19 @@ if lobuleFlag
     line(xL, yL, 'Color', lineColor, 'LineWidth', lineWidth, 'LineStyle', lineStyle);
     % lobule labels as annotations (text boxes)
     for a = 1:length(textA)
-        annotation(typeA, posA(a,:), 'String', textA{a}, 'EdgeColor', gcaLinesColor); 
+        annotation(typeA, posA(a,:), 'String', textA{a}, 'EdgeColor', gcaLinesColor, 'FontSize', 11); 
     end
 end
 
-% extra annotation displaying trimming info
-annotation('textbox', trimmingBoxPos, 'String', trimmingText, 'EdgeColor', gcaLinesColor);
+% % extra annotation displaying trimming info
+% annotation('textbox', trimmingBoxPos, 'String', trimmingText, 'EdgeColor', gcaLinesColor);
 
 % set axes boundary line colors 
 set(gca,'XColor', gcaLinesColor,'YColor', gcaLinesColor);
 % set axes position relative to figure
 set(gca, 'Position', gcaPosInFig);
-
+% % set axes font sizes
+% set(gca, 'FontSize', 18);
 
 
 return
