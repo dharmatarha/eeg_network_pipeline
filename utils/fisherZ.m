@@ -1,6 +1,11 @@
 function transformedArray = fisherZ(corrArray)
 %% Fisher-Z transformation for correlation values
 %
+% Placeholder and reminder, for those who - like me - keep forgetting 
+% that Fisher-z is simply atanh(). Though the formulation used here is
+% slightly faster...
+% 
+%
 % USAGE: transformedArray = fisherZ(corrArray)
 %
 % Input:
@@ -18,15 +23,17 @@ function transformedArray = fisherZ(corrArray)
 if nargin ~= 1
     error('Function fisherZ requires input arg "corrArray"!');
 end
-tooLarge = corrArray>1; tooSmall = corrArray<-1;
-if ~isnumeric(corrArray) || any(tooLarge(:)) || any(tooSmall(:))
+if ~isnumeric(corrArray) || any(corrArray(:)>1) || any(corrArray(:)<-1)
     error('Input arg "corrArray" must a numeric array containing values only in the range [-1, 1] (correlation values)!');
 end
 
 %% Transform
 
+% The classic Fisher-Z formulation:
 transformedArray = (log((1+corrArray)./(1-corrArray)))/2;
 
+% % Simpler solution in matlab:
+% transformedArray = atanh(corrArray);
 
 
 return
