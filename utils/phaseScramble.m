@@ -1,14 +1,15 @@
 function yPhaseRand = phaseScramble(y, imagThresh)
 %% Phase-scrambling function
 % 
-% USAGE: yPhaseRand = phaseScramble(y, imagThresh=0.01)
+% USAGE: yPhaseRand = phaseScramble(y, imagThresh=10^-6)
 %
 % Scrambles (randomizes) the phases of the input matrix. It works either
 % with a column vector input (single variable / time series) or a matrix
 % where each column is treated as a variable / time series.
 %
-% Works by performing fft, swapping the phases of fourier components to 
-% uniform random values and then calculating inverse fft.
+% Works by performing fft, adding uniform random values to the phases of 
+% fourier components and then calculating inverse fft. The same random
+% phase vector is added for each variable / time series.
 %
 % Intended for real numbers, as we only deal with half of the fft spectrum.
 %
@@ -20,35 +21,50 @@ function yPhaseRand = phaseScramble(y, imagThresh)
 %           often yields complex results for real input, where the
 %           imaginary part is really small. Small however is a relative
 %           term - this argument controls the magnitude of imaginary part 
-%           at which the function returns with an error. Defaults to 0.001.
+%           at which the function returns with an error. Defaults to 10^-6.
 %
 % Output:
-% yPhaseRand    - numerical matrix (real) with the same size as input 
+% yPhaseRand    - Numerical matrix (real) with the same size as input 
 %           matrix "y", contains data with scrambled phases
 %
-% Notes:
-% (1) An easy test of the function is given below. The phase scrambled data
-% should have the same magnitude (amplitude) of DFFT components as the
-% original (a negligible difference exists due to numerical inaccuracies):
+%
+% NOTES:
+%
+% (1) Relevant literature: Prichard, D., & Theiler, J. (1994). 
+% Generating surrogate data for time series with several simultaneously 
+% measured variables. Physical review letters, 73(7), 951.
+%
+% (2) A simple test of the function is given below. It tests two things.
+% First, the phase scrambled data should have the same magnitude 
+% (amplitude) of DFFT components as the original (a negligible 
+% difference exists due to numerical inaccuracies). Second, the covariance
+% structure of the input and phase-scrambled data should remain the same 
+% (again, there is a negligible difference).
+%
 %   data = randn(10, 1000);
 %   dataRand = phaseScramble(data);
 %   % difference of fft amplitudes
 %   fftAmpDiff = abs(fft(data'))-abs(fft(dataRand'));
 %   % print the maximum differences for each variable
-%   disp(['Maximum difference between corresponding FFT amplitude components, ',...
-%   'for each variable:']);
-%   disp(max(fftAmpDiff));
+%   disp('Maximum amplitude difference between corresponding FFT components:');
+%   disp(max(fftAmpDiff(:)));
 %   % show the histogram of differences
-%   hist(fftAmpDiff);
-
+%   hist(fftAmpDiff(:), 50); title('Amplitude differences');
+%   % check also the difference of covariance matrices
+%   covDiff = cov(data')-cov(dataRand');
+%   disp('Maximum difference between corresponding covariance values:');
+%   disp(max(covDiff(:)));
+%   % show the histogram of differences
+%   figure; hist(covDiff(:), 20); title('Covariance differences');
+%
 
 %% Input checks
 
 if nargin == 1
-    imagThresh = 0.001;
+    imagThresh = 10^-6;
 end
 if ~ismatrix(y) || ~isreal(y)
-    error('Function phaseScramble expects a numerical matrix of reals as input!');
+    error('Function phaseScramble expects a numerical vector or matrix of reals as input!');
 end
 
 % rows are variables - give a warning if there seems to be more
@@ -72,12 +88,17 @@ yfft = fft(y');  % note the transpose
 yfft_part = yfft(2:floor(L/2)+1, :);
 % get amplitude values
 yfft_amp = abs(yfft_part);
+% get phases
+yfft_phase = angle(yfft_part);
 
 % random phases sampled randomly from uniform distr. between -pi and +pi
-randomphases = (rand([floor(L/2), nTS])*2*pi)-pi;
+randomphases = (rand([floor(L/2), 1])*2*pi)-pi;
+% same random phases vector is used for all input time series, preserving
+% the covariance matrix
+randomphases = repmat(randomphases, [1 nTS]);
 
 % get cartesian coordinates with new phases and old amplitude values
-[cosCoord, sinCoord] = pol2cart(randomphases, yfft_amp);
+[cosCoord, sinCoord] = pol2cart(yfft_phase+randomphases, yfft_amp);
 
 % turn coordinates into fft components of phase scrambled data
 phaseRandFFT_part = complex(cosCoord, sinCoord);
