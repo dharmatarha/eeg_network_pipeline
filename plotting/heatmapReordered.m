@@ -7,6 +7,9 @@ function [connMatrixRo, labelsRo, h] = heatmapReordered(connMatrix, labels)
 % function does that, but reorders first the matrix to a predefined
 % lobule-grouped ROI structure. 
 %
+% IMPORTANT! Heatmap objects have changed over different Matlab releases,
+% this function is intended for release 2017a. 
+%
 % Inputs:
 % connMatrix    - Numeric square matrix, contains connectivity values.
 %               Only upper triangle is taken into account. Might contain
@@ -24,7 +27,7 @@ function [connMatrixRo, labelsRo, h] = heatmapReordered(connMatrix, labels)
 % TODO:
 % - Allow for arbitrary reordering via new optional input arg "labelsRo"
 % - Allow for arbitrary colormap via new optional input arg
-%
+% - Get lobule and laterality highlighting
 
 
 %% Input checks
@@ -41,6 +44,19 @@ end
 if ~all(cellfun('isclass', labels, 'char'))
     error('Input arg "labels" should be a cell array of char arrays!');
 end
+
+% warning if release is not 2017a
+if ~strcmp(version('-release'), '2017a')
+    warning([char(10), 'The way this function treats heatmap objects is ',...
+        'compatible with Matlab 2017a ', char(10),...
+        'and might be incompatible with other releases. ',...
+        char(10), 'Current version is not 2017a!']);
+end
+
+% user message
+disp([char(10), 'Called heatmapReordered with input args: ',...
+    char(10), 'Connectivity matrix with size: ', num2str(size(connMatrix)), ...
+    char(10), 'ROI/channel labels in cell array with size: ', num2str(size(labels))]);
 
 
 %% Reordering
@@ -76,6 +92,13 @@ end
 %% Heatmap
 
 h = heatmap(connMatrixRo, 'ColorMap', flipud(autumn), 'MissingDataColor', [1 1 1]);
+
+% remove tick labels - release specific method accessing private properties:
+old_warning_state = warning('off', 'MATLAB:structOnObject');
+hs = struct(h);
+warning(old_warning_state);
+hs.XAxis.TickValues = [];
+hs.YAxis.TickValues = [];
 
 
 return
