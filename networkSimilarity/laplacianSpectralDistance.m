@@ -100,22 +100,13 @@ L2 = diag(sum(adjMatrix2)) - adjMatrix2;
 
 % Laplacian spectra
 lambda1 = eig(L1);
-lambda1 = sort(lambda1, 'ascend');
 lambda2 = eig(L2);
-lambda2 = sort(lambda2, 'ascend');
 
 % keeping the smallest k eigenvalues
-lambda1 = lambda1(lambda1 >= 0);
-lambda2 = lambda2(lambda2 >= 0);
-if numel(lambda1) > numel(lambda2)
-    lambda1 = lambda1(numel(lambda1)-numel(lambda2)+1 : end);
-elseif numel(lambda2) > numel(lambda1)
-    lambda2 = lambda2(numel(lambda2)-numel(lambda1)+1 : end);
-end
-if k < numel(lambda1)
-    lambda1 = lambda1(1:k);
-    lambda2 = lambda2(1:k);
-end
+lambda1 = sort(lambda1, 'ascend');
+lambda1 = lambda1(1:k);
+lambda2 = sort(lambda2, 'ascend');
+lambda2 = lambda2(1:k);
 
 % distance
 distance = sqrt(sum((lambda1 - lambda2).^2));
