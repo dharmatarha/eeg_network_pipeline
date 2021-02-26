@@ -4,10 +4,12 @@ function [subjectFiles, selectedEpochs, epochData] = selectEpochs(dirName, fileP
 % USAGE: [subjectFiles, selectedEpochs, epochData] = selectEpochs(dirName, 
 %                                                               filePattern, 
 %                                                               varName, 
+%                                                               epochDim=1,
 %                                                               epochNo=[], 
 %                                                               subjects=[], 
 %                                                               epochMask=[], 
-%                                                               epochIndices=[])
+%                                                               epochIndices=[],
+%                                                               loadBehav='incremental')
 % 
 % Function for selecting (randomly) an equal number of epochs from a set 
 % of subjects with variable epoch numbers.
@@ -17,9 +19,10 @@ function [subjectFiles, selectedEpochs, epochData] = selectEpochs(dirName, fileP
 % command line dialogue for selecting the number of epochs. 
 %
 % Each file matching "filePattern" will be treated as one subject's data.
-% Data is expected to be in a 3D numeric array named "varName", with the 
-% first dimension marking epochs (e.g. sized [epochs X ROIs X ROIs] for 
-% connectivity data). 
+% By default, data is expected to be in a 3D numeric array named "varName", 
+% with the first dimension marking epochs (e.g. sized 
+% [epochs X ROIs X ROIs] for connectivity data). If epochs are marked by
+% another dimension (not first), you can specify that with "epochDim".
 %
 % If "epochNo" is specified, "epochNo" number of epochs are selected from
 % each subject's data. If a subject has less than "epochNo" epochs, her
@@ -39,12 +42,23 @@ function [subjectFiles, selectedEpochs, epochData] = selectEpochs(dirName, fileP
 % selected for each subject. Useful for consistent selection of epochs
 % across different aspects of the data (e.g. different frequency bands). 
 %
+% Arg "loadBehav" specifies if all data should be loaded in one sweep
+% ('onesweep') and kept in memory for epoch selection, or if loading and
+% epoch selection should be done incrementally ('incremental'). The later
+% is useful if a relatively small subset of epochs is selected from a large
+% dataset. 
+% IMPORTANT! If "loadBehav" is set to 'incremental' and neither "epochNo" 
+% or "epochIndices" are specified, the files are loaded twice, one-by-one 
+% in both cases - first to determine epoch numbers and than to collect 
+% selected epochs. This can take a while for a large dataset.
+%
 % Selected epochs for each subject are arranged into a 4D array with
 % dimensions subjects X epochs X ROIs X ROIs (output "epochData").
 % 
-% IMPORTANT! The script first loads the files one-by-one and collects the
-% number of available epochs for each subject. This part might take a few
-% minutes for larger data sets.
+% Optional args are inferred from types and values. If that is ambigious,
+% position is taken into account (only in the case of differentiating
+% "epochDim" and "epochNo").
+%
 %
 % Mandatory inputs:
 % dirName           - Char array, path to folder containing files 
@@ -57,6 +71,8 @@ function [subjectFiles, selectedEpochs, epochData] = selectEpochs(dirName, fileP
 %                   of interest
 %
 % Optional inputs:
+% epochDim          - Numeric value, specifies which dimension of the data 
+%                   array in "varName" marks epochs. Defaults to 1. 
 % epochNo           - Numeric value, specifies the number of epochs we
 %                   select randomly for each subject. If there are less
 %                   than "epochNo" number of epochs for a subject, that
@@ -86,6 +102,14 @@ function [subjectFiles, selectedEpochs, epochData] = selectEpochs(dirName, fileP
 %                   the epoch indices to select from the corresponding 
 %                   subject's data. If not specified, epochs are randomly 
 %                   selected for each subject.
+% loadBehav         - Char array, one of {'onesweep', 'incremental'}.
+%                   Determines if data files are loaded all at once and 
+%                   kept in memory for epoch selection ('onesweep') or if
+%                   only one subject's data is kept in memory at any time
+%                   for epoch selection ('incremental'). The former is 
+%                   memory-hungry while the latter can take longer.
+%                   Defaults to 'incremental' to avoid out-of-memmory
+%                   problems.
 %
 % Outputs:
 % subjectFiles      - Cell array of char arrays. Contains the names of all
@@ -132,10 +156,10 @@ function [subjectFiles, selectedEpochs, epochData] = selectEpochs(dirName, fileP
 %% Input checks
 
 % no. if inputs
-if ~ismember(nargin, 3:7) 
+if ~ismember(nargin, 3:9) 
     error(['Function selectConnEpochs requires input args "dirName", ',...
-        '"filePattern" and "varName" while args "epochNo", "subjects", ',...
-        '"epochMask" and "epochIndices" are optional!']);
+        '"filePattern" and "varName" while args "epochDim", "epochNo", "subjects", ',...
+        '"epochMask", "epochIndices" and "loadBehav" are optional!']);
 end
 % mandatory args
 if ~exist(dirName, 'dir')
@@ -150,25 +174,32 @@ end
 % optional args
 if ~isempty(varargin)
     for v = 1:length(varargin)
-        if isnumeric(varargin{v}) && numel(varargin{v})==1 && ~exist('epochNo', 'var')
-            epochNo = varargin{v}; 
+        if isnumeric(varargin{v}) && numel(varargin{v})==1 && ~exist('epochDim', 'var')
+            epochDim = varargin{v}; 
+        elseif isnumeric(varargin{v}) && numel(varargin{v})==1 && ~exist('epochNo', 'var')
+            epochNo = varargin{v};            
         elseif iscell(varargin{v}) && all(cellfun(@ischar, varargin{v})) && ~exist('subjects', 'var')
             subjects = varargin{v};
         elseif (isnumeric(varargin{v}) || islogical(varargin{v})) && isvector(varargin{v}) && numel(varargin{v})>1 && ~exist('epochMask', 'var')
             epochMask = varargin{v};
         elseif iscell(varargin{v}) && all(cellfun(@isnumeric, varargin{v})) && all(cellfun(@isvector, varargin{v})) && ~exist('epochIndices', 'var')
             epochIndices = varargin{v};
+        elseif ischar(varargin{v}) && ismember(varargin{v}, {'onesweep', 'incremental'}) && ~exist('loadBehav', 'var')
+            epochNo = varargin{v};             
         else
             error(['At least one input arg could not be mapped nicely to ',...
-                'optional args "epochNo", "subjects", "epochMask" or "epochIndices"!']);
+                'optional args "epochDim", "epochNo", "subjects", "epochMask", "epochIndices" or "loadBehav"!']);
         end
     end
 end
-% epochMask: if numeric, check if if also binary
+% epochMask: if numeric, check if also binary
 if exist('epochMask', 'var') && isnumeric(epochMask) && ~all(ismember(epochMask, [0 1]))
     error('Input arg "epochMask" is numeric and not binary! Make sure it only contains zeros and ones!');
 end
 % defaults
+if ~exist('epochDim', 'var')
+    epochDim = 1;
+end
 if ~exist('epochNo', 'var')
     epochNo = [];
 end
@@ -180,6 +211,9 @@ if ~exist('epochMask', 'var')
 end
 if ~exist('epochIndices', 'var')
     epochIndices = [];
+end
+if ~exist('loadBheav', 'var')
+    loadBehav = 'incremental';
 end
 % extra checks
 % if "epochNo" and "epochMask" are specified, check no. of epochs in mask

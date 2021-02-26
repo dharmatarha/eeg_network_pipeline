@@ -98,7 +98,7 @@ if ~exist('epochIndices', 'var')
     epochIndices = [];
 end
 % extra checks
-if ~isequal(length(subjects), length(epochIndices))
+if ~isempty(subjects) && ~isempty(epochIndices) && ~isequal(length(subjects), length(epochIndices))
     error('Input args "subjects" and "epochIndices" must have equal length!');
 end
 if ~isempty(epochIndices)
@@ -167,6 +167,9 @@ else
         disp(subFilePaths(~pathValidity));
         error('Cannot continue without a valid file list for connectivity data...');
     end
+    
+    % for later reference, a copy of "subjects"
+    subIDs = subjects;
     
     % user message
     disp([char(10), 'Found ', num2str(subNo),... 
@@ -262,10 +265,8 @@ end
 %% Loop through data, select epochs
 
 % preallocate result vars
-if isempty(subjects)
-    subLeftID = cell(subLeftNo, 1);
-end
 if isempty(epochIndices)
+    subLeftID = cell(subLeftNo, 1);
     selectedEpochs = cell(subLeftNo, 1);
     connData = zeros(subLeftNo, cutoff, refRoiNo1, refRoiNo1);
 else
@@ -287,15 +288,10 @@ for i = 1:subNo
             % collect subject ID
             subLeftID{subCounter} = subIDs{i};
 
-            % need to sample from epochs?
-            if epochNumbers(i) >= cutoff
-
-                % random epoch indices we use for epoch selection
-                selectedEpochs{subCounter} = randperm(epochNumbers(i), cutoff);
-                % selected epochs into output array
-                connData(subCounter, :, :, :) = subData(i).connRes(selectedEpochs{subCounter}, :, :);
-
-            end  % if epochNumbers > cutoff
+            % random epoch indices we use for epoch selection
+            selectedEpochs{subCounter} = randperm(epochNumbers(i), cutoff);
+            % selected epochs into output array
+            connData(subCounter, :, :, :) = subData(i).connRes(selectedEpochs{subCounter}, :, :);
 
         end  % if epochNumbers >= cutoff
     
@@ -309,22 +305,22 @@ for i = 1:subNo
 end  % for subNo
 
 % epochIndices and subjects are alos output vars
-if isempty(subjects)
-    subjects = subLeftID;
-end
 if isempty(epochIndices)
+    selectedSubjects = subLeftID;
     epochIndices = selectedEpochs;
+else
+    selectedSubjects = subIDs;
 end
 
 % user message    
 disp([char(10), 'Selected epochs from all eligible subjects (',...
-    num2str(length(subjects)), ' participants).']);
+    num2str(length(selectedSubjects)), ' participants).']);
 
 
 %% Save output vars
 
 saveF = [dirName, '/group_', freq, '_', method, '.mat'];
-save(saveF, 'connData', 'subjects', 'epochIndices');
+save(saveF, 'connData', 'selectedSubjects', 'epochIndices');
 
 % user message
 disp([char(10), 'Saved out results, returning...']);
