@@ -30,7 +30,7 @@ function [distRes] = connDistanceTest_betweenSubject(connArray, varargin)
 %               'LaplacianSpectral', 'deltaCon'}.
 %               Distance metric for comparing connectivity matrices.
 %               adjacencySpectral, LaplacianSpectral and DeltaCon rely on 
-%               the similarly named function in
+%               similarly named functions in
 %               /networkSimilarity. Defautls to 'corr'.
 %
 % Output:
@@ -108,18 +108,13 @@ for subIdx = 1:subNo
         % epochs)
         subMatrixB = squeeze(connArray(compSubIdx, :, :));
         
-        % for certain metrics get symmetric adjacency matrices with zeros at diagonal
-        if ismember(metric, {'eucl', 'deltaCon'})
-            subMatrixA = triu(subMatrixA, 1) + triu(subMatrixA, 1)'; 
-            subMatrixB = triu(subMatrixB, 1) + triu(subMatrixB, 1)';
-            % also standardize the scale of connections across the two
-            % matrices to a common sum (=10)
-            subMatrixA = 10*subMatrixA./sum(subMatrixA(:));
-            subMatrixB = 10*subMatrixB./sum(subMatrixB(:));
-        elseif ismember(metric, {'adjacencySpectral', 'LaplacianSpectral'})
-            subMatrixA = triu(subMatrixA, 1) + triu(subMatrixA, 1)';
-            subMatrixB = triu(subMatrixB, 1) + triu(subMatrixB, 1)';
-        end
+        % get symmetric adjacency matrices with zeros at diagonal
+        subMatrixA = triu(subMatrixA, 1) + triu(subMatrixA, 1)';
+        subMatrixB = triu(subMatrixB, 1) + triu(subMatrixB, 1)';
+        % also standardize the scale of connections across the two
+        % matrices to a common sum (=10)
+        subMatrixA = 10*subMatrixA./sum(subMatrixA(:));
+        subMatrixB = 10*subMatrixB./sum(subMatrixB(:));
 
         % calculate similarity according to arg "metric"
         switch metric
@@ -163,8 +158,8 @@ end  % for subIdx
 if ismember(metric, {'corr'})
     smallestElement = min(min(distRes));
     distRes = (distRes - smallestElement) ./ (1-smallestElement);
-end    
-
+    distRes = sqrt(1 - distRes);
+end
 
 %% End message, return
 
