@@ -7,7 +7,7 @@ function [distRes] = connDistanceTest_betweenSubject(connArray, varargin)
 % multiple subjects (in input arg "connArray"), the function calculates the
 % distance of average connectivity matrices between different subjects.
 %
-% Workflow, separately performed for each subject:
+% Workflow:
 % (1) Calculate average connectivity (adjacency) matrices for each subject
 % (averaging is done across all epochs of a given subject)
 % (2) Calculate the distance of two averaged conenctivity matrices
@@ -45,13 +45,13 @@ function [distRes] = connDistanceTest_betweenSubject(connArray, varargin)
 
 %% Input checks
 
-% cehck no. if inputs
+% check no. if inputs
 if ~ismember(nargin, 1:2)
     error('Function connDistanceTest_betweenSubject requires input arg "connArray" while arg "metric" is optional!');
 end
 % check mandatory input
 if ~isnumeric(connArray) || numel(size(connArray))~=4 || size(connArray, 3)~=size(connArray ,4)
-    error('Input rag "connArray" should be a 4D numeric array where the 3rd and 4th dimensions have the same size!');
+    error('Input arg "connArray" should be a 4D numeric array where the 3rd and 4th dimensions have the same size!');
 end
 % check optional inputs
 if ~isempty(varargin)
@@ -59,7 +59,7 @@ if ~isempty(varargin)
         if ischar(varargin{v}) && ismember(varargin{v}, {'corr', 'eucl', 'adjacencySpectral', 'LaplacianSpectral', 'deltaCon'}) && ~exist('metric', 'var')
             metric = varargin{v};
         else
-            error('Input could not ba mapped nicely to arg "metric"!');
+            error('Input could not be mapped nicely to arg "metric"!');
         end
     end
 end
@@ -79,7 +79,7 @@ disp([char(10), 'Called connDistanceTest_betweenSubject with input args: ',...
 % clock for whole run
 funcClock = tic;
 
-% get subject, epoch and channel/ROI numbers
+% get subject and channel/ROI numbers
 [subNo, ~, roiNo, ~] = size(connArray);
 
 % preallocate results var
