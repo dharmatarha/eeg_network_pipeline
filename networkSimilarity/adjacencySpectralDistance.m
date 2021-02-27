@@ -91,9 +91,6 @@ end
 
 %% Calculate adjacency spectral distance
 
-% number of nodes
-nodeNo = size(adjMatrix1, 1);
-
 % adjacency spectra
 lambda1 = eig(adjMatrix1);
 lambda2 = eig(adjMatrix2);
