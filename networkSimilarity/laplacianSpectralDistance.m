@@ -28,8 +28,8 @@ function [similarity, distance] = laplacianSpectralDistance(adjMatrix1, adjMatri
 %               meaning no user messages, "true" meaning user messages.
 %
 % Outputs:
-% similarity    - Numeric value, adjacency spectral similarity.
-% distance      - Numeric value, adjacency spectral distance.
+% similarity    - Numeric value, Laplacian spectral similarity.
+% distance      - Numeric value, Laplacian spectral distance.
 %
 
 
@@ -90,9 +90,6 @@ end
 
 
 %% Calculate Laplacian spectral distance
-
-% number of nodes
-nodeNo = size(adjMatrix1, 1);
 
 % Laplacian matrices
 L1 = diag(sum(adjMatrix1)) - adjMatrix1;
