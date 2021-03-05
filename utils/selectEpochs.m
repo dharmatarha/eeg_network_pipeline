@@ -49,7 +49,7 @@ function [subjectFiles, selectedEpochs, epochData] = selectEpochs(dirName, fileP
 % dataset. 
 % IMPORTANT! If "loadBehav" is set to 'incremental' and neither "epochNo" 
 % or "epochIndices" are specified, the files are loaded twice, one-by-one 
-% in both cases - first to determine epoch numbers and than to collect 
+% in both cases - first to determine epoch numbers and then to collect 
 % selected epochs. This can take a while for a large dataset.
 %
 % Selected epochs for each subject are arranged into a 4D array with
@@ -252,102 +252,53 @@ end
 disp([char(10), 'Called function selectConnEpochs with input args: ',...
     char(10), 'Folder of data files: ', dirName, ...
     char(10), 'File name part for file selection: ', filePattern,...
-    char(10), 'Variable name containing data: ', varName,...
+    char(10), 'Name of variable containing data of interest: ', varName,...
     char(10), 'Supplied number of epochs to select: ', num2str(~isempty(epochNo)),...
     char(10), 'Supplied subject list: ', num2str(~isempty(subjects)),...
     char(10), 'Supplied epoch mask: ', num2str(~isempty(epochMask)),...    
     char(10), 'Supplied epoch indices: ', num2str(~isempty(epochIndices))]);
 
 
-%% List files
+%% List files (with their paths) matching the supplied input args
 
-% Check "dirName" and "filePattern" for data files
-subFiles = dir([dirName, '/*', filePattern, '*.mat']); 
-% number of subjects
-subNo = length(subFiles);
-% var storing subject file names
-subjectFiles = extractfield(subFiles, 'name');
-
-% user message
-disp([char(10), 'Found ', num2str(subNo),... 
-    ' .mat files matching "dirName" and "filePattern"']);
-
-% if there was a subject list supplied, check if the corresponding files
-% exist, and there is only one file per cell in "subjects"
-if ~isempty(subjects)
-    tmpSum = zeros(size(subjectFiles));  % preallocate
-    % go through subject ids, check if there is one file for each subject
-    % id
-    for s = 1:subNo
-        tmp = startsWith(subjectFiles, subjects{s});
-        if sum(tmp)~=1
-            error(['Error at matching data files to supplied subject ids. ',...
-                'There was either multiple files or no file starting with ', subjects{s}]);
-        end
-        tmpSum = tmpSum+tmp;  % accumulate matches
-    end
-    % check if there was any file with multiple matches
-    if any(tmpSum>1)
-        disp(subjectFiles(tmpSum>1)');
-        error(['Error at matching data files to supplied subject ids. ',...
-            'At least one data file had more than one match to subject ids. ',...
-            'See list of affected files above.']);
-    end
-    % if everything was fine, delete data files without a subject id match
-    subjectFiles(tmpSum==0) = [];
-    
-    % user message
-    disp([char(10), 'After matching potential data files to subject ids, ',...
-        'there are ', num2str(length(subjectFiles)), ' files remaining.']);
-    
-end
-
-% create file paths from structs
-subFilePaths = cell(subNo, 1);
-for i = 1:subNo
-    subFilePaths{i} = [dirName, '/', subjectFiles{i}];
-end
+[filePaths, ~] = listMatchingFiles(dirName, filePattern, subjects);
 
 
 %% Load files, get epoch numbers
 
-% var to store epoch numbers for each subject
-epochNumbers = nan(subNo, 1);
-% struct to store all loaded data - we do not check for excessive memory
-% usage, that is the user's responsibility!
-subData = struct('connRes', nan(100, 100, 100));
-subData(subNo).connRes = nan(100, 100, 100);  % preallocate with last element of struct
+% get no. of files
+fileNo = length(filePaths);
 
-% determine channel/ROI numbers in first file, use that for sanity checks
-% in case of all other files
-tmp = load(subFilePaths{1});
-[~, refRoiNo1, refRoiNo2] = size(tmp.connRes);
-% sanity check
-if refRoiNo1 ~= refRoiNo2
-    error(['2nd and 3rd dims of first data file at ',... 
-        subFilePaths{1}, ' are not equal!']);
+% preallocate var to store epoch numbers for each file
+epochNumbers = nan(fileNo, 1);
+
+% if "loadBehav" was set to 'onesweep', preallocate a cell array for 
+% storing all data in memory
+if strcmp(loadBehav, 'onesweep')
+    allData = cell(fileNo, 1);
 end
+
+% determine data var size in first file, use that for sanity checks
+% in case of all other files
+tmp = load(filePaths{1});
+refSize = size(tmp.(varName));
 
 % loop through files, load them
-for i = 1:subNo
+for i = 1:fileNo
     % load file content
-    tmp = load(subFilePaths{i});
-    
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % !!! IMPORTANT HARDCODED METHOD !!!
-    % only store every second epoch!
-    subData(i).connRes = tmp.connRes(1:2:end, :, :);
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    
-    % get size
-    [subEpochNo, subRoiNo1, subRoiNo2] = size(subData(i).connRes);
-    % sanity check
-    if subRoiNo1 ~= subRoiNo2 || subRoiNo1 ~= refRoiNo1
-        error(['2nd and 3rd dims of data file at ',... 
-        subFilePaths{i}, ' have unexpected size, investigate!']);
+    tmp = load(filePaths{i});
+    % check size - is it as in the first file?
+    if ~isequal(size(tmp.(varName)), refSize)
+        error(['Found data with unexpected size in file at ',... 
+        filePaths{i}, ', investigate!']);  
     end
-    epochNumbers(i) = subEpochNo;
-end
+    % get number of epochs
+    epochNumbers(i) = size(tmp.(varName), epochDim);
+    % if "loadBehav" was set to 'onesweep', store data
+    if strcmp(loadBehav, 'onesweep')
+        allData{i} = tmp.(varName);
+    end
+end  % for
     
     
 %% Determine cutoff for epoch numbers to include for each subject - only if epoch indices were not supplied
@@ -373,10 +324,10 @@ if isempty(epochIndices)
         subLeftNo = sum(epochNumbers >= cutoff);
         disp([char(10), 'Cutoff is ', num2str(cutoff), '. '... 
             char(10), 'This is larger than the minimal epoch number, ',... 
-            char(10), num2str(subLeftNo), ' out of ', num2str(subNo),... 
+            char(10), num2str(subLeftNo), ' out of ', num2str(fileNo),... 
             ' subjects will remain in final data array.']);
     else
-        subLeftNo = subNo;
+        subLeftNo = fileNo;
         disp([char(10), 'Cutoff is equal / smaller than the minimal epoch number, ',... 
             char(10), 'all subjects will remain in final data array.']);
     end
@@ -403,12 +354,12 @@ if isempty(epochIndices)
     selectedEpochs = cell(subLeftNo, 1);
     connData = zeros(subLeftNo, cutoff, refRoiNo1, refRoiNo1);
 else
-    connData = zeros(subNo, tmp, refRoiNo1, refRoiNo1);
+    connData = zeros(fileNo, tmp, refRoiNo1, refRoiNo1);
 end
 
 % loop through data sets
 subCounter = 0;
-for i = 1:subNo
+for i = 1:fileNo
     
     % if there were no epoch indices supplied, we randomly select the
     % "cutoff" number of epochs for each subject with enough epochs
@@ -465,9 +416,6 @@ disp([char(10), 'Saved out results, returning...']);
 
 
 return
-
-
-
 
 
 
