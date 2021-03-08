@@ -248,6 +248,11 @@ if dirName(end) == '/'
     dirName = dirName(1:end-1);
 end
 
+% make sure epochMask is a column vector
+if ~isempty(epochMask) && isrow(epochMask)
+    epochMask = epochMask';
+end
+
 % user message
 disp([char(10), 'Called function selectConnEpochs with input args: ',...
     char(10), 'Folder of data files: ', dirName, ...
@@ -265,6 +270,9 @@ disp([char(10), 'Called function selectConnEpochs with input args: ',...
 
 
 %% Load files, get epoch numbers
+
+% user message
+disp([char(10), 'Loading all files, collecting number of epochs from each...']);
 
 % get no. of files
 fileNo = length(filePaths);
@@ -300,37 +308,90 @@ for i = 1:fileNo
     end
 end  % for
     
-    
-%% Determine cutoff for epoch numbers to include for each subject - only if epoch indices were not supplied
+% user message
+disp('Done');
+
+
+%% If no epoch indices were supplied, we apply "epochMask" and / or "epochNo" if necessary.
 
 if isempty(epochIndices)
+
     
-    %% Determine cutoff 
+    %% Get indices for available epochs, apply epochMask if supplied
 
-    % report epoch numbers
-    disp([char(10), 'Epoch numbers per subjects in descending order: ']);
-    disp(sort(epochNumbers, 'descend'));
-
-    % ask for input for cutoff point
-    question = [char(10), 'What should be the number of epochs kept (cutoff) for subjects? \n',... 
-        'If your choice is larger than the minimal epoch number, \n',...
-        'subjects with less epochs than the cutoff \n',... 
-        'will be left out of the final results array!', char(10)];
-    cutoffStr = input(question, 's');
-
-    % get numeric, check for number of remaining subjects
-    cutoff = str2double(cutoffStr);
-    if cutoff > min(epochNumbers)
-        subLeftNo = sum(epochNumbers >= cutoff);
-        disp([char(10), 'Cutoff is ', num2str(cutoff), '. '... 
-            char(10), 'This is larger than the minimal epoch number, ',... 
-            char(10), num2str(subLeftNo), ' out of ', num2str(fileNo),... 
-            ' subjects will remain in final data array.']);
-    else
-        subLeftNo = fileNo;
-        disp([char(10), 'Cutoff is equal / smaller than the minimal epoch number, ',... 
-            char(10), 'all subjects will remain in final data array.']);
+    % user message in case of "epochMask"
+    if ~isempty(epochMask)
+        disp([char(10), 'There was an epoch mask supplied, applying it to the ',
+            'epoch indice lists...']);
     end
+
+    % preallocate a cell array holding the indices of all availalbe epochs for
+    % each file
+    availEpochs = cell(fileNo, 1);
+    % loopo through files
+    for i = 1:fileNo
+        % if there is a non-empy "epochMask" array, we apply that to the indices
+        if ~isempty(epochMasK)
+            % by default, all epochs are available
+            tmpIndices = 1:epochNumbers(i);
+            % check if the length of the mask is compatible with the number 
+            % of epochs, create a temporary mask with adjusted length if
+            % necessary
+            if length(epochMask) < length(tmpIndices)
+                tmpMask = [epochMask; zeros(length(epochMask)-length(tmpIndices), 1)];
+            elseif length(epochMask) > length(tmpIndices)
+                tmpMask = epochMask(1:length(tmpIndices), 1);
+            else
+                tmpMask = epochMask;
+            end
+            % apply the mask
+            tmpIndices = tmpIndices(tmpMask);
+            % store the indices
+            availEpochs{i} = tmpIndices;
+            % adjust the number of available epochs
+            epochNumbers(i) = sum(tmpIndices);
+        % if there is no "epochMask", we just store all epochs as available
+        else
+            availEpochs{i} = 1:epochNumbers(i);
+        end  % is ~isempty
+    end  % for i
+
+    % user message in case of "epochMask"
+    if ~isempty(epochMask)
+        disp('Done');
+    end
+
+%%%%%%%%%%%%%%%% Done until about here %%%%%%%    
+    %% Determine cutoff for epoch numbers to include if "epochNo" is empty
+    
+    if isempty(epochNo)
+
+        % report epoch numbers
+        disp([char(10), 'Epoch numbers per subjects in descending order: ']);
+        disp(sort(epochNumbers', 'descend'));
+
+        % ask for input for cutoff point
+        question = [char(10), 'What should be the number of epochs kept (cutoff) for subjects? \n',... 
+            'If your choice is larger than the minimal epoch number, \n',...
+            'subjects with less epochs than the cutoff \n',... 
+            'will be left out of the final results array!', char(10)];
+        cutoffStr = input(question, 's');
+
+        % get numeric, check for number of remaining subjects
+        cutoff = str2double(cutoffStr);
+        if cutoff > min(epochNumbers)
+            subLeftNo = sum(epochNumbers >= cutoff);
+            disp([char(10), 'Cutoff is ', num2str(cutoff), '. '... 
+                char(10), 'This is larger than the minimal epoch number, ',... 
+                char(10), num2str(subLeftNo), ' out of ', num2str(fileNo),... 
+                ' subjects will remain in final data array.']);
+        else
+            subLeftNo = fileNo;
+            disp([char(10), 'Cutoff is equal / smaller than the minimal epoch number, ',... 
+                char(10), 'all subjects will remain in final data array.']);
+        end
+
+    end  %  if isempty(epochNo)
    
 % if there were epoch indices supplied, check if they are compatible 
 % with epoch numbers detected, error out if not
