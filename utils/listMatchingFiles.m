@@ -108,9 +108,12 @@ if ~isempty(subjects)
     end
     fileNames = fileNames(indices);
     
+    % adjust the number of valid file names
+    fileNo = length(fileNames);
+    
     % user message
     disp([char(10), 'After matching potential data files to subject ids, ',...
-        'there are ', num2str(length(fileNames)), ' files remaining.']);
+        num2str(length(fileNames)), ' files remained.']);
 end  % if
 
 % create file paths from structs
