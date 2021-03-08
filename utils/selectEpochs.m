@@ -1,7 +1,7 @@
-function [subjectFiles, selectedEpochs, epochData] = selectEpochs(dirName, filePattern, varName, varargin)
+function [selectedFiles, selectedEpochs, epochData] = selectEpochs(dirName, filePattern, varName, varargin)
 %% Function for randomly selecting epochs in multi-subject EEG dataset
 %
-% USAGE: [subjectFiles, selectedEpochs, epochData] = selectEpochs(dirName, 
+% USAGE: [selectedFiles, selectedEpochs, epochData] = selectEpochs(dirName, 
 %                                                               filePattern, 
 %                                                               varName, 
 %                                                               epochDim=1,
@@ -112,7 +112,7 @@ function [subjectFiles, selectedEpochs, epochData] = selectEpochs(dirName, fileP
 %                   problems.
 %
 % Outputs:
-% subjectFiles      - Cell array of char arrays. Contains the names of all
+% selectedFiles     - Cell array of char arrays. Contains the names of all
 %                   files taken into account for epoch selection. Its
 %                   length equals the size of the first dimension of
 %                   "epochData" and the length of "selectedEpochs".
@@ -120,7 +120,7 @@ function [subjectFiles, selectedEpochs, epochData] = selectEpochs(dirName, fileP
 %                   numeric vector corresponding to the epoch indices of
 %                   selected epochs. E.g. if selectedEpochs{2} is [3 10
 %                   20], it means that for the second subject
-%                   (subjectFiles{2}) "epochData" contains the 3rd, 10th
+%                   (selectedFiles{2}) "epochData" contains the 3rd, 10th
 %                   and 20th epochs. Its length equals the length of
 %                   "subjectFiles" and the first dimension of "epochData".
 %                   The length of each numeric vector is the number of
@@ -286,17 +286,21 @@ if strcmp(loadBehav, 'onesweep')
     allData = cell(fileNo, 1);
 end
 
-% determine data var size in first file, use that for sanity checks
-% in case of all other files
+% determine data var size in first file for the non-epoch dimensions, 
+% use that in sanity checks for all other files
 tmp = load(filePaths{1});
 refSize = size(tmp.(varName));
+% rearrange so that first dimension is epochs
+epochFirstRefSize = permute(refSize, [epochDim, setdiff(1:length(refSize), epochDim)]);
 
 % loop through files, load them
 for i = 1:fileNo
     % load file content
     tmp = load(filePaths{i});
-    % check size - is it as in the first file?
-    if ~isequal(size(tmp.(varName)), refSize)
+    % check size - is it what we would expect based on the first file?
+    tmpSize = size(tmp.(varName));
+    epochFirstTmpSize = permute(tmpSize, [epochDim, setdiff(1:length(tmpSize), epochDim)]);  % first dimension is epochs
+    if ~isequal(epochFirstTmpSize(2:end), epochFirstRefSize(2:end))
         error(['Found data with unexpected size in file at ',... 
         filePaths{i}, ', investigate!']);  
     end
@@ -314,6 +318,8 @@ disp('Done');
 
 %% If no epoch indices were supplied, we apply "epochMask" and / or "epochNo" if necessary.
 
+% we only need to determine the number of epochs to include if
+% "epochIndices" was not supplied
 if isempty(epochIndices)
 
     
@@ -321,31 +327,31 @@ if isempty(epochIndices)
 
     % user message in case of "epochMask"
     if ~isempty(epochMask)
-        disp([char(10), 'There was an epoch mask supplied, applying it to the ',
-            'epoch indice lists...']);
+        disp([char(10), 'There was an epoch mask supplied, applying it ',...
+            'to the epoch index lists...']);
     end
 
     % preallocate a cell array holding the indices of all availalbe epochs for
     % each file
     availEpochs = cell(fileNo, 1);
-    % loopo through files
+    % loop through files
     for i = 1:fileNo
         % if there is a non-empy "epochMask" array, we apply that to the indices
-        if ~isempty(epochMasK)
+        if ~isempty(epochMask)
             % by default, all epochs are available
             tmpIndices = 1:epochNumbers(i);
             % check if the length of the mask is compatible with the number 
             % of epochs, create a temporary mask with adjusted length if
             % necessary
             if length(epochMask) < length(tmpIndices)
-                tmpMask = [epochMask; zeros(length(epochMask)-length(tmpIndices), 1)];
+                tmpMask = [epochMask; zeros(length(tmpIndices)-length(epochMask), 1)];
             elseif length(epochMask) > length(tmpIndices)
                 tmpMask = epochMask(1:length(tmpIndices), 1);
             else
                 tmpMask = epochMask;
             end
             % apply the mask
-            tmpIndices = tmpIndices(tmpMask);
+            tmpIndices = tmpIndices(logical(tmpMask));
             % store the indices
             availEpochs{i} = tmpIndices;
             % adjust the number of available epochs
@@ -361,62 +367,110 @@ if isempty(epochIndices)
         disp('Done');
     end
 
-%%%%%%%%%%%%%%%% Done until about here %%%%%%%    
+
     %% Determine cutoff for epoch numbers to include if "epochNo" is empty
     
+    % if there was no "eopchNo" (number of epochs to include / subject)
+    % supplied, get user input for it
     if isempty(epochNo)
 
         % report epoch numbers
-        disp([char(10), 'Epoch numbers per subjects in descending order: ']);
-        disp(sort(epochNumbers', 'descend'));
+        disp([char(10), 'Number of available epochs for each subject, in descending order: ']);
+        disp(sort(epochNumbers, 'descend')');
 
         % ask for input for cutoff point
-        question = [char(10), 'What should be the number of epochs kept (cutoff) for subjects? \n',... 
+        question = [char(10), 'What should be the number of epochs kept (cutoff) for each  subject? \n',... 
             'If your choice is larger than the minimal epoch number, \n',...
             'subjects with less epochs than the cutoff \n',... 
             'will be left out of the final results array!', char(10)];
         cutoffStr = input(question, 's');
 
         % get numeric, check for number of remaining subjects
-        cutoff = str2double(cutoffStr);
-        if cutoff > min(epochNumbers)
-            subLeftNo = sum(epochNumbers >= cutoff);
-            disp([char(10), 'Cutoff is ', num2str(cutoff), '. '... 
-                char(10), 'This is larger than the minimal epoch number, ',... 
-                char(10), num2str(subLeftNo), ' out of ', num2str(fileNo),... 
-                ' subjects will remain in final data array.']);
-        else
-            subLeftNo = fileNo;
-            disp([char(10), 'Cutoff is equal / smaller than the minimal epoch number, ',... 
-                char(10), 'all subjects will remain in final data array.']);
-        end
+        epochNo = str2double(cutoffStr);
+        
+    end  % if isempty(epochNo)     
+    
+    % Check how many subjects have enough trials for the cutoff /
+    % "epochNo", report to user
+    if epochNo > min(epochNumbers)
+        subLeftNo = sum(epochNumbers >= epochNo);
+        disp([char(10), 'Cutoff is ', num2str(epochNo), '. '... 
+            char(10), 'This is larger than the minimal epoch number, ',... 
+            char(10), num2str(subLeftNo), ' out of ', num2str(fileNo),... 
+            ' subjects will remain in final data array.']);
+    else
+        subLeftNo = fileNo;
+        disp([char(10), 'Cutoff is equal / smaller than the minimal epoch number, ',... 
+            char(10), 'there will be epochs from all subjects in the final data array.']);
+    end
 
-    end  %  if isempty(epochNo)
    
-% if there were epoch indices supplied, check if they are compatible 
-% with epoch numbers detected, error out if not
-else
+    %% Get random epoch indices for each subject / file with enough epochs
+    
+    % preallocate for selected files and corresponding epoch indices
+    selectedFiles = cell(fileNo, 1);
+    selectedEpochs = cell(fileNo, 1);
+    
+    % counter for files with enough epochs (>= epochNo)
+    passCounter = 0;
+    % loop through files
+    for i = 1:fileNo
+        % are there enough epochs?
+        if epochNumbers(i) >= epochNo
+            % store file path, adjust counter
+            selectedFiles{i} = filePaths{i};
+            passCounter = passCounter + 1;
+            % get random indices
+            tmpIndices = availEpochs{i};
+            selectedEpochs{i} = tmpIndices(randperm(length(tmpIndices), epochNo));
+        end  % if     
+    end  % for i = 1:fileNo
+    
+    % clear empty cells
+    selectedFiles(cellfun(@isempty, selectedFiles)) = [];
+    selectedEpochs(cellfun(@isempty, selectedEpochs)) = [];
+    
+    
+%% If there were epoch indices supplied, perform sanity checks: 
+% are they compatible with the number of files found?
+% are they compatible with epoch numbers detected?
+
+elseif ~isempty(epochIndices)
+    
+    % if no adjustment was needed based on "epochMask" or "epochNo", the
+    % list of selected files is just the file paths cell array returned
+    % earlier by listMatchingFiles
+    selectedFiles = filePaths;
+    
+    % is the length of "epochIndices" the same as "selectedFiles"?
+    if ~isequal(length(selectedFiles), length(epochIndices))
+        error(['The number of epoch index lists in "epochIndices" and ',...
+            'the number of detected files do not match!']);
+    end
+    
+    % check if the supplied epoch indices are compatible with the number of
+    % epochs in each file
     indexMatch = epochIdxLengths <= epochNumbers;
     if ~all(indexMatch)
         warning('More indices in "epochIndices" than available epochs for entries: ');
         disp(find(~indexMatch));
         error('The number of indices in "epochIndices" is larger than the number of available epochs for at least one subject!')
     end
-end
+    
+    % if sanity checks are passed, set selectedEpochs to epochIndices
+    selectedEpochs = epochIndices;
+    
+end  % if isempty(epochIndices)
 
 
 %% Loop through data, select epochs
 
-% preallocate result vars
-if isempty(subjects)
-    subLeftID = cell(subLeftNo, 1);
-end
-if isempty(epochIndices)
-    selectedEpochs = cell(subLeftNo, 1);
-    connData = zeros(subLeftNo, cutoff, refRoiNo1, refRoiNo1);
-else
-    connData = zeros(fileNo, tmp, refRoiNo1, refRoiNo1);
-end
+% preallocate epoch data holding var: files X epochs X [rest1 X rest2 X...]
+epochData = nan([length(selectedFiles), epochNo, epochFirstRefSize(2:end)]);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%   Done till here   %%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % loop through data sets
 subCounter = 0;
