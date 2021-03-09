@@ -185,7 +185,7 @@ if ~isempty(varargin)
         elseif iscell(varargin{v}) && all(cellfun(@isnumeric, varargin{v})) && all(cellfun(@isvector, varargin{v})) && ~exist('epochIndices', 'var')
             epochIndices = varargin{v};
         elseif ischar(varargin{v}) && ismember(varargin{v}, {'onesweep', 'incremental'}) && ~exist('loadBehav', 'var')
-            epochNo = varargin{v};             
+            loadBehav = varargin{v};             
         else
             error(['At least one input arg could not be mapped nicely to ',...
                 'optional args "epochDim", "epochNo", "subjects", "epochMask", "epochIndices" or "loadBehav"!']);
@@ -212,15 +212,17 @@ end
 if ~exist('epochIndices', 'var')
     epochIndices = [];
 end
-if ~exist('loadBheav', 'var')
+if ~exist('loadBehav', 'var')
     loadBehav = 'incremental';
 end
 % extra checks
 % if "epochNo" and "epochMask" are specified, check no. of epochs in mask
-if ~isempty(epochNo) && ~isempty(epochMask)  && sum(epochMask) < epochNo
-    error(['Incompatible args "epochNo" and "epochMask" - number of ',...
-        'epochs for selection ("epochNo") is larger than the number ',...
-        'of epochs in the mask ("epochMask")!']);
+if ~isempty(epochNo) && ~isempty(epochMask) 
+    if sum(epochMask) < epochNo
+        error(['Incompatible args "epochNo" and "epochMask" - number of ',...
+            'epochs for selection ("epochNo") is larger than the number ',...
+            'of epochs in the mask ("epochMask")!']);
+    end
 end
 % if "epochIndices" is specified, error out if "epochMask" or
 % "epochNo" are also specified
@@ -261,7 +263,8 @@ disp([char(10), 'Called function selectConnEpochs with input args: ',...
     char(10), 'Supplied number of epochs to select: ', num2str(~isempty(epochNo)),...
     char(10), 'Supplied subject list: ', num2str(~isempty(subjects)),...
     char(10), 'Supplied epoch mask: ', num2str(~isempty(epochMask)),...    
-    char(10), 'Supplied epoch indices: ', num2str(~isempty(epochIndices))]);
+    char(10), 'Supplied epoch indices: ', num2str(~isempty(epochIndices)),...
+    char(10), 'Data loading behavior: ', loadBehav]);
 
 
 %% List files (with their paths) matching the supplied input args
@@ -291,7 +294,7 @@ end
 tmp = load(filePaths{1});
 refSize = size(tmp.(varName));
 % rearrange so that first dimension is epochs
-epochFirstRefSize = permute(refSize, [epochDim, setdiff(1:length(refSize), epochDim)]);
+epochFirstRefSize = refSize([epochDim, setdiff(1:length(refSize), epochDim)]);
 
 % loop through files, load them
 for i = 1:fileNo
@@ -299,7 +302,7 @@ for i = 1:fileNo
     tmp = load(filePaths{i});
     % check size - is it what we would expect based on the first file?
     tmpSize = size(tmp.(varName));
-    epochFirstTmpSize = permute(tmpSize, [epochDim, setdiff(1:length(tmpSize), epochDim)]);  % first dimension is epochs
+    epochFirstTmpSize = tmpSize([epochDim, setdiff(1:length(tmpSize), epochDim)]);  % first dimension is epochs
     if ~isequal(epochFirstTmpSize(2:end), epochFirstRefSize(2:end))
         error(['Found data with unexpected size in file at ',... 
         filePaths{i}, ', investigate!']);  
@@ -355,7 +358,7 @@ if isempty(epochIndices)
             % store the indices
             availEpochs{i} = tmpIndices;
             % adjust the number of available epochs
-            epochNumbers(i) = sum(tmpIndices);
+            epochNumbers(i) = numel(tmpIndices);
         % if there is no "epochMask", we just store all epochs as available
         else
             availEpochs{i} = 1:epochNumbers(i);
@@ -380,32 +383,34 @@ if isempty(epochIndices)
 
         % ask for input for cutoff point
         question = [char(10), 'What should be the number of epochs kept (cutoff) for each  subject? \n',... 
-            'If your choice is larger than the minimal epoch number, \n',...
-            'subjects with less epochs than the cutoff \n',... 
-            'will be left out of the final results array!', char(10)];
+            'If your choice is larger than the minimal epoch number, subjects with less epochs\n',...
+            'than the cutoff will be left out of the final results array!', char(10), char(10)];
         cutoffStr = input(question, 's');
 
         % get numeric, check for number of remaining subjects
         epochNo = str2double(cutoffStr);
+        
+        % user message
+        disp([char(10), 'Got it, cutoff is ', num2str(epochNo), ' epochs. ']); 
         
     end  % if isempty(epochNo)     
     
     % Check how many subjects have enough trials for the cutoff /
     % "epochNo", report to user
     if epochNo > min(epochNumbers)
-        subLeftNo = sum(epochNumbers >= epochNo);
-        disp([char(10), 'Cutoff is ', num2str(epochNo), '. '... 
-            char(10), 'This is larger than the minimal epoch number, ',... 
-            char(10), num2str(subLeftNo), ' out of ', num2str(fileNo),... 
-            ' subjects will remain in final data array.']);
+        disp([char(10), 'Cutoff is larger than the minimal epoch number, ',... 
+            char(10), 'data from ', num2str(sum(epochNumbers >= epochNo)),... 
+            ' files out of ', num2str(fileNo), ' will remain in final data array.']);
     else
-        subLeftNo = fileNo;
         disp([char(10), 'Cutoff is equal / smaller than the minimal epoch number, ',... 
             char(10), 'there will be epochs from all subjects in the final data array.']);
     end
 
    
     %% Get random epoch indices for each subject / file with enough epochs
+    
+    % user message
+    disp([char(10), 'Generating random epoch indices for each file...']);
     
     % preallocate for selected files and corresponding epoch indices
     selectedFiles = cell(fileNo, 1);
@@ -429,6 +434,9 @@ if isempty(epochIndices)
     % clear empty cells
     selectedFiles(cellfun(@isempty, selectedFiles)) = [];
     selectedEpochs(cellfun(@isempty, selectedEpochs)) = [];
+    
+    % user message
+    disp('Done');
     
     
 %% If there were epoch indices supplied, perform sanity checks: 
@@ -460,74 +468,67 @@ elseif ~isempty(epochIndices)
     % if sanity checks are passed, set selectedEpochs to epochIndices
     selectedEpochs = epochIndices;
     
+    % set "epochNo" from empty to the length of epoch index vectors
+    epochNo = length(epochIndices{1});
+    
+    % user message
+    disp([char(10), 'Supplied epoch indices passed minimal sanity checks, ',...
+        'will use them for epoch selection.']);
+    
 end  % if isempty(epochIndices)
 
 
 %% Loop through data, select epochs
 
+% user message
+disp([char(10), 'Selecting epochs from each file...']);
+
 % preallocate epoch data holding var: files X epochs X [rest1 X rest2 X...]
 epochData = nan([length(selectedFiles), epochNo, epochFirstRefSize(2:end)]);
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%   Done till here   %%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 % loop through data sets
-subCounter = 0;
-for i = 1:fileNo
+for i = 1:length(selectedFiles)
     
-    % if there were no epoch indices supplied, we randomly select the
-    % "cutoff" number of epochs for each subject with enough epochs
-    if isempty(epochIndices)
+    % if data has not been stored when epoch numbers were collected, load
+    % each file in
+    if strcmp(loadBehav, 'incremental')
+        % get data 
+        tmp = load(selectedFiles{i});
+        tmpData = tmp.(varName);
         
-        % subject survives cutoff?
-        if epochNumbers(i) >= cutoff
-            subCounter = subCounter + 1;
-
-            % collect subject ID
-            subLeftID{subCounter} = subIDs{i};
-
-            % need to sample from epochs?
-            if epochNumbers(i) >= cutoff
-
-                % random epoch indices we use for epoch selection
-                selectedEpochs{subCounter} = randperm(epochNumbers(i), cutoff);
-                % selected epochs into output array
-                connData(subCounter, :, :, :) = subData(i).connRes(selectedEpochs{subCounter}, :, :);
-
-            end  % if epochNumbers > cutoff
-
-        end  % if epochNumbers >= cutoff
+    % else data was already stored in a cell array "allData"    
+    elseif strcmp(loadBehav, 'onesweep')
+        % Indexing for "allDatA" was based on the file list that might have
+        % been altered since when applying "epochMask" and / or "epochNo",
+        % find first the original index for current file
+        tmpIdx = ismember(filePaths, selectedFiles{i});  % gives logical vector
+        tmpData = allData{tmpIdx};
+        
+    end  % if
     
-    % if there were epoch indices supplied, just select those epochs 
-    % and copy them into output array    
-    else
-        connData(i, :, :, :) = subData(i).connRes(epochIndices{i}, :, :);
-        
-    end  % if isempty(epochIndices)
+    % rearrange so that first dimension is epochs
+    tmpData = permute(tmpData, [epochDim, setdiff(1:ndims(tmpData), epochDim)]);
+    
+    % store the epochs defined by "selectedEpochs"
+    % use "hand-crafted" subscript assignment with subsref and subsasgn 
+    % as we do not know for certain the dimensions of "tmpData"
+    S.subs = repmat({':'}, 1, ndims(tmpData));  % subscript struct with indexing dimensions depending on "tmpData" 
+    S.type = '()';  % type is a necessary field, we use the one for numeric arrays
+    S.subs{1} = selectedEpochs{i};  % first dimension indices are the ones for the epochs
+    tmpData = subsref(tmpData, S);  % select the relevant data slice
+    % assign it to "epochData"
+    S.subs = repmat({':'}, 1, ndims(epochData));
+    S.subs{1} = i;
+    epochData = subsasgn(epochData, S, tmpData);
            
-end  % for subNo
-
-% epochIndices and subjects are alos output vars
-if isempty(subjects)
-    subjects = subLeftID;
-end
-if isempty(epochIndices)
-    epochIndices = selectedEpochs;
-end
+end  % for 
 
 % user message    
-disp([char(10), 'Selected epochs from all eligible subjects (',...
-    num2str(length(subjects)), ' participants).']);
-
-
-%% Save output vars
-
-saveF = [dirName, '/group_', freq, '_', method, '.mat'];
-save(saveF, 'connData', 'subjects', 'epochIndices');
+disp(['Selected epochs from all ',... 
+    num2str(length(selectedFiles)), ' files.']);
 
 % user message
-disp([char(10), 'Saved out results, returning...']);
+disp([char(10), 'Done with everything, no errors even, this is a good day. Phew']);
 
 
 return

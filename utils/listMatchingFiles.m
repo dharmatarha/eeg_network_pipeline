@@ -57,8 +57,8 @@ if ~ischar(filePattern)
 end
 if nargin == 2
     subjects = [];
-elseif ~iscell(subjects) || ~all(cellfun(@ischar, subjects))
-    error('Optional input arg "subjects" should be a cell array of char arrays!');
+elseif ~isempty(subjects) && (~iscell(subjects) || ~all(cellfun(@ischar, subjects)))
+    error('Optional input arg "subjects" should be a cell array of char arrays or left empty!');
 end
 
 
