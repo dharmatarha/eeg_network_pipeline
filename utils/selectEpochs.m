@@ -147,7 +147,7 @@ function [selectedFiles, selectedEpochs, epochData] = selectEpochs(dirName, file
 % load('restingStateSubjects.mat', 'subjectsRS');
 % % define the mask for non-overlapping epochs (every second in our case)
 % epochMask = zeros(1,300); epochMask(1:2:end) = 1;  % 300 is definitely more than the max number of epochs we have
-% % call selecteEpochs
+% % call selectEpochs
 % [subjectFiles, selectedEpochs, epochData] = selectEpochs('alpha/', 'alpha_plv', subjectsRS, epochMask);
 % 
 %

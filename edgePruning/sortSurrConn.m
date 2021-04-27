@@ -5,7 +5,7 @@ function sortSurrConn(selectedConnFile, surrDataDir, freq, method)
 %
 % In the resting-state EEG dataset, we calculate connectivity values for
 % the data of each subject with "connectivityWrapperReal" then randomly 
-% select non-overlapping epochs using "selectConnEpochs". Separately, we
+% select non-overlapping epochs using "selectEpochs". Separately, we
 % also generate surrogate (phase-scrambled) data and estimate probability
 % distribution parameters for the connectivity values in the surrogate 
 % data (using "surrEdgeEstimationReal"). 
@@ -24,7 +24,53 @@ function sortSurrConn(selectedConnFile, surrDataDir, freq, method)
 % distribution parameters (mu and sigma) and the empirical p-value
 % estimates.
 %
+% Inputs:
+% selectedConnFile      - Char array, path to group-level connectivity data
+%                       file (e.g. 'group_alpha_orthAmpCorr.mat'). Contains
+%                       the following variables:
+%                       subjects:       cell array with subject ids
+%                       epochIndices:   cell array with indeices of
+%                                       selected epochs for each subject
+%                       connData:       numeric array containing
+%                                       connectivity data, sized [subjects
+%                                       X epochs X rois X rois]
+% surrDataDir           - Char array, folder containing the surrogate
+%                       connectivity files for each subject (e.g.
+%                       'l3_s01_alpha_surrEdgeEstReal_orthAmpCorr.mat'). 
+% freq                  - Char array, one of {'delta', 'theta', 'alpha', 
+%                       'beta', 'gamma'}. Frequency band which is relfected
+%                       in surrogate connectivity file names.
+% method                - Char array, one of {'plv', 'iplv', 'pli', 
+%                       'ampCorr', 'orthAmpCorr'}. Connectivity method,
+%                       reflected in surrogate connectivity file names.
 %
+% Outputs:
+%
+% The output is saved into a file named "surrConn_FREQ_METHOD.mat". It
+% contains the following variables:
+%
+% surrNormalMu          - 4D numeric array, contains the "mu"s of the
+%                       normal distributions fitted to the surrogate 
+%                       connectivity values. Sized [subjects X epochs X
+%                       rois X rois].
+% surrNormalSigma       - 4D numeric array, contains the "sigma"s of the
+%                       normal distributions fitted to the surrogate 
+%                       connectivity values. Sized [subjects X epochs X
+%                       rois X rois].
+% surrNormalP           - 4D numeric array, contains the probabilities 
+%                       from the Kolmogorov-Smirnov tests on the normal 
+%                       fits of the surrogate connectivity values. Sized 
+%                       [subjects X epochs X rois X rois].
+% realConnP             - 4D numeric array, contains the probabilities 
+%                       of the real connectivity values based on the normal
+%                       distributions of the surrogate values. Sized 
+%                       [subjects X epochs X rois X rois].
+% maskedConn            - 4D numeric array, connectivity values after
+%                       thresholding based on surrogate connectivity
+%                       values.
+% criticalP             - 4D numeric array, contains the critical p values
+%                       for each epoch used for FDR thresholding.
+% survivalRate          - 
 %
 
 
@@ -95,13 +141,6 @@ for subIdx = 1:subNo
     tmpMu = permute(tmp.surrNormalMu, [3 1 2]);
     tmpSigma = permute(tmp.surrNormalSigma, [3 1 2]);
     tmpP = permute(tmp.surrNormalP, [3 1 2]);
-    
-    % !!! IMPORTANT !!!
-    % "selectConnEpochs" epochIndices index epochs after every second was
-    % discarded!
-    tmpMu = tmpMu(1:2:end, :, :);
-    tmpSigma = tmpSigma(1:2:end, :, :);
-    tmpP = tmpP(1:2:end, :, :);
     
     % collect subject-level (truncated) normal params to group-level var
     surrNormalMu(subIdx, :, :, :) = tmpMu(subEpochs, :, :);
