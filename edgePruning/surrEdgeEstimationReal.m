@@ -9,7 +9,8 @@ function surrEdgeEstimationReal(freq, varargin)
 %                               method = 'iplv',
 %                               dRate = 1,
 %                               surrNo = 1000,
-%                               truncated = 'yes')
+%                               truncated = 'yes',
+%                               failedFitAction='saveResults')
 %
 % Fits edge weights for phase-scrambling-based surrogate data with a 
 % (truncated) normal distribution, estimating the parameters (mean and std). 
@@ -33,6 +34,10 @@ function surrEdgeEstimationReal(freq, varargin)
 % Output files contain the parameters of the fitted (truncated) normal
 % distributions and the results of goodness-of-fit tests
 % (one-sample Kolmogorov-Smirnov tests, separately for each time series).
+% When normal fits fail, the permutation results might be saved out into
+% per-subject files depending on the value of "failedFitAction". The
+% resulting files are named
+% 'SUBJECTUMBER_FREQUENCYBAND_METHOD_failedFits.mat'.
 %
 % Assumes that the data is in EEGlab structures and that file naming
 % follows the 'SUBJECTNUMBER_FREQUENCYBAND.mat' (e.g. 's05_alpha.mat')
@@ -82,6 +87,15 @@ function surrEdgeEstimationReal(freq, varargin)
 %       phase-based connectivity measures. Defaults to 'yes' for 
 %       phase-based connectivity measures and to 'no' for envelope 
 %       correlation. The latter is Fisher-Z transformed before fitting.
+% failedFitAction   - Char array, one of {'saveResults', 'nosave'}. Flag
+%                   defining how the function should behave upon
+%                   encountering a failed (truncated) normal fit to the
+%                   surrogate data. If set to 'saveResults', a per-subject
+%                   file is generated with the permutation results of each
+%                   failed fit saved out. If 'nosave', fails are ignored.
+%                   Files are named 
+%                   'SUBJECTUMBER_FREQUENCYBAND_METHOD_failedFits.mat'.
+%                   Defaults to 'saveResults'.
 % 
 % Output:
 % The following variables are saved out for each subject.
@@ -128,10 +142,10 @@ function surrEdgeEstimationReal(freq, varargin)
 %% Input checks
 
 % check for mandatory argument
-if ~ismembertol(nargin, 1:7)
+if ~ismembertol(nargin, 1:8)
     error(['Function surrEdgeEstimationReal requires input arg "freq" ',...
         '(frequency band) while args "dirName", "subjects", "method", ',...
-        '"dRate", "surrNo" and "truncated" are optional!']);
+        '"dRate", "surrNo", "truncated" and "failedFitAction" are optional!']);
 end
 if ~ismember(freq, {'delta', 'theta', 'alpha', 'beta', 'gamma'})
     error('Input arg "freq" has an unexpected value!');
@@ -151,7 +165,9 @@ if ~isempty(varargin)
         elseif isnumeric(varargin{v}) && ~exist('surrNo', 'var') && ismember(varargin{v}, 100:100:20000)
             surrNo = varargin{v};
         elseif ischar(varargin{v}) && ismember(varargin{v}, {'yes', 'no'}) && ~exist('truncated', 'var')
-            truncated = varargin{v};            
+            truncated = varargin{v};       
+        elseif ischar(varargin{v}) && ismember(varargin{v}, {'saveResults', 'nosave'}) && ~exist('failedFitAction', 'var')
+            failedFitAction = varargin{v};
         else
             error(['There are either too many input args or they are not ',...
                 'mapping nicely to "dirName", "subjects", "method", "dRate" and "surrNo"!']);
@@ -182,6 +198,9 @@ end
 if ~exist('truncated', 'var')
     truncated = 'yes';
 end
+if ~exist('failedFitAction', 'var')
+    failedFitAction = 'saveResults';
+end
 % transform truncated to logical
 if strcmp(truncated, 'no')
     truncated = false;
@@ -203,6 +222,7 @@ disp([char(10), 'Starting surrEdgeEstimationReal function with following argumen
     char(10), 'Decimation rate: ', num2str(dRate),...
     char(10), 'No. of surrogate data sets: ', num2str(surrNo), ... 
     char(10), 'Truncated normal at [0 1]?: ', num2str(truncated), ...
+    char(10), 'Action to take when fitting fails: ', failedFitAction,...
     char(10), 'Subjects: ']);
 disp(subjects);
 
@@ -321,6 +341,12 @@ parfor subIdx = 1:subNo
     surrNormalP = nan(roiNo, roiNo, subEpochNo);  % for storing the p-value from kstest
     surrNormalH = nan(roiNo, roiNo, subEpochNo);  % for storing "h" (hypothesis test outcome) from kstest
     
+    % preallocate cell array for capturing surrogate data for failed normal
+    % fits
+    if strcmp(failedFitAction, 'saveResults')
+        failedFits = cell(roiNo, roiNo, subEpochNo);
+        failedFitsCounter = 0;
+    end
    
     % loop through epochs
     for epochIdx = 1:subEpochNo
@@ -356,7 +382,7 @@ parfor subIdx = 1:subNo
                         % use try - catch in case fitting errors out (happens when param would reach Inf / NaN value)
                         try
                             % fit truncated normal
-                            phat = mle(tmp , 'pdf', norm_trunc, 'start', [mean(tmp), std(tmp)]);
+                            phat = mle(tmp , 'pdf', norm_trunc, 'start', [mean(tmp), std(tmp)], 'MaxIter', 100, 'MaxFunEvals', 100);  % for a (truncated) normal, 100 iterations should be plenty
                             % save out main params from fitted normal
                             surrNormalMu(roi1, roi2, epochIdx) = phat(1);
                             surrNormalSigma(roi1, roi2, epochIdx) = phat(2);
@@ -366,7 +392,14 @@ parfor subIdx = 1:subNo
                             pdToTest = truncate(pd, x_min, x_max);      
                             kstestFlag = 1;
                         catch ME
-                            disp(ME);
+                            disp(['Fitting with truncated normal dist failed at subject ',... 
+                                num2str(subIDx), ', epoch ', num2str(epochIdx),...
+                                ', rois ', num2str(roi1), ' and ', num2str(roi2)]);
+                            % store permutation results
+                            if strcmp(failedFitAction, 'saveResults')
+                                failedFits{roi1, roi2, epochIdx} = tmp;
+                                failedFitsCounter = failedFitsCounter + 1;
+                            end
                         end
                     % if standard normal is to be fitted, not truncated    
                     else
@@ -379,7 +412,14 @@ parfor subIdx = 1:subNo
                             surrNormalSigma(roi1, roi2, epochIdx) = pdToTest.sigma;      
                             kstestFlag = 1;
                         catch ME
-                            disp(ME);
+                            disp(['Fitting with normal dist failed at subject ',... 
+                                num2str(subIDx), ', epoch ', num2str(epochIdx),...
+                                ', rois ', num2str(roi1), ' and ', num2str(roi2)]);
+                            % store permutation results
+                            if strcmp(failedFitAction, 'saveResults')
+                                failedFits{roi1, roi2, epochIdx} = tmp;
+                                failedFitsCounter = failedFitsCounter + 1;
+                            end
                         end
                     end  % if truncated
 
@@ -409,6 +449,14 @@ parfor subIdx = 1:subNo
     saveM.surrNo = surrNo;
     saveM.dRate = dRate;
     saveM.subject = subjects{subIdx};
+    
+    % save also the surrogate data from failed fits 
+    if strcmp(failedFitAction, 'saveResults') && failedFitsCounter ~= 0
+        saveFailedFits = [dirName, '/' , freq, '/', subjects{subIdx}, '_', freq, '_', method, '_failedFits.mat'];
+        saveFF = matfile(saveFailedFits);
+        saveFF.failedFits = failedFits;
+        saveFF.failedFitsCounter = failedFitsCounter;
+    end
     
     % report elapsed time
     disp([char(10), 'Finished with subject ', subjects{subIdx},...
