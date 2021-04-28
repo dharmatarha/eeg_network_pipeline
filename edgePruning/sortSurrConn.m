@@ -159,8 +159,8 @@ acrossEpochs.surrNormalMu = nan(subNo, roiNo, roiNo);
 acrossEpochs.surrNormalSigma = acrossEpochs.surrNormalMu;
 acrossEpochs.realConnP = acrossEpochs.surrNormalMu;
 acrossEpochs.maskedConn = acrossEpochs.surrNormalMu;
-acrossEpochs.criticalP = nan(subNo);
-acrossEpochs.survivalRate = nan(subNo);
+acrossEpochs.criticalP = nan(subNo, 1);
+acrossEpochs.survivalRate = nan(subNo, 1);
 
 
 for subIdx = 1:subNo
