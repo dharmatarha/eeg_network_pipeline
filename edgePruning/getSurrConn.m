@@ -97,7 +97,7 @@ surrConnData = nan(surrNo, roiNo, roiNo);
 for surrIdx = 1 : surrNo
     surrogateData = phaseScramble(realData);  % returns phase-scrambled version of input data
     
-    % for phase-based methods, extract instantaneous phase from analyticial signal
+    % for phase-based methods, extract instantaneous phase from analytical signal
     if ismember(method, {'pli', 'plv', 'iplv'})
         surrogatePhaseData = timeSeriesToPhase(surrogateData);
     end
