@@ -449,6 +449,11 @@ parfor subIdx = 1:subNo
     saveM.surrNo = surrNo;
     saveM.dRate = dRate;
     saveM.subject = subjects{subIdx};
+    saveM.truncated = truncated;
+    % include the bounds if truncated normals were used
+    if truncated
+        saveM.x_min_max = [x_min, x_max];
+    end
     
     % save also the surrogate data from failed fits 
     if strcmp(failedFitAction, 'saveResults') && failedFitsCounter ~= 0

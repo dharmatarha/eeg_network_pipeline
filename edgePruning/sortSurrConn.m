@@ -1,7 +1,7 @@
-function sortSurrConn(selectedConnFile, surrDataDir, freq, method)
+function sortSurrConn(selectedConnFile, surrDataDir, freq, method, truncated)
 %% Function to assign surrogate-data derived statistics to connectivity data
 %
-% USAGE: sortSurrConn(selectedConnFile, surrDataDir, freq, method)
+% USAGE: sortSurrConn(selectedConnFile, surrDataDir, freq, method, truncated=[])
 %
 % In the resting-state EEG dataset, we calculate connectivity values for
 % the data of each subject with "connectivityWrapperReal" then randomly 
@@ -20,11 +20,10 @@ function sortSurrConn(selectedConnFile, surrDataDir, freq, method)
 % the "surrEdgeEstimationReal" output files 
 % (e.g. "l3_s01_alpha_surrEdgeEstReal_ampCorr.mat"). 
 %
-% The output of the function is three variables containing the normal
-% distribution parameters (mu and sigma) and the empirical p-value
-% estimates.
+% The outputs are saved out into a file
+% 'surrConn_FREQUENCYBAND_METHOD.mat'.
 %
-% Inputs:
+% Mandatory inputs:
 % selectedConnFile      - Char array, path to group-level connectivity data
 %                       file (e.g. 'group_alpha_orthAmpCorr.mat'). Contains
 %                       the following variables:
@@ -44,10 +43,18 @@ function sortSurrConn(selectedConnFile, surrDataDir, freq, method)
 %                       'ampCorr', 'orthAmpCorr'}. Connectivity method,
 %                       reflected in surrogate connectivity file names.
 %
+% Optional inputs:
+% truncated             - Char array, one of {'truncated', 'nontruncated'}.
+%                       Defines if the normal distributions derived from
+%                       the surrogate data should be truncated to [0 1]. If
+%                       left empty, the function tries to get this
+%                       information from the surrogate data files (from var
+%                       "truncated"). Defaults to empty.
+%
 % Outputs:
 %
-% The output is saved into a file named "surrConn_FREQ_METHOD.mat". It
-% contains the following variables:
+% The output is saved into a file named "surrConn_FREQUENCYBAND_METHOD.mat".
+% It contains the following variables:
 %
 % surrNormalMu          - 4D numeric array, contains the "mu"s of the
 %                       normal distributions fitted to the surrogate 
@@ -68,17 +75,22 @@ function sortSurrConn(selectedConnFile, surrDataDir, freq, method)
 % maskedConn            - 4D numeric array, connectivity values after
 %                       thresholding based on surrogate connectivity
 %                       values.
-% criticalP             - 4D numeric array, contains the critical p values
-%                       for each epoch used for FDR thresholding.
-% survivalRate          - 
+% criticalP             - 2D numeric array, contains the critical p values
+%                       for each epoch from FDR (q = .05), used for 
+%                       thresholding. Sized [subjects X epochs].
+% survivalRate          - 2D numeric array, contains the ratio of edges
+%                       surviving the FDR-based thresholding in each epoch.
+%                       Sized [subjects X epochs].
 %
 
 
 %% Input checks
 
-if nargin ~= 4
-    error('Function sortSurrConn requires input args "selectedConnFile", "surrDataDir", "freq" and "method"!');
+% check no. of inputs
+if ~ismember(nargin, 4:5)
+    error('Function sortSurrConn requires input args "selectedConnFile", "surrDataDir", "freq" and "method", while input arg "truncated" is optional!');
 end
+% check each mandatory input
 if ~exist(selectedConnFile, 'file')
     error(['Input arg "selectedConnFile" should point to a file containing ',...
         'the connectivity data from the randomly selected epochs (output of "selectConnEpochs")!']);
@@ -93,7 +105,28 @@ end
 if ~ismember(method, {'plv', 'iplv', 'pli', 'ampCorr', 'orthAmpCorr'})
     error('Input arg "freq" should be one of {"plv", "iplv", "pli", "ampCorr", "orthAmpCorr"}!');
 end
+% check optional input
+if nargin == 4 || isempty(truncated)
+    truncated = 'filebased';
+elseif nargin == 5
+    if ~ismember(truncated, {'truncated', 'nontruncated'})
+        error('Input arg "truncated" should be one of {"truncated", "nontruncated"}!');
+    end
+end
+        
 
+% user message
+disp([char(10), 'Called function sortSurrConn with inputs: ',...
+    char(10), 'Connectivity file: ', selectedConnFile,...
+    char(10), 'Surrogate data folder: ', surrDataDir,...
+    char(10), 'Frequency band: ', freq,...
+    char(10), 'Connectivity method: ', method,...
+    char(10), 'Truncate normals: ', truncated]);
+
+
+%% Settings, params
+
+% strip ending '/' from folder path
 if strcmp(surrDataDir(end), '/')
     surrDataDir = surrDataDir(1:end-1);
 end
@@ -101,16 +134,18 @@ end
 
 %% Load connectivity data
 
+% connectivity data file should contain cell arrays for subject IDs and
+% epoch indices, plus a numeric array holding all connectivity data
 tmp = load(selectedConnFile);
-subjects = tmp.subjects;
-epochIndices = tmp.epochIndices;
-connData = tmp.connData;
+subjects = tmp.subjects;  % subjects X 1 cell array, each cell contains a char array as subject ID
+epochIndices = tmp.epochIndices;  % subjects X 1 cell array, each cell contains a vector of epoch indices
+connData = tmp.connData;  % 4D array, subects X epochs X rois X rois
 [subNo, epochNo, roiNo, ~] = size(connData);
 
 
 %% Loop through subjects
 
-% result vars
+% preallocate result vars
 surrNormalMu = nan(subNo, epochNo, roiNo, roiNo);
 surrNormalSigma = surrNormalMu;
 surrNormalP = surrNormalMu;
@@ -118,8 +153,20 @@ realConnP = surrNormalMu;
 maskedConn = surrNormalMu;
 criticalP = nan(subNo, epochNo);
 survivalRate = nan(subNo, epochNo);
+% preallocate a struct for holding the group-level thresholding results
+acrossEpochs = struct;
+acrossEpochs.surrNormalMu = nan(subNo, roiNo, roiNo);
+acrossEpochs.surrNormalSigma = acrossEpochs.surrNormalMu;
+acrossEpochs.realConnP = acrossEpochs.surrNormalMu;
+acrossEpochs.maskedConn = acrossEpochs.surrNormalMu;
+acrossEpochs.criticalP = nan(subNo);
+acrossEpochs.survivalRate = nan(subNo);
+
 
 for subIdx = 1:subNo
+    
+    
+    %% Load surrogate data, preparations
     
     subClock = tic;
     
@@ -138,6 +185,8 @@ for subIdx = 1:subNo
     end
 
     % select mu, sigma and fit p-value for selected epochs
+    % change the order of their dimensions first as they are rois X rois X
+    % epochs
     tmpMu = permute(tmp.surrNormalMu, [3 1 2]);
     tmpSigma = permute(tmp.surrNormalSigma, [3 1 2]);
     tmpP = permute(tmp.surrNormalP, [3 1 2]);
@@ -147,17 +196,57 @@ for subIdx = 1:subNo
     surrNormalSigma(subIdx, :, :, :) = tmpSigma(subEpochs, :, :);
     surrNormalP(subIdx, :, :, :) = tmpP(subEpochs, :, :);
     
-    % estimate p-values for real connectivity
+    % check for information about truncation: 
+    % truncation info should be a logical var "truncated"
+    if strcmp(truncated, 'filebased')
+        if tmp.truncated
+            subTruncated = 'truncated';
+        else
+            subTruncated = 'nontruncated';
+        end
+    else
+        subTruncated = truncated;
+    end
+    
+    
+    %% Estimate p-values for real connectivity in each epoch separately
+    % Logic:
+    % - go through each edge, get the p-value of the corresponding
+    % connectivity value from the normal distribution of surrogate data
+    % - FDR across all edges in epoch, q = 0.05
+    % - Thresholding
+    
     for epochIdx = 1:epochNo
         for roi1 = 1:roiNo
             for roi2 = 1:roiNo
+                % work only in upper triangle of connectivity matrix
+                % (assume symmetric values)
                 if roi1 < roi2
                     
-                    % get p-value based on normal distribution of surrogate
-                    % values, multiply by 2 for 2-sided test
-                    normalP = normcdf(connData(subIdx, epochIdx, roi1, roi2),... 
-                                        surrNormalMu(subIdx, epochIdx, roi1, roi2),... 
-                                        surrNormalSigma(subIdx, epochIdx, roi1, roi2));
+                    % Case of using simple normal distribution
+                    if strcmp(subTruncated, 'nontruncated')
+                    
+                        % get p-value based on normal distribution of surrogate
+                        % values
+                        normalP = normcdf(connData(subIdx, epochIdx, roi1, roi2),... 
+                                            surrNormalMu(subIdx, epochIdx, roi1, roi2),... 
+                                            surrNormalSigma(subIdx, epochIdx, roi1, roi2));
+                        
+                    % Case of using truncated normal distribution
+                    elseif strcmp(subTruncated, 'truncated')
+                        
+                        % get a truncated normal distribution first
+                        pd = makedist('normal', 'mu', surrNormalMu(subIdx, epochIdx, roi1, roi2), 'sigma', surrNormalSigma(subIdx, epochIdx, roi1, roi2));  % returns a probability distribution object
+                        pd = truncate(pd, 0, 1);
+                        
+                        % get p-value from the cumulative version of the
+                        % distribution function
+                        normalP = pd.cdf(connData(subIdx, epochIdx, roi1, roi2));
+                        
+                    end
+                    
+                    % convert for a 2-two-sided test, apply correction as
+                    % well
                     if normalP > 0.5
                         normalP = 1-normalP;
                     end                                         
@@ -182,19 +271,90 @@ for subIdx = 1:subNo
         edgesBelowCrit = epochP <= criticalP(subIdx, epochIdx);
         survivalRate(subIdx, epochIdx) = sum(edgesBelowCrit(:), 'omitnan')/(roiNo*(roiNo-1)/2);
         
-    end
+    end  % for epochIdx
     
+    
+    %% Estimate p-values for average connectivity across epochs
+    % Logic:
+    % - get mean connectivity across epochs
+    % - for each edge, compare the real connectivity value to the normal
+    % distribution derived from the per-epoch surrogate normals
+    % - FDR across edges, q = 0.05
+    % - Thresholding
+    
+    % mean connectivity across epochs for current subject
+    subConnData = squeeze(mean(connData(subIdx, :, :, :), 2));
+    
+    % loops across ROIs (defining edges)
+    for roi1 = 1:roiNo
+        for roi2 = 1:roiNo
+            % work only in upper triangle of connectivity matrix
+            % (assume symmetric values)
+            if roi1 < roi2            
+                
+                % Derive normal distribution of surrogate data for the
+                % "group of epochs"
+                % NOTE: Linear combinations of normal distributions are
+                % just linear combinations of parameters
+                mu = mean(squeeze(surrNormalMu(subIdx, :, roi1, roi2)), 'omitnan');  % mu is simple the mean of all mu values
+                sigma = mean(squeeze(surrNormalSigma(subIdx, :, roi1, roi2)), 'omitnan')/sqrt(epochNo);  % sigma is the mean sigma divided by sqrt(n)
+                
+                % Case of using simple normal distribution
+                if strcmp(subTruncated, 'nontruncated')
+                    normalP = normcdf(subConnData(roi1, roi2), mu, sigma);
+                    
+                % Case of using truncated normal distribution
+                elseif strcmp(subTruncated, 'truncated')
+                    % get a truncated normal distribution first
+                    pd = makedist('normal', 'mu', mu, 'sigma', sigma);  % returns a probability distribution object
+                    pd = truncate(pd, 0, 1);
+                    % get p-value from the cumulative version of the
+                    % distribution function
+                    normalP = pd.cdf(subConnData(roi1, roi2));  
+                end
+                
+                % convert for a 2-two-sided test, apply correction as well
+                if normalP > 0.5
+                    normalP = 1-normalP;
+                end                                         
+                acrossEpochs.realConnP(subIdx, roi1, roi2) = normalP*2;
+                
+                % store normal params
+                acrossEpochs.surrNormalMu = mu;
+                acrossEpochs.surrNormalSigma = sigma;
+                
+            end  % if
+        end  % for roi1
+    end  % for roi2
+    
+    % FDR correction on average connectivity matrix
+    realPs = acrossEpochs.realConnP(subIdx, :, :); 
+    realPs = realPs(:); realPs(isnan(realPs)) = [];
+    [~, acrossEpochs.criticalP(subIdx)] = fdr(realPs, 0.05, 'bh');     
+    
+    % create masked connectivity tensor
+    pMask = squeeze(acrossEpochs.realConnP(subIdx, :, :)) <= acrossEpochs.criticalP(subIdx);
+    tmpData = subConnData;
+    tmpData(~pMask) = 0;  % values not surviving the threshold are set to zero
+    acrossEpochs.maskedConn(subIdx, :, :) = tmpData;
+    
+    % get rate of edges surviving pruning
+    acrossEpochs.survivalRate(subIdx) = sum(pMask(:), 'omitnan')/(roiNo*(roiNo-1)/2);
+    
+    % display elapsed time 
     elapsedT = round(toc(subClock), 2);
     disp([char(10), 'Finished with subject ', subID, '. Took ', num2str(elapsedT), ' secs.']);
     
-end
+    
+end  % for subIdx
 
 
 %% Save out
 
 saveF = [surrDataDir, '/surrConn_', freq, '_', method, '.mat'];
 save(saveF, 'surrNormalMu', 'surrNormalSigma', 'surrNormalP',... 
-    'realConnP', 'maskedConn', 'criticalP', 'survivalRate');
+    'realConnP', 'maskedConn', 'criticalP', 'survivalRate',... 
+    'acrossEpochs', 'truncated');
 
 
 
