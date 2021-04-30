@@ -296,6 +296,9 @@ normcdf_lr =@(mu, sigma) (normcdf(x_max, mu, sigma) - normcdf(x_min, mu, sigma))
 norm_trunc =@(x, mu, sigma) normpdf(x , mu, sigma)./normcdf_lr(mu, sigma) .* heaviside_l(x - x_min) .* heaviside_r(x - x_max);
 %end
 
+% setting options for fitting procedure
+opts = statset('MaxIter', 100, 'MaxFunEval', 100, 'FunValCheck', 'off');
+
 % user message
 if dRate == 1
     disp([char(10), 'First data file had ', num2str(roiNo), ' channels/ROIs, ',... 
@@ -382,7 +385,7 @@ parfor subIdx = 1:subNo
                         % use try - catch in case fitting errors out (happens when param would reach Inf / NaN value)
                         try
                             % fit truncated normal
-                            phat = mle(tmp , 'pdf', norm_trunc, 'start', [mean(tmp), std(tmp)], 'MaxIter', 100, 'MaxFunEvals', 100);  % for a (truncated) normal, 100 iterations should be plenty
+                            phat = mle(tmp , 'pdf', norm_trunc, 'start', [mean(tmp), std(tmp)], 'Options', opts); 
                             % save out main params from fitted normal
                             surrNormalMu(roi1, roi2, epochIdx) = phat(1);
                             surrNormalSigma(roi1, roi2, epochIdx) = phat(2);
@@ -391,7 +394,7 @@ parfor subIdx = 1:subNo
                             pd = makedist('normal', 'mu', phat(1), 'sigma', phat(2));
                             pdToTest = truncate(pd, x_min, x_max);      
                             kstestFlag = 1;
-                        catch ME
+                        catch
                             disp(['Fitting with truncated normal dist failed at subject ',... 
                                 num2str(subIdx), ', epoch ', num2str(epochIdx),...
                                 ', rois ', num2str(roi1), ' and ', num2str(roi2)]);
@@ -411,7 +414,7 @@ parfor subIdx = 1:subNo
                             surrNormalMu(roi1, roi2, epochIdx) = pdToTest.mu;
                             surrNormalSigma(roi1, roi2, epochIdx) = pdToTest.sigma;      
                             kstestFlag = 1;
-                        catch ME
+                        catch
                             disp(['Fitting with normal dist failed at subject ',... 
                                 num2str(subIdx), ', epoch ', num2str(epochIdx),...
                                 ', rois ', num2str(roi1), ' and ', num2str(roi2)]);
