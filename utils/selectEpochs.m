@@ -65,8 +65,7 @@ function [selectedFiles, selectedEpochs, epochData] = selectEpochs(dirName, file
 % filePattern       - Char array, file name part for specifying the files 
 %                   to include in the selection process. The function uses
 %                   "dir" for finding files, so asterisk wildcards are
-%                   allowed. An extra ".mat" ending is always added when
-%                   listing the files, do not include that in "filePattern"
+%                   allowed.
 % varName           - Char array, name of the variable containing the data
 %                   of interest
 %
@@ -148,7 +147,7 @@ function [selectedFiles, selectedEpochs, epochData] = selectEpochs(dirName, file
 % % define the mask for non-overlapping epochs (every second in our case)
 % epochMask = zeros(1,300); epochMask(1:2:end) = 1;  % 300 is definitely more than the max number of epochs we have
 % % call selectEpochs
-% [subjectFiles, selectedEpochs, epochData] = selectEpochs('alpha/', 'alpha_plv', subjectsRS, epochMask);
+% [subjectFiles, selectedEpochs, epochData] = selectEpochs('alpha/', 'alpha_plv.mat', subjectsRS, epochMask);
 % 
 %
 

@@ -159,8 +159,8 @@ acrossEpochs.surrNormalMu = nan(subNo, roiNo, roiNo);
 acrossEpochs.surrNormalSigma = acrossEpochs.surrNormalMu;
 acrossEpochs.realConnP = acrossEpochs.surrNormalMu;
 acrossEpochs.maskedConn = acrossEpochs.surrNormalMu;
-acrossEpochs.criticalP = nan(subNo, 1);
-acrossEpochs.survivalRate = nan(subNo, 1);
+acrossEpochs.criticalP = nan(subNo);
+acrossEpochs.survivalRate = nan(subNo);
 
 
 for subIdx = 1:subNo
@@ -237,6 +237,8 @@ for subIdx = 1:subNo
                         
                         % get a truncated normal distribution first
                         pd = makedist('normal', 'mu', surrNormalMu(subIdx, epochIdx, roi1, roi2), 'sigma', surrNormalSigma(subIdx, epochIdx, roi1, roi2));  % returns a probability distribution object
+                        
+                        % the following is a necessity for 
                         pd = truncate(pd, 0, 1);
                         
                         % get p-value from the cumulative version of the

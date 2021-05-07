@@ -7,7 +7,7 @@ function [filePaths, fileNames] = listMatchingFiles(dirName, filePattern, subjec
 % directory ("dirName") which match a given pattern ("filePatterns").
 %
 % Optionally it also filters for a set of subject IDs ("subjects") and
-% returns only the files that containany of the subject IDs. If a subject
+% returns only the files which contain the subject IDs. If a subject
 % list was provided, the function assumes that there is exactly one file
 % per given subject, errors out otherwise.
 %    
@@ -16,8 +16,7 @@ function [filePaths, fileNames] = listMatchingFiles(dirName, filePattern, subjec
 % filePattern       - Char array, file name part for specifying the files 
 %                   to include in the selection process. The function uses
 %                   "dir" for finding files, so asterisk wildcards are
-%                   allowed. An extra ".mat" ending is always added when
-%                   listing the files, do not include that in "filePattern"
+%                   allowed. 
 %
 % Optional input:
 % subjects          - Cell array of char arrays, contains the subject IDs 
@@ -65,7 +64,7 @@ end
 %% List matching files
 
 % Check "dirName" and "filePattern" for data files
-subFiles = dir([dirName, '/*', filePattern, '*.mat']); 
+subFiles = dir([dirName, '/*', filePattern, '*']); 
 % number of files found
 fileNo = length(subFiles);
 % var storing file names

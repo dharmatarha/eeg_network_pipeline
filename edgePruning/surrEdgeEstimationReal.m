@@ -374,7 +374,9 @@ parfor subIdx = 1:subNo
                     
                     % for envelope correlations, first use Fisher-Z
                     % transform on values
-                    tmp = atanh(tmp);
+                    if ismember(method, {'ampCorr', 'orthAmpCorr'})
+                        tmp = atanh(tmp);
+                    end
                     
                     % fitting
                     
