@@ -9,7 +9,7 @@ function surrEdgeEstimationReal(freq, varargin)
 %                               method = 'iplv',
 %                               dRate = 1,
 %                               surrNo = 1000,
-%                               truncated = 'yes',
+%                               truncated = 'truncated',
 %                               failedFitAction='saveResults')
 %
 % Fits edge weights for phase-scrambling-based surrogate data with a 
@@ -68,8 +68,10 @@ function surrEdgeEstimationReal(freq, varargin)
 %       (e.g. 's01' for files like 's01_alpha.mat'). If empty, 
 %       we use the default cell arrray defined in
 %       "restingStateSubjects.mat" (var "subjectsRS").
-% method    - Char array, one of {'plv', 'iplv', 'pli', 'ampCorr', 'orthAmpCorr'}. 
-%       Specifies the connectivity measure. Defaults to 'iplv'.
+% method    - Either a char array, one of 
+%       {'pli', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'}, or a cell array
+%       of char arrays. Specifies one or more connectivity measures to
+%       calculate on the surrogate data. Defaults to 'iplv'.
 % dRate     - Decimation rate. We usually work with bandpass-filtered data
 %       that nevertheless retains the original (1000 or 500 Hz) sampling
 %       rate. For efficiency, we can decimate this data by providing a
@@ -80,13 +82,16 @@ function surrEdgeEstimationReal(freq, varargin)
 % surrNo    - Number of surrogate data sets generated for statistical
 %       testing of edge values. Num value, one of 100:100:20000, defaults 
 %       to 10^3. 
-% truncated - Char array, one of {'no', 'yes'}. Determines if a standard or
+% truncated - Either a char array, one of {'nontruncated', 'truncated'}, 
+%       or a cell array of char arrays, one for each connectivity method 
+%       specified in input arg "method". Determines if a standard or
 %       truncated normal distribution should be fitted to surrogate edge 
-%       data. If 'yes', that is, a truncated normal is fitted, we
-%       truncate with bounds [0 1], corresponding to the range of the 
-%       phase-based connectivity measures. Defaults to 'yes' for 
-%       phase-based connectivity measures and to 'no' for envelope 
-%       correlation. The latter is Fisher-Z transformed before fitting.
+%       data for the corresponding connectivity method. If 'truncated', 
+%       a truncated normal is fitted (with bounds [0 1]), corresponding 
+%       to the range of the phase-based connectivity measures. Defaults to 
+%       'truncated' for phase-based connectivity measures and to 
+%       'nontruncated' for envelope correlation. The latter is 
+%       Fisher-Z transformed before fitting.
 % failedFitAction   - Char array, one of {'saveResults', 'nosave'}. Flag
 %                   defining how the function should behave upon
 %                   encountering a failed (truncated) normal fit to the
@@ -99,28 +104,29 @@ function surrEdgeEstimationReal(freq, varargin)
 % 
 % Output:
 % The following variables are saved out for each subject.
-% surrNormalMu      - Numeric array, sized (node no. X node no. X layer
-%               no.). Contains the estimated "mu" param for the normal
-%               / truncated normal distribution fitted to the surrogate
-%               connectivity data.
-% surrNormalSigma   - Numeric array, sized (node no. X node no. X layer
-%               no.). Contains the estimated "sigma" param for the normal
-%               / truncated normal distribution fitted to the surrogate
-%               connectivity data.
-% surrNormalH       - Numeric array, sized (node no. X node no. X layer
-%               no.). Elements are either 0 or 1. Contains the main 
-%               result of the Kolmogorov-Smirnov goodness-of-fit test 
-%               (kstest) testing if the surrogate connectivity data for 
-%               each edge indeed corresponds to the fitted (truncated) 
-%               normal distribution. 1 = rejected at 0.05 level, 0 = null
-%               hypothesis cannot be rejected.
-% surrNormalP       - Numeric array, sized (node no. X node no. X layer
-%               no.). Elements are in the range [0 1]. Contains the 
-%               probability that the surrogate connectivity data 
+% surrNormalMu      - Numeric array, sized 
+%               (method no. X node no. X node no. X layer no.). Contains 
+%               the estimated "mu" param for the normal / truncated normal 
+%               distribution fitted to the surrogate connectivity data.
+% surrNormalSigma   - Numeric array, sized 
+%               (method no. X node no. X node no. X layer no.). Contains 
+%               the estimated "sigma" param for the normal / truncated normal 
+%               distribution fitted to the surrogate connectivity data.
+% surrNormalH       - Numeric array, sized 
+%               (method no. X node no. X node no. X layer no.). Elements 
+%               are either 0 or 1. Contains the main result of the 
+%               Kolmogorov-Smirnov goodness-of-fit test (kstest) testing 
+%               if the surrogate connectivity data for each edge indeed 
 %               corresponds to the fitted (truncated) normal distribution. 
-%               Outcome of the Kolmogorov-Smirnov goodness-of-fit test 
-%               (kstest).
-% method            - Char array, value of input arg "method".
+%               1 = rejected at 0.05 level, 0 = null hypothesis cannot be 
+%               rejected.
+% surrNormalP       - Numeric array, sized 
+%               (method no. X node no. X node no. X layer no.). Elements 
+%               are in the range [0 1]. Contains the probability that the
+%               surrogate connectivity data corresponds to the fitted 
+%               (truncated) normal distribution. Outcome of the 
+%               Kolmogorov-Smirnov goodness-of-fit test (kstest).
+% method            - Cell array, contains the value(s) of input arg "method".
 % surrNo            - Numeric value, value of input arg "surrNo".
 % dRate             - Numeric value, value of input arg "dRate".
 % subject           - Char array, content of input arg "subjects"
@@ -151,6 +157,8 @@ if ~ismember(freq, {'delta', 'theta', 'alpha', 'beta', 'gamma'})
     error('Input arg "freq" has an unexpected value!');
 end
 % check optional arguments
+% remember, "method" and "truncated" could be char arrays or cell arrays of
+% char arrays as well
 if ~isempty(varargin) 
     disp(varargin);
     for v = 1:length(varargin)    
@@ -160,12 +168,16 @@ if ~isempty(varargin)
             dirName = varargin{v};
         elseif ischar(varargin{v}) && ~exist('method', 'var') && ismember(varargin{v}, {'plv', 'iplv', 'pli', 'ampCorr', 'orthAmpCorr'})
             method = varargin{v};     
+        elseif iscell(varargin{v}) && all(ismember(varargin{v}, {'pli', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'})) && ~exist('method', 'var')
+            method = varargin{v};            
         elseif isnumeric(varargin{v}) && ~exist('dRate', 'var') && ismember(varargin{v}, 1:20)
             dRate = varargin{v};
         elseif isnumeric(varargin{v}) && ~exist('surrNo', 'var') && ismember(varargin{v}, 100:100:20000)
             surrNo = varargin{v};
-        elseif ischar(varargin{v}) && ismember(varargin{v}, {'yes', 'no'}) && ~exist('truncated', 'var')
-            truncated = varargin{v};       
+        elseif ischar(varargin{v}) && ismember(varargin{v}, {'truncated', 'nontruncated'}) && ~exist('truncated', 'var')
+            truncated = varargin{v};  
+        elseif iscell(varargin{v}) && all(ismember(varargin{v}, {'truncated', 'nontruncated'})) && ~exist('truncated', 'var')
+            truncated = varargin{v};             
         elseif ischar(varargin{v}) && ismember(varargin{v}, {'saveResults', 'nosave'}) && ~exist('failedFitAction', 'var')
             failedFitAction = varargin{v};
         else
@@ -201,24 +213,55 @@ end
 if ~exist('failedFitAction', 'var')
     failedFitAction = 'saveResults';
 end
-% transform truncated to logical
-if strcmp(truncated, 'no')
-    truncated = false;
-elseif strcmp(truncated, 'yes')
-    truncated = true;
+
+% transform truncated to vector of logicals
+if ischar(truncated)
+    if strcmp(truncated, 'nontruncated')
+        truncated = false;
+    elseif strcmp(truncated, 'truncated')
+        truncated = true;
+    end
+elseif iscell(truncated)
+    tmp = nan(1, length(truncated));
+    for i = 1:length(truncated)
+        if strcmp(truncated{i}, 'nontruncated') 
+            tmp(i) = 0;
+        elseif strcmp(truncated{i}, 'truncated')    
+            tmp(i) = 1;
+        end
+    end
+    truncated = logical(tmp);
 end
 
-% issue warning if envelope correlation is paired with truncated normals
-if truncated && ismember(method, {'ampCorr', 'orthAmpCorr'})
+% make sure that "method" is a cell - transform if char array, makes it
+% easier to treat it if the type is consistent
+if ischar(method)
+    method = {method};
+end
+
+% check if the length of "method" and "truncated" are the same, that is,
+% there is one "truncated" flag for each connectivity "method"
+if ~isequal(size(method), size(truncated))
+    error('The length of input args "method" and "truncated" should be the same!');
+end
+
+% get char array versions of "method" to display for user and in file name
+methodToDisplay = join(method, ', ');
+methodToDisplay = methodToDisplay{:};
+methodToFilename = join(method, '_');
+methodToFilename = methodToFilename{:};
+
+% issue warning if envelope correlation method is paired with truncated normals
+if any(truncated & ismember(method, {'ampCorr', 'orthAmpCorr'}))
     warning(['Envelope correlation methods should be paired with a non-truncated normal fit. ',...
-        'We procedd, but please double-check your use case.']);
+        'The function proceeds as you intend(?), but please double-check your use case!']);
 end
 
 % user message
 disp([char(10), 'Starting surrEdgeEstimationReal function with following arguments: ',...
     char(10), 'Frequency band: ', freq,...
     char(10), 'Working directory: ', dirName,...
-    char(10), 'Connectivity measure: ', method,...
+    char(10), 'Connectivity measure(s): ', methodToDisplay,...
     char(10), 'Decimation rate: ', num2str(dRate),...
     char(10), 'No. of surrogate data sets: ', num2str(surrNo), ... 
     char(10), 'Truncated normal at [0 1]?: ', num2str(truncated), ...
@@ -228,6 +271,9 @@ disp(subjects);
 
 
 %% Basics
+
+% number  of connectivity methods
+methodNo = length(method);
 
 % number of subjects
 subNo = length(subjects);
@@ -339,15 +385,15 @@ parfor subIdx = 1:subNo
     end 
     
     % preallocate result matrices
-    surrNormalMu = nan(roiNo, roiNo, subEpochNo);  % for storing "mu" of fitted normals
-    surrNormalSigma = nan(roiNo, roiNo, subEpochNo);  % for storing "sigma" of fitted normals
-    surrNormalP = nan(roiNo, roiNo, subEpochNo);  % for storing the p-value from kstest
-    surrNormalH = nan(roiNo, roiNo, subEpochNo);  % for storing "h" (hypothesis test outcome) from kstest
+    surrNormalMu = nan(methodNo, roiNo, roiNo, subEpochNo);  % for storing "mu" of fitted normals
+    surrNormalSigma = surrNormalMu;  % for storing "sigma" of fitted normals
+    surrNormalP = surrNormalMu;  % for storing the p-value from kstest
+    surrNormalH = surrNormalMu;  % for storing "h" (hypothesis test outcome) from kstest
     
     % preallocate cell array for capturing surrogate data for failed normal
     % fits
     if strcmp(failedFitAction, 'saveResults')
-        failedFits = cell(roiNo, roiNo, subEpochNo);
+        failedFits = cell(methodNo, roiNo, roiNo, subEpochNo);
         failedFitsCounter = 0;
     end
    
@@ -364,84 +410,94 @@ parfor subIdx = 1:subNo
             surrConnData = getSurrConn(subData(:,:,epochIdx), surrNo, method);
         end
 
-        % fit a normal distribution to each group of edge values
-        for roi1 = 1:roiNo
-            for roi2 = 1:roiNo
-                % only go through edges in the upper triangle,
-                % excluding the diagonal as well
-                if roi2 > roi1
-                    tmp = squeeze(surrConnData(:, roi1, roi2));
+        % fit a normal distribution to each group of edge values,
+        % procees per connectivity method
+        for methodIdx = 1:methodNo
+            % get current method
+            currentMethod = method{methodIdx};
+            
+            % go through edge pairings
+            for roi1 = 1:roiNo
+                for roi2 = 1:roiNo
                     
-                    % for envelope correlations, first use Fisher-Z
-                    % transform on values
-                    if ismember(method, {'ampCorr', 'orthAmpCorr'})
-                        tmp = atanh(tmp);
-                    end
-                    
-                    % fitting
-                    
-                    kstestFlag = 0;  % flag for proceeding with Kolmogorov-Smirnov test
+                    % only go through edges in the upper triangle,
+                    % excluding the diagonal as well
+                    if roi2 > roi1
 
-                    % if truncated normal is to be fitted
-                    if truncated
-                        % use try - catch in case fitting errors out (happens when param would reach Inf / NaN value)
-                        try
-                            % fit truncated normal
-                            phat = mle(tmp , 'pdf', norm_trunc, 'start', [mean(tmp), std(tmp)], 'Options', opts); 
-                            % save out main params from fitted normal
-                            surrNormalMu(roi1, roi2, epochIdx) = phat(1);
-                            surrNormalSigma(roi1, roi2, epochIdx) = phat(2);
-                            % create a probability distribution for the
-                            % truncated normal with fitted params
-                            pd = makedist('normal', 'mu', phat(1), 'sigma', phat(2));
-                            pdToTest = truncate(pd, x_min, x_max);      
-                            kstestFlag = 1;
-                        catch
-                            disp(['Fitting with truncated normal dist failed at subject ',... 
-                                num2str(subIdx), ', epoch ', num2str(epochIdx),...
-                                ', rois ', num2str(roi1), ' and ', num2str(roi2)]);
-                            % store permutation results
-                            if strcmp(failedFitAction, 'saveResults')
-                                failedFits{roi1, roi2, epochIdx} = tmp;
-                                failedFitsCounter = failedFitsCounter + 1;
-                            end
+                        % get data for current ROI-pairing
+                        tmp = squeeze(surrConnData(methodIdx, :, roi1, roi2));
+
+                        % for envelope correlations, first use Fisher-Z
+                        % transform on values
+                        if ismember(currentMethod, {'ampCorr', 'orthAmpCorr'})
+                            tmp = atanh(tmp);
                         end
-                    % if standard normal is to be fitted, not truncated    
-                    else
-                        % use try - catch in case fitting errors out (happens when param would reach Inf / NaN value)
-                        try
-                            % fit simple normal
-                            pdToTest = fitdist(tmp, 'normal');  % output is a prob.NormalDistribution object
-                            % save out main params from fitted normal
-                            surrNormalMu(roi1, roi2, epochIdx) = pdToTest.mu;
-                            surrNormalSigma(roi1, roi2, epochIdx) = pdToTest.sigma;      
-                            kstestFlag = 1;
-                        catch
-                            disp(['Fitting with normal dist failed at subject ',... 
-                                num2str(subIdx), ', epoch ', num2str(epochIdx),...
-                                ', rois ', num2str(roi1), ' and ', num2str(roi2)]);
-                            % store permutation results
-                            if strcmp(failedFitAction, 'saveResults')
-                                failedFits{roi1, roi2, epochIdx} = tmp;
-                                failedFitsCounter = failedFitsCounter + 1;
-                            end
+
+                        % fitting
+
+                        kstestFlag = 0;  % flag for proceeding with Kolmogorov-Smirnov test
+
+                        % if truncated normal is to be fitted
+                        if truncated(methodIdx)
+                            % use try - catch in case fitting errors out (happens when param would reach Inf / NaN value)
+                            try
+                                % fit truncated normal
+                                phat = mle(tmp , 'pdf', norm_trunc, 'start', [mean(tmp), std(tmp)], 'Options', opts); 
+                                % save out main params from fitted normal
+                                surrNormalMu(methodIdx, roi1, roi2, epochIdx) = phat(1);
+                                surrNormalSigma(methodIdx, roi1, roi2, epochIdx) = phat(2);
+                                % create a probability distribution for the
+                                % truncated normal with fitted params
+                                pd = makedist('normal', 'mu', phat(1), 'sigma', phat(2));
+                                pdToTest = truncate(pd, x_min, x_max);      
+                                kstestFlag = 1;
+                            catch
+                                disp(['Fitting with truncated normal dist failed at subject ',... 
+                                    num2str(subIdx), ', epoch ', num2str(epochIdx),...
+                                    ', rois ', num2str(roi1), ' and ', num2str(roi2)]);
+                                % store permutation results
+                                if strcmp(failedFitAction, 'saveResults')
+                                    failedFits{methodIdx, roi1, roi2, epochIdx} = tmp;
+                                    failedFitsCounter = failedFitsCounter + 1;
+                                end
+                            end  % try
+                        % if standard normal is to be fitted, not truncated    
+                        elseif ~truncated(methodIdx)
+                            % use try - catch in case fitting errors out (happens when param would reach Inf / NaN value)
+                            try
+                                % fit simple normal
+                                pdToTest = fitdist(tmp, 'normal');  % output is a prob.NormalDistribution object
+                                % save out main params from fitted normal
+                                surrNormalMu(methodIdx, roi1, roi2, epochIdx) = pdToTest.mu;
+                                surrNormalSigma(methodIdx, roi1, roi2, epochIdx) = pdToTest.sigma;      
+                                kstestFlag = 1;
+                            catch
+                                disp(['Fitting with normal dist failed at subject ',... 
+                                    num2str(subIdx), ', epoch ', num2str(epochIdx),...
+                                    ', rois ', num2str(roi1), ' and ', num2str(roi2)]);
+                                % store permutation results
+                                if strcmp(failedFitAction, 'saveResults')
+                                    failedFits{methodIdx, roi1, roi2, epochIdx} = tmp;
+                                    failedFitsCounter = failedFitsCounter + 1;
+                                end
+                            end  % try
+                        end  % if truncated(methodIdx)
+
+                        % test the goodness-of-fit with single sample
+                        % Kolmogorov-Smirnov
+                        if kstestFlag  % only if fitting succeeded
+                            [surrNormalH(methodIdx, roi1, roi2, epochIdx), surrNormalP(methodIdx, roi1, roi2, epochIdx)] = kstest(tmp, 'CDF', pdToTest);
                         end
-                    end  % if truncated
 
-                    % test the goodness-of-fit with single sample
-                    % Kolmogorov-Smirnov
-                    if kstestFlag  % only if fitting succeeded
-                        [surrNormalH(roi1, roi2, epochIdx), surrNormalP(roi1, roi2, epochIdx)] = kstest(tmp, 'CDF', pdToTest);
-                    end
-
-                end  % if roi2 > roi1
-            end  % for roi2 loop
-        end  % for roi1 loop          
+                    end  % if roi2 > roi1
+                end  % for roi2 loop
+            end  % for roi1 loop     
+        end  % for methodIdx
 
     end  % for epochIdx  loop
     
     % get a subject-specific file name for saving results
-    saveF = [dirName, '/' , freq, '/', subjects{subIdx}, '_', freq, '_surrEdgeEstReal_', method, '.mat'];
+    saveF = [dirName, '/' , freq, '/', subjects{subIdx}, '_', freq, '_surrEdgeEstReal_', methodToFilename, '.mat'];
     
     % save results using matfile - this is mostly allowed in a parfor loop,
     % unlike the save command
@@ -462,7 +518,7 @@ parfor subIdx = 1:subNo
     
     % save also the surrogate data from failed fits 
     if strcmp(failedFitAction, 'saveResults') && failedFitsCounter ~= 0
-        saveFailedFits = [dirName, '/' , freq, '/', subjects{subIdx}, '_', freq, '_', method, '_failedFits.mat'];
+        saveFailedFits = [dirName, '/' , freq, '/', subjects{subIdx}, '_', freq, '_', methodToFilename, '_failedFits.mat'];
         saveFF = matfile(saveFailedFits);
         saveFF.failedFits = failedFits;
         saveFF.failedFitsCounter = failedFitsCounter;

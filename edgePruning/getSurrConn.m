@@ -5,12 +5,13 @@ function [surrConnData] = getSurrConn(realData, varargin)
 %
 % Generates surrogate connectivity data from the input matrix using 
 % phase scrambling (phase randomization) and calculates connectivity using
-% the specified method 
-% (one of {'pli', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'}).
+% the specified method or methods
+% (one or more of {'pli', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'}).
 %
 % It works either with row vector input (single variable / time series) or 
 % a matrix where each row is treated as a variable / time series.
 %
+% Optional inputs are inferred from types and values.
 %
 % Mandatory input: 
 % realData         - Numeric matrix (real) sized (no. of channels/rois X samples). 
@@ -20,8 +21,11 @@ function [surrConnData] = getSurrConn(realData, varargin)
 % Optional inputs:
 % surrNo            - Numeric value, one of 1:10^5. Defines number of 
 %                   surrogates. Defaults to 10^4.
-% method            - String, one of {'pli', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'}. 
-%                   Specifies the connectivity measure. Defaults to 'iplv'.
+% method            - Either a char array, one of 
+%                   {'pli', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'}, or a 
+%                   cell array of char array. Specifies one or more 
+%                   connectivity measures to calculate on the surrogate 
+%                   data. Defaults to 'iplv'.
 % lpFilter          -Digital filter object as returned by e.g. designfilt
 %                   (part of Signal Processing Toolbox!). Used if "method" 
 %                   is either 'ampCorr' or 'orthAmpCorr' 
@@ -31,26 +35,35 @@ function [surrConnData] = getSurrConn(realData, varargin)
 %                   the filter command. Defaults to [], meaning no filtering.
 %
 % Output:
-% surrConnData      - 3D numeric array (real) sized 
-%                   (no. of surrogates X no. of channels/rois X no. of channels/rois). 
-%                   Contains the connectivity values for all possible 
-%                   channel pairings for each surrogate data set.
+% surrConnData      - 4D numeric array (real) sized 
+%                   [no. of methods X no. of surrogates X no. of channels/rois X no. of channels/rois]. 
+%                   Contains the connectivity values for all connectivity 
+%                   methods and all possible channel/roi pairings for each 
+%                   surrogate data set.
 %
+
 
 %% Input checks
 
+% check no. of inputs
 if ~ismember(nargin, 1:4)
     error('Function getSurrConn requires input arg "realData" while args "surrNo", "method" and "lpFilter" are optional!');
 end
+% check mandatory input
 if ~ismatrix(realData) || ~isreal(realData)
-    error('Function getSurrConn expects a numerical matrix of reals as input arg "realData"!');
+    error('Input arg "realData" should be a numeric matrix of reals!');
 end
+% check optional inputs
+% remember, "method" could be a char array or a cell array of char arrays
+% as well
 if ~isempty(varargin)
     for v = 1:length(varargin)
         if isnumeric(varargin{v}) && ismember(varargin{v}, 1:10^5) && ~exist('surrNo', 'var')
             surrNo = varargin{v};        
         elseif ischar(varargin{v}) && ismember(varargin{v}, {'pli', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'}) && ~exist('method', 'var')
             method = varargin{v};
+        elseif iscell(varargin{v}) && all(ismember(varargin{v}, {'pli', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'})) && ~exist('method', 'var')
+            method = varargin{v};    
         elseif isa(varargin{v}, 'digitalFilter') && ~exist('lpFilter', 'var')
             lpFilter = varargin{v};
         else
@@ -59,6 +72,7 @@ if ~isempty(varargin)
         end
     end
 end
+% assign default values where necessary
 if ~exist('surrNo', 'var')
     surrNo = 10^4;
 end
@@ -69,6 +83,12 @@ if ~exist('lpFilter', 'var')
     lpFilter = [];
 end
 
+% make sure that "method" is a cell - transform if char array, makes it
+% easier to treat it if the type is consistent
+if ischar(method)
+    method = {method};
+end
+
 % rows are variables - give a warning if there seems to be more
 % variables than time points
 if size(realData, 1) > size(realData, 2)
@@ -76,54 +96,66 @@ if size(realData, 1) > size(realData, 2)
         'each series - are you sure rows are separate time series?'])
 end
 
-% give a warning if a lowpass filter is supplied with a phase-based
-% connectivity measure
-if ismember(method, {'pli', 'plv', 'iplv'}) && ~isempty(lpFilter)
+% give a warning if a lowpass filter is supplied with only phase-based
+% connectivity methods
+if all(ismember(method, {'pli', 'plv', 'iplv'})) && ~isempty(lpFilter)
     warning(['A lowpass filter object was supplied as input arg ',...
-        '(mapped to "lpFilter") but the selected connectivity method is phase-based.',... 
+        '(mapped to "lpFilter") but the selected connectivity method(s) is (are) phase-based.',... 
         char(10), 'No filtering will take place.']);
 end
 
 
 %% Surrogate connectivity calculation
 
+% number  of connectivity methods
+methodNo = length(method);
 % number of ROIs
 roiNo = size(realData, 1);
 % variable for storing surrogate connectivity results
-surrConnData = nan(surrNo, roiNo, roiNo);
+surrConnData = nan(methodNo, surrNo, roiNo, roiNo);
 
 % loop through surrogate data sets: generate surrogate, turn to phases if 
-% necessary, calculate connectivity
-for surrIdx = 1 : surrNo
-    surrogateData = phaseScramble(realData);  % returns phase-scrambled version of input data
+% necessary, calculate connectivity 
+for surrIdx = 1:surrNo
+    
+    % get phase-scrambled version of input data
+    surrogateData = phaseScramble(realData);
     
     % for phase-based methods, extract instantaneous phase from analytical signal
-    if ismember(method, {'pli', 'plv', 'iplv'})
+    if any(ismember(method, {'pli', 'plv', 'iplv'}))
         surrogatePhaseData = timeSeriesToPhase(surrogateData);
     end
     
-    % connectivity measure is specified by input arg "method"
-    switch method
-        case 'pli'
-            surrConnData(surrIdx, :, :) = pli(surrogatePhaseData, 0);
-        case 'plv'
-            surrConnData(surrIdx, :, :) = plv(surrogatePhaseData, 0);
-        case 'iplv'
-            surrConnData(surrIdx, :, :) = iplv(surrogatePhaseData, 0);
-        case 'ampCorr'
-            if ~isempty(lpFilter)
-                surrConnData(surrIdx, :, :) = ampCorr(surrogateData, lpFilter, 0);      
-            else
-                surrConnData(surrIdx, :, :) = ampCorr(surrogateData, 0);
-            end
-        case 'orthAmpCorr'
-            if ~isempty(lpFilter)
-                surrConnData(surrIdx, :, :) = orthAmpCorr(surrogateData, lpFilter, 0);
-            else
-                surrConnData(surrIdx, :, :) = orthAmpCorr(surrogateData, 0);
-            end
-    end
-end
+    % loop through connectivity methods requested
+    for methodIdx = 1:methodNo
+        % char array of current method
+        currentMethod = method{methodIdx};
+
+        % connectivity measure is specified by input arg "method"
+        switch currentMethod
+            case 'pli'
+                surrConnData(methodIdx, surrIdx, :, :) = pli(surrogatePhaseData, 0);
+            case 'plv'
+                surrConnData(methodIdx, surrIdx, :, :) = plv(surrogatePhaseData, 0);
+            case 'iplv'
+                surrConnData(methodIdx, surrIdx, :, :) = iplv(surrogatePhaseData, 0);
+            case 'ampCorr'
+                if ~isempty(lpFilter)
+                    surrConnData(methodIdx, surrIdx, :, :) = ampCorr(surrogateData, lpFilter, 0);      
+                else
+                    surrConnData(methodIdx, surrIdx, :, :) = ampCorr(surrogateData, 0);
+                end
+            case 'orthAmpCorr'
+                if ~isempty(lpFilter)
+                    surrConnData(methodIdx, surrIdx, :, :) = orthAmpCorr(surrogateData, lpFilter, 0);
+                else
+                    surrConnData(methodIdx, surrIdx, :, :) = orthAmpCorr(surrogateData, 0);
+                end
+        end  % switch method
+        
+    end  % for methodIdx
+
+end  % for surrIdx
 
 
 return
