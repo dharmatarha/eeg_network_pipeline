@@ -37,7 +37,11 @@ if nargin == 1
 elseif nargin ~= 2
     error('Function pli requires input arg "epochData" and optional arg "v"!');
 end
-% check verbosity
+% check mandatory input
+if ~isnumeric(epochData) || numel(size(epochData)) ~= 2
+   error('Input arg epochData should be a 2D numeric array!'); 
+end
+% check optional arg
 if ~ismembertol(v, [0 1])
     error('Input arg "v" is either 0 or 1!');
 end
@@ -47,8 +51,7 @@ if any(any(epochData > pi)) || any(any(epochData < -pi))
 end
 
 % get number of channels and samples
-channelNo = size(epochData, 1);
-sampleNo = size(epochData, 2);
+[channelNo, sampleNo] = size(epochData);
 
 % user message
 if v
