@@ -113,7 +113,7 @@ elseif nargin == 5
         error('Input arg "truncated" should be one of {"truncated", "nontruncated"}!');
     end
 end
-        
+
 
 % user message
 disp([char(10), 'Called function sortSurrConn with inputs: ',...
@@ -172,11 +172,23 @@ for subIdx = 1:subNo
     
     % get current subject's surrogate connectivity data file
     subID = subjects{subIdx};
-    subSurrFile = [surrDataDir, '/', subID, '_', freq, '_surrEdgeEstReal_', method, '.mat'];
-    if ~exist(subSurrFile, 'file')
-        error(['Cannot find surrogate data file for subject ', subID, '!']);
+    subSurrFile = dir([surrDataDir, '/', subID, '_', freq, '_surrEdgeEstReal_*', method, '*.mat']);
+    if numel(subSurrFile) ~= 1
+        error(['There are none or too many surrogate data file(s) for subject ', subID, '!']);
     end
-    tmp = load(subSurrFile);
+    subSurrPath = fullfile(subSurrFile.folder, subSurrFile.name);
+    tmp = load(subSurrPath);
+    
+    % check if it is a file containing multiple surrogates, get method
+    % index, if necessary
+    methodFlag = false;
+    if numel(tmp.method) > 1
+        methodFlag = true;
+        methodIdx = find(strcmp(method, tmp.method));
+        if isempty(methodIdx)
+            error(['Cannot find requested method in surrogate connectivity file for subject ', subID, '!']);
+        end
+    end
     
     % get epoch indices for current subject
     subEpochs = epochIndices{subIdx};
@@ -187,9 +199,15 @@ for subIdx = 1:subNo
     % select mu, sigma and fit p-value for selected epochs
     % change the order of their dimensions first as they are rois X rois X
     % epochs
-    tmpMu = permute(tmp.surrNormalMu, [3 1 2]);
-    tmpSigma = permute(tmp.surrNormalSigma, [3 1 2]);
-    tmpP = permute(tmp.surrNormalP, [3 1 2]);
+    if methodFlag
+        tmpMu = permute(squeeze(tmp.surrNormalMu(methodIdx, :, :, :)), [3 1 2]);
+        tmpSigma = permute(squeeze(tmp.surrNormalSigma(methodIdx, :, :, :)), [3 1 2]);
+        tmpP = permute(squeeze(tmp.surrNormalP(methodIdx, :, :, :)), [3 1 2]);        
+    else
+        tmpMu = permute(tmp.surrNormalMu, [3 1 2]);
+        tmpSigma = permute(tmp.surrNormalSigma, [3 1 2]);
+        tmpP = permute(tmp.surrNormalP, [3 1 2]);
+    end
     
     % collect subject-level (truncated) normal params to group-level var
     surrNormalMu(subIdx, :, :, :) = tmpMu(subEpochs, :, :);
