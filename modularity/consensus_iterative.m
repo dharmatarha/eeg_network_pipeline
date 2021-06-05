@@ -57,8 +57,8 @@ end
 % Calculate the nodal association matrices X and
 % X_rand3
 for i = 1:npart;
-    ii=i
-    tic
+%     ii=i
+%     tic
     for k = 1:m
         for p = 1:m;
             % element (i,j) indicate the number of times node i and node j
@@ -78,8 +78,9 @@ for i = 1:npart;
             end
         end
     end
-    toc
+%     toc
 end
+
 
 %% THRESHOLDING
 % keep only associated assignments that occur more often than expected in
@@ -87,11 +88,12 @@ end
 X_new3 = zeros(m,m);
 X_new3(X>max(max(triu(X_rand3,1)))) = X(X>max(max(triu(X_rand3,1))));
 
+
 %% GENERATE THE REPRESENTATIVE PARTITION
 % recompute optimal partition on this new matrix of kept community
 % association assignments
 for i = 1:npart;
-    ii=i
+%     ii=i
     [S2(i,:) Q2(i)] = multislice_static_unsigned(X_new3,1);
 end
 

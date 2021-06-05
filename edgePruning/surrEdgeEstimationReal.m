@@ -208,40 +208,40 @@ if ~exist('surrNo', 'var')
     surrNo = 10^3;
 end
 if ~exist('truncated', 'var')
-    truncated = 'yes';
+    truncated = 'truncated';
 end
 if ~exist('failedFitAction', 'var')
     failedFitAction = 'saveResults';
 end
 
+% make sure that "method" is a cell, transform if char array - it is easier
+% to treat it if the type is consistent
+if ischar(method)
+    method = {method};
+end
+
 % transform truncated to vector of logicals
+% if there is only one value (char array), set to logical and expand it to
+% match the number of methods
 if ischar(truncated)
     if strcmp(truncated, 'nontruncated')
         truncated = false;
     elseif strcmp(truncated, 'truncated')
         truncated = true;
     end
-elseif iscell(truncated)
-    tmp = nan(1, length(truncated));
-    for i = 1:length(truncated)
-        if strcmp(truncated{i}, 'nontruncated') 
-            tmp(i) = 0;
-        elseif strcmp(truncated{i}, 'truncated')    
-            tmp(i) = 1;
-        end
+    if numel(methods) > 1
+        truncated = repmat(truncated, [1, numel(methods)]);
     end
+% if "truncated" is cell, transform to boolean vector
+elseif iscell(truncated)
+    tmp = zeros(1, length(truncated));
+    tmp(strcmp(truncated, 'truncated')) = 1;    
     truncated = logical(tmp);
-end
-
-% make sure that "method" is a cell - transform if char array, makes it
-% easier to treat it if the type is consistent
-if ischar(method)
-    method = {method};
 end
 
 % check if the length of "method" and "truncated" are the same, that is,
 % there is one "truncated" flag for each connectivity "method"
-if ~isequal(size(method), size(truncated))
+if ~isequal(numel(method), numel(truncated))
     error('The length of input args "method" and "truncated" should be the same!');
 end
 

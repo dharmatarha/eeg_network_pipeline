@@ -33,7 +33,7 @@ P = (kplus*kplus'/sum(kplus));
 B=A-P.*gplus;
 lAlambda = numel(find((A./P)<gplus));
 %[S, Q] = greedysparse(B);
-[S Q] = genlouvain(B, 10000, 1, 1, 'moverandw');
+[S Q] = genlouvain(B, 10000, 0, 1, 'moverandw');
 %[S2,Q2]=newmanklB(S,B); IF YOU WANT ITERATIVE IMPROVEMENT
 Q=Q/(sum(kplus));
 

@@ -1,7 +1,7 @@
 function yPhaseRand = phaseScramble(y, imagThresh)
 %% Phase-scrambling function
 % 
-% USAGE: yPhaseRand = phaseScramble(y, imagThresh=10^-6)
+% USAGE: yPhaseRand = phaseScramble(y)
 %
 % Scrambles (randomizes) the phases of the input matrix. It works either
 % with a column vector input (single variable / time series) or a matrix
@@ -16,12 +16,6 @@ function yPhaseRand = phaseScramble(y, imagThresh)
 % Input: 
 % y             - Numerical matrix (real), input data, each row is a
 %           time series. Phase scrambling is done for each row separately.
-% imagThresh    - Threshold for detecting errors. Due to numerical
-%           imprecision, the pipeline fft -> random phase injection -> ifft
-%           often yields complex results for real input, where the
-%           imaginary part is really small. Small however is a relative
-%           term - this argument controls the magnitude of imaginary part 
-%           at which the function returns with an error. Defaults to 10^-6.
 %
 % Output:
 % yPhaseRand    - Numerical matrix (real) with the same size as input 
@@ -60,8 +54,8 @@ function yPhaseRand = phaseScramble(y, imagThresh)
 
 %% Input checks
 
-if nargin == 1
-    imagThresh = 10^-6;
+if nargin ~= 1
+    error('Input arg "y" is mandatory!');
 end
 if ~ismatrix(y) || ~isreal(y)
     error('Function phaseScramble expects a numerical vector or matrix of reals as input!');
@@ -108,25 +102,14 @@ else
     phaseRandFFT = [yfft(1, :); phaseRandFFT_part; flipud(conj(phaseRandFFT_part))];
 end
 
-% inverse FFT
-yPhaseRand = ifft(phaseRandFFT);
+% Inverse FFT, forcing the output as real valued, not complex ('symmetric'
+% conjugate spectrum). Without the 'symmetric' flag, we would need to deal
+% with the negligible imaginery components present due to numerical
+% imprecision.
+yPhaseRand = ifft(phaseRandFFT, 'symmetric');
 
 % transpose so that rows correspond to variables / time series
 yPhaseRand = yPhaseRand';
-
-
-%% Correct for numerical imprecision
-
-% Numerical methods introduce a minimal imprecision, and thus do rarely 
-% yield real data after the conversion. The remaining imaginary part 
-% should be really small though and we can just get rid of it. But first 
-% let's test the magnitude of the remaining imaginary part
-
-if any(any(abs(imag(yPhaseRand))>imagThresh))
-    error('There is at least one datum in the phase randomized data where the imaginary part > imagThresh!');
-else
-    yPhaseRand = real(yPhaseRand);
-end
 
 
 return
