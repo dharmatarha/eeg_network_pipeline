@@ -1,17 +1,17 @@
 
-baseDir = '/media/adamb/bonczData/EEG_resting_state/alpha';
+baseDir = '/media/adamb/bonczData/EEG_resting_state/';
 freq = 'alpha';
-method = 'orthAmpCorr';
-gammaParam = 1.05;
-repNo = 100;
+method = 'iplv';
+gammaParam = 1.5;
+repNo = 50;
 
 % load data
-connF = [baseDir, '/group_', freq, '_', method, '.mat'];
+connF = [baseDir, '/surrConn_', freq, '_', method, '.mat'];
 tmp = load(connF);
-connData = tmp.connData;
+connData = tmp.acrossEpochs.maskedConn;
 
 % get sizes
-[subNo, epochNo, roiNo, ~] = size(connData);
+[subNo, roiNo, ~] = size(connData);
 
 % preallocate
 consPart = nan(subNo, roiNo);
@@ -24,7 +24,7 @@ zrandRes = nan(200,200);
 for s = 1:subNo
     
     % average over epochs
-    subData = squeeze(mean(connData(s, :, :, :), 2));
+    subData = squeeze(connData(s, :, :));
     
     % normalize
     subData = normalizeMatrix(subData, 'mean', false);
@@ -45,6 +45,9 @@ for s = 1:subNo
     [S2, Q2, ~, QPC] = consensus_iterative(part);
     % select best one
     tmpIdx = find(Q2==max(Q2), 1);
+    if isempty(tmpIdx)
+        tmpIdx = 1;
+    end
     
     % collect results
     consPart(s, :) = S2(tmpIdx, :);
@@ -79,7 +82,7 @@ tmpIdx = find(Q2==max(Q2), 1);
 groupP = S2(tmpIdx, :);        
 
 % group connectivity average
-groupConn = squeeze(mean(mean(connData, 1), 2));
+groupConn = squeeze(mean(connData, 1));
 
 
 %% Plot group-level connectivity with group-level modules
@@ -100,7 +103,7 @@ myColors = [0, 0.4470, 0.7410;
     0.3660, 0.6740, 0.1];
 
 % trimming threshold
-trimmingThr = [0.25];
+trimmingThr = [0.07];
 
 % figure title
 figTitle = 'Group-level (consensus partition) modularity';
@@ -117,7 +120,7 @@ if ~equalFlag && matchingSetsFlag
     % plotting
     [mainFig, subFig] = circleGraphPlot(connMatrix,... 
                                         modIndicesVector,... 
-                                        myColors,... 
+                                        colorTriplets,... 
                                         trimmingThr, ...
                                         roiLabelsPlotting,... 
                                         figTitle);
