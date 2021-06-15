@@ -61,19 +61,19 @@ for i=2:11
 end
 
 % colors:
-% plv: [0.04, 0.60, 0.85]
-% iplv: [1, 0.8, 0.02]
-% ampCorr: [0.25, 0.7, 0]
+% plv: [0, 0.4470, 0.7410]
+% iplv: [0.9290, 0.6940, 0.1250]
+% ampCorr: [0.4660, 0.6740, 0.1880]
 % orthAmpCorr: [0.6350, 0.0780, 0.1840]
 switch method
     case 'plv'
-        violinColor = [0.04, 0.60, 0.85];
+        violinColor = [0, 0.4470, 0.7410];
         titleText = 'PLV';
     case 'iplv'
-        violinColor = [1, 0.8, 0.02];
+        violinColor = [0.9290, 0.6940, 0.1250];
         titleText = 'iPLV';
     case 'ampCorr'
-        violinColor = [0.25, 0.7, 0];
+        violinColor = [0.4660, 0.6740, 0.1880];
         titleText = 'ampCorr';
     case 'orthAmpCorr'
         violinColor = [0.6350, 0.0780, 0.1840];
@@ -96,7 +96,7 @@ hold on;
 connectingLineXvalues = [1 10 20 30 40 50 60 70 80 90 100]/10;
 connectingLineYvalues = MED;
 plot(connectingLineXvalues, connectingLineYvalues, 'k', 'LineWidth', 1);
-set(gca, 'FontSize', 16);
+set(gca, 'FontSize', 11);
 set(gcf, 'Color', 'w');
 grid on;
 

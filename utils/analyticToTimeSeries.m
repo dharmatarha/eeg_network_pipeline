@@ -1,7 +1,7 @@
 function [realData] = analyticToTimeSeries(angleData, envData)
 %% Calculate real-valued signal from the angle and envelope (magnitude) of the analytic signal 
 % 
-% CONSIDER CALLING BUILT-IN pol2cart DIRECTLY
+% PLACEHOLDER AND REMINDER TO CALL BUILT-IN pol2cart DIRECTLY
 % 
 % USAGE: [realData] = analyticToTimeSeries(angleData, envData)
 %
@@ -20,6 +20,8 @@ function [realData] = analyticToTimeSeries(angleData, envData)
 % realData      - Numerical matrix (real), same size as "angleData" and 
 %               "envData". Real-valued part (original time series) of the 
 %               analytic signal.
+
+warning('Just call "pol2cart" directly you bum!');
 
 [realData, ~] = pol2cart(angleData, envData);
 

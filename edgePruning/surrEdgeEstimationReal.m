@@ -60,9 +60,11 @@ function surrEdgeEstimationReal(freq, varargin)
 %        'theta'}
 % 
 % Optional inputs:
-% dirName   - Directory path (string) pointing to 'angle' and 'envelope' 
-%       folders. Also used for creating a 'connectivity' folder for saving 
-%       out results. Default is current working directory (pwd).
+% dirName   - Char array, path to folder containing the folder of 
+%       frequency band data. E.g. subject-level data files if 
+%       "freq" == 'alpha' are expected to be located under 
+%       [dirName, '/', freq, '/']. Default is current working
+%       directory (pwd).
 % subjects  - Cell array, list of subjects whose data we process. 
 %       Each cell contains a subject ID also used in the filenames 
 %       (e.g. 's01' for files like 's01_alpha.mat'). If empty, 
@@ -79,8 +81,8 @@ function surrEdgeEstimationReal(freq, varargin)
 %       remaining after decimation. Integer between 1-20, defaults to 1 
 %       (no decimation). NOTE THAT THERE IS NO ADDITIONAL FILTERING STEP 
 %       INCLUDED, BEWARE OF ALIASING EFFECTS
-% surrNo    - Number of surrogate data sets generated for statistical
-%       testing of edge values. Num value, one of 100:100:20000, defaults 
+% surrNo    - Numeric value, number of surrogate data sets generated for
+%       statistical testing of edge values. One of 100:100:20000, defaults 
 %       to 10^3. 
 % truncated - Either a char array, one of {'nontruncated', 'truncated'}, 
 %       or a cell array of char arrays, one for each connectivity method 
@@ -92,15 +94,15 @@ function surrEdgeEstimationReal(freq, varargin)
 %       'truncated' for phase-based connectivity measures and to 
 %       'nontruncated' for envelope correlation. The latter is 
 %       Fisher-Z transformed before fitting.
+%       NOTE THAT THE RANGE [0 1] IS CURRENTLY HARDCODED!
 % failedFitAction   - Char array, one of {'saveResults', 'nosave'}. Flag
-%                   defining how the function should behave upon
-%                   encountering a failed (truncated) normal fit to the
-%                   surrogate data. If set to 'saveResults', a per-subject
-%                   file is generated with the permutation results of each
-%                   failed fit saved out. If 'nosave', fails are ignored.
-%                   Files are named 
-%                   'SUBJECTUMBER_FREQUENCYBAND_METHOD_failedFits.mat'.
-%                   Defaults to 'saveResults'.
+%       defining how the function should behave upon encountering a failed 
+%       (truncated) normal fit to the surrogate data. If set to 
+%       'saveResults', a per-subject file is generated with the 
+%       permutation results of each failed fit saved out. If 'nosave', 
+%       fails are ignored. Files are named 
+%       'SUBJECTUMBER_FREQUENCYBAND_METHOD_failedFits.mat'. Defaults to 
+%       'saveResults'.
 % 
 % Output:
 % The following variables are saved out for each subject.
@@ -141,28 +143,28 @@ function surrEdgeEstimationReal(freq, varargin)
 %
 % TODO:
 % - switch to EEGLAB filters
-% - support calculating multiple connectivity measures in one pass (getSurrConn) 
 %
 
 
 %% Input checks
 
-% check for mandatory argument
+% check number of args
 if ~ismembertol(nargin, 1:8)
     error(['Function surrEdgeEstimationReal requires input arg "freq" ',...
         '(frequency band) while args "dirName", "subjects", "method", ',...
         '"dRate", "surrNo", "truncated" and "failedFitAction" are optional!']);
 end
+% check for mandatory argument
 if ~ismember(freq, {'delta', 'theta', 'alpha', 'beta', 'gamma'})
     error('Input arg "freq" has an unexpected value!');
 end
 % check optional arguments
 % remember, "method" and "truncated" could be char arrays or cell arrays of
 % char arrays as well
-if ~isempty(varargin) 
-    disp(varargin);
+if ~isempty(varargin)
     for v = 1:length(varargin)    
-        if iscell(varargin{v}) && ~exist('subjects', 'var')
+        if iscell(varargin{v}) && ~all(ismember(varargin{v}, {'pli', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'})) &&...
+                ~all(ismember(varargin{v}, {'truncated', 'nontruncated'})) && ~exist('subjects', 'var')
             subjects = varargin{v};
         elseif ischar(varargin{v}) && ~exist('dirName', 'var') && exist(varargin{v}, 'dir')
             dirName = varargin{v};
@@ -182,7 +184,8 @@ if ~isempty(varargin)
             failedFitAction = varargin{v};
         else
             error(['There are either too many input args or they are not ',...
-                'mapping nicely to "dirName", "subjects", "method", "dRate" and "surrNo"!']);
+                'mapping nicely to "dirName", "subjects", "method", "dRate", ',...
+                '"surrNo", "truncated" and "failedFitAction"!']);
         end
     end
 end
@@ -270,7 +273,12 @@ disp([char(10), 'Starting surrEdgeEstimationReal function with following argumen
 disp(subjects);
 
 
-%% Basics
+%% Basics: set params, functions, prepare for parfor loop
+
+% get boolean flag from failedFitAction
+if strcmp(failedFitAction, 'saveResults')
+    failedFitSave = true;
+end
 
 % number  of connectivity methods
 methodNo = length(method);
@@ -303,14 +311,14 @@ else
     [roiNo, sampleNo, epochNo] = size(subData);
 end
 
-% if decimation, update sample number accordingly
+% if decimation is requested, update sample number accordingly
 if dRate ~= 1
     subData = subData(:, 1:dRate:end, :, :);
     sampleNoOrig = sampleNo;
     sampleNo = size(subData, 2);
 end
 
-% prepare a lowpass filter if envelope correlation is used
+% Prepare a lowpass filter if envelope correlation is used
 % Due to parfor, we need to define lpFilter even for cases when it is not
 % used
 if ismember(method, {'ampCorr', 'orthAmpCorr'})
@@ -326,7 +334,7 @@ else
     lpFilter = [];
 end
 
-% define helper functions if truncated normal is to be fitted
+% Define helper functions if truncated normal is to be fitted
 % Due to parfor, we need to declare it even if it is not used (truncated is
 % false)
 %if truncated
@@ -390,16 +398,24 @@ parfor subIdx = 1:subNo
     surrNormalP = surrNormalMu;  % for storing the p-value from kstest
     surrNormalH = surrNormalMu;  % for storing "h" (hypothesis test outcome) from kstest
     
-    % preallocate cell array for capturing surrogate data for failed normal
-    % fits
-    if strcmp(failedFitAction, 'saveResults')
-        failedFits = cell(methodNo, roiNo, roiNo, subEpochNo);
-        failedFitsCounter = 0;
+    % set a flag to mark if a subject-level folder for failed fits data
+    % exists - the flag starts as false and is set to true if a folder is
+    % created later
+    if failedFitSave
+        failedFitDirFlag = false;
     end
-   
+    
+    
     % loop through epochs
     for epochIdx = 1:subEpochNo
 
+        % preallocate cell array for capturing surrogate data for failed normal
+        % fits
+        if failedFitSave
+            failedFits = cell(methodNo, roiNo, roiNo);
+            failedFitsCounter = 0;
+        end       
+        
         % generate surrogate datasets and calculate
         % connectivity matrices for them
         
@@ -457,7 +473,7 @@ parfor subIdx = 1:subNo
                                     ', rois ', num2str(roi1), ' and ', num2str(roi2)]);
                                 % store permutation results
                                 if strcmp(failedFitAction, 'saveResults')
-                                    failedFits{methodIdx, roi1, roi2, epochIdx} = tmp;
+                                    failedFits{methodIdx, roi1, roi2} = tmp;
                                     failedFitsCounter = failedFitsCounter + 1;
                                 end
                             end  % try
@@ -477,7 +493,7 @@ parfor subIdx = 1:subNo
                                     ', rois ', num2str(roi1), ' and ', num2str(roi2)]);
                                 % store permutation results
                                 if strcmp(failedFitAction, 'saveResults')
-                                    failedFits{methodIdx, roi1, roi2, epochIdx} = tmp;
+                                    failedFits{methodIdx, roi1, roi2} = tmp;
                                     failedFitsCounter = failedFitsCounter + 1;
                                 end
                             end  % try
@@ -492,9 +508,28 @@ parfor subIdx = 1:subNo
                     end  % if roi2 > roi1
                 end  % for roi2 loop
             end  % for roi1 loop     
-        end  % for methodIdx
+        end  % for methodIdx loop
 
-    end  % for epochIdx  loop
+        % save out data for failed fits if flag is set
+        if failedFitSave && failedFitsCounter ~= 0
+            % first check if there is already a folder created for holding
+            % failed fits data - create folder if it has not been made yet
+            if ~failedFitDirFlag
+                failedFitDir = mkdir([dirName, '/' , freq, '/', subjects{subIdx}, '_failedFits']);
+                failedFitDirFlag = true;  % adjust flag
+            end
+            % save failed fits data for current epoch into a .mat file,
+            % use the "matfile" method that can be used in a parfor loop
+            saveFailedFits = [dirName, '/' , freq, '/', failedFitDir, '/',... 
+                subjects{subIdx}, '_', freq, '_', methodToFilename, '_epoch', num2str(epochIdx),'_failedFits.mat'];
+            saveFF = matfile(saveFailedFits);
+            saveFF.failedFits = failedFits;
+            saveFF.failedFitsCounter = failedFitsCounter;
+            saveFF.epochIdx = epochIdx;
+        end
+        
+        
+    end  % for epochIdx loop
     
     % get a subject-specific file name for saving results
     saveF = [dirName, '/' , freq, '/', subjects{subIdx}, '_', freq, '_surrEdgeEstReal_', methodToFilename, '.mat'];
@@ -514,14 +549,6 @@ parfor subIdx = 1:subNo
     % include the bounds if truncated normals were used
     if truncated
         saveM.x_min_max = [x_min, x_max];
-    end
-    
-    % save also the surrogate data from failed fits 
-    if strcmp(failedFitAction, 'saveResults') && failedFitsCounter ~= 0
-        saveFailedFits = [dirName, '/' , freq, '/', subjects{subIdx}, '_', freq, '_', methodToFilename, '_failedFits.mat'];
-        saveFF = matfile(saveFailedFits);
-        saveFF.failedFits = failedFits;
-        saveFF.failedFitsCounter = failedFitsCounter;
     end
     
     % report elapsed time

@@ -11,14 +11,14 @@ topN = 1:100;
 %% Load data for edge contributions
 
 % get edge contribution data
-fileP = '/media/stim/bonczData/hyperscan/edgeContributions/alpha_iplv_groupPruning_edgeContrib_edgeRm_corr.mat';
+fileP = '/media/adamb/bonczData/hyperscan/edgeContributions/alpha_iplv_groupPruning_edgeContrib_edgeRm_corr.mat';
 % load
 e = load(fileP);
 % cohen d values after removing each edge
 edgeRmD = e.permRes.cohendAll;
 
 % get "original" within- vs. across-stimuli similarity results
-fileP = '/media/stim/bonczData/hyperscan/alpha_iplv_GroupPruned_cmpFullConnRes_corr.mat';
+fileP = '/media/adamb/bonczData/hyperscan/alpha_iplv_GroupPruned_cmpFullConnRes_corr.mat';
 % load
 o = load(fileP);
 % base cohen D value
@@ -41,7 +41,7 @@ allModules = nan(nodeNo, layerNo*stimNo);
 
 for stim = 1:stimNo
     
-    fileP{stim} = ['/media/stim/bonczData/hyperscan/modularityResults/tensorNormRes_groupPruned/alpha_stim', num2str(stim), '_iplv_modRes_iter_postpr.mat'];
+    fileP{stim} = ['/media/adamb/bonczData/hyperscan/modularityResults/tensorNormRes_groupPruned/alpha_stim', num2str(stim), '_iplv_modRes_iter_postpr.mat'];
 
     modRes = load(fileP{stim});
 
@@ -83,7 +83,7 @@ aW = nan(28,2,16);
 bW = nan(16,2);
 % for n = topN
 counter = 1;
-for n = 10:5:80
+for n = 37
     % get critical value of contribution for top n edges
     critValue = edgeSort(n+1);
     % get binary matrix containing ones for top n edges 
@@ -120,7 +120,7 @@ end
 
 %% Load connectivity data for plotting
 
-fileP = ['/media/stim/bonczData/hyperscan/edgePruningResults_iplv/alpha/avg_alpha_edgePruningInfo.mat'];
+fileP = ['/media/adamb/bonczData/hyperscan/edgePruningResults_iplv/alpha/avg_alpha_edgePruningInfo.mat'];
 r = load(fileP);
 realConn = r.meanConn.realConnAvg;
 connMatrix = realConn;
@@ -129,9 +129,9 @@ clearvars r
 myModule = cons2;
 
 
-labels = load('/home/stim/eeg_network_pipeline/utils/roiNamesInOrder.mat');
+labels = load('/home/adamb/eeg_network_pipeline/utils/roiNamesInOrder.mat');
 labels = labels.roisShort;
-c = load('/home/stim/eeg_network_pipeline/utils/colorTriplets.mat');
+c = load('/home/adamb/eeg_network_pipeline/utils/colorTriplets.mat');
 colorTriplets = c.colorTriplets24;
 
 % new colors
@@ -141,7 +141,7 @@ myColors = [colorTriplets(5,:); repmat([0.5,0.5,0.5], [62, 1])];
 mod2color = [10, 1; [1:9, 11:49]', [2:49]'];
 
 % get fdr mask
-gp = ['/media/stim/bonczData/hyperscan/surrEdgeEstimates/truncatedNormal/alpha_groupEdgePruningInfo.mat'];
+gp = ['/media/adamb/bonczData/hyperscan/surrEdgeEstimates/truncatedNormal/alpha_groupEdgePruningInfo.mat'];
 gp = load(gp);
 fdrMask = gp.fdrMask;
 connMatrix(~fdrMask) = 0;
