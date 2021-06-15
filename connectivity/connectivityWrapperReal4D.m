@@ -1,9 +1,12 @@
-function connectivityWrapperReal(freq, varargin)
+function connectivityWrapperReal4D(freq, varargin)
 
 %% Calculate connectivity matrices based on real valued data
 %
-% USAGE: connectivityWrapperReal(freq, dirName = pwd, subjects = {'s02', 's03', ...}, method = 'iplv')
+% USAGE: connectivityWrapperReal4D(freq, dirName = pwd, subjects = {'s02', 's03', ...}, method = 'iplv')
 %
+% Version of connectivityWrapperReal for 4D input arrays, with dimensions
+% [channels, samples, epochs, conditions].
+% 
 % Calculates connectivity matrices across all channels/ROIs for 
 % real-valued data. Connectivity is calculated on an individual level.
 %
@@ -22,8 +25,9 @@ function connectivityWrapperReal(freq, varargin)
 % The function assumes that data is in EEGlab structures and that file naming
 % follows the 'SUBJECTNUMBER_FREQUENCYBAND.mat' (e.g. 's05_alpha.mat')
 % convention. 
-% Further assumes 3D data in the structures, i.e. numel(size(EEG.data))
-% = 3, with dimensions corresponding to [ROI/channel, samples, epoch].
+% Further assumes 4D data in the structures, i.e. numel(size(EEG.data))
+% = 4, with dimensions corresponding to 
+% [ROI/channel, samples, epochs, conditions].
 % Also assumes that all relevant files are in the working directory.
 % 
 % Optional input args are inferred from input arg types.
@@ -92,7 +96,7 @@ if ~exist('method', 'var')
 end
 
 % user message
-disp([char(10), 'Called connectivityWrapperReal function with following arguments: ',...
+disp([char(10), 'Called connectivityWrapperReal4D function with following arguments: ',...
     char(10), 'Frequency band: ', freq,...
     char(10), 'Working directory: ', dirName,...
     char(10), 'Connectivity measure: ', method,...
@@ -108,11 +112,12 @@ subNo = length(subjects);
 % load first data, check dimensions
 checkFile = [dirName, '/', subjects{1}, '_', freq, '.mat'];
 load(checkFile, 'EEG');
-[roiNo, sampleNo, epochNo] = size(EEG.data);
+[roiNo, sampleNo, epochNo, condNo] = size(EEG.data);
 % user message
-disp([char(10), 'First data file had ', num2str(roiNo), ' channels/ROIs, ',... 
-    num2str(epochNo), ' epochs and ', num2str(sampleNo), ... 
-    ' samples for each epoch. Assuming same channel & sample numbers for all subjects.']);
+disp([char(10), 'First data file had ', num2str(condNo), ' conditions, ',... 
+    num2str(epochNo), ' epochs, ', num2str(roiNo),... 
+    ' channels/ROIs', ' and ', num2str(sampleNo), ... 
+    ' samples. Assuming same channel & sample numbers for all subjects.']);
 
 % prepare a lowpass filter if envelope correlation is used
 if ismember(method, {'ampCorr', 'orthAmpCorr'})
@@ -145,37 +150,42 @@ parfor subIdx = 1:subNo
     subData = load(subFile, 'EEG');
     subData = subData.EEG.data;
     % check data size
-    [subRoiNo, subSampleNo, subEpochNo] = size(subData);
+    [subRoiNo, subSampleNo, subEpochNo, subCondNo] = size(subData);
     if ~isequal([subRoiNo, subSampleNo], [roiNo, sampleNo])
         error(['Data for subject ', subjects{subIdx}, ' has unexpected size, investigate!']);
     end
     
     % preallocate results array
-    connRes = nan(subEpochNo, roiNo, roiNo);
-        
-    % loop through epochs
-    for epochIdx = 1:subEpochNo
-        
-        % get phase if arg method is a phase-based measure
-        if ismember(method, {'plv', 'iplv', 'pli'})
-            subDataPhase = timeSeriesToPhase(squeeze(subData(:, :, epochIdx)));  % extracts instantaneous phase from analytical signal
-        end
-        
-        % measure depends on the arg method
-        switch method    
-            case 'plv'
-                connRes(epochIdx, :, :) = plv(subDataPhase, 0);  % suppress messages from plv function
-            case 'iplv'
-                connRes(epochIdx, :, :) = iplv(subDataPhase, 0);  % suppress messages from iplv function    
-            case 'pli'
-                connRes(epochIdx, :, :) = pli(subDataPhase, 0);  % suppress messages from pli function
-            case 'ampCorr'
-                connRes(epochIdx, :, :) = ampCorr(squeeze(subData(:, :, epochIdx)), lowpassFilter, 0);  % suppress messages from ampCorr function
-            case 'orthAmpCorr'
-                connRes(epochIdx, :, :) = orthAmpCorr(squeeze(subData(:, :, epochIdx)), lowpassFilter, 0);  % suppress messages from ampCorr function            
-        end  % switch method
+    connRes = nan(subCondNo, subEpochNo, roiNo, roiNo);
+    
+    % loop through conditions
+    for condIdx = 1:subCondNo
+    
+        % loop through epochs
+        for epochIdx = 1:subEpochNo
 
-    end  % epochIdx for loop
+            % get phase if arg method is a phase-based measure
+            if ismember(method, {'plv', 'iplv', 'pli'})
+                subDataPhase = timeSeriesToPhase(squeeze(subData(:, :, epochIdx, condIdx)));  % extracts instantaneous phase from analytical signal
+            end
+
+            % measure depends on the arg method
+            switch method    
+                case 'plv'
+                    connRes(condIdx, epochIdx, :, :) = plv(subDataPhase, 0);  % suppress messages from plv function
+                case 'iplv'
+                    connRes(condIdx, epochIdx, :, :) = iplv(subDataPhase, 0);  % suppress messages from iplv function    
+                case 'pli'
+                    connRes(condIdx, epochIdx, :, :) = pli(subDataPhase, 0);  % suppress messages from pli function
+                case 'ampCorr'
+                    connRes(condIdx, epochIdx, :, :) = ampCorr(squeeze(subData(:, :, epochIdx, condIdx)), lowpassFilter, 0);  % suppress messages from ampCorr function
+                case 'orthAmpCorr'
+                    connRes(condIdx, epochIdx, :, :) = orthAmpCorr(squeeze(subData(:, :, epochIdx, condIdx)), lowpassFilter, 0);  % suppress messages from ampCorr function            
+            end  % switch method
+
+        end  % epochIdx for loop
+        
+    end  % condIdx for loop
     
     % save file
     saveF = [dirName, '/' , subjects{subIdx}, '_', freq, '_', method, '.mat'];
