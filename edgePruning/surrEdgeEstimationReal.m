@@ -98,11 +98,13 @@ function surrEdgeEstimationReal(freq, varargin)
 % failedFitAction   - Char array, one of {'saveResults', 'nosave'}. Flag
 %       defining how the function should behave upon encountering a failed 
 %       (truncated) normal fit to the surrogate data. If set to 
-%       'saveResults', a per-subject file is generated with the 
-%       permutation results of each failed fit saved out. If 'nosave', 
+%       'saveResults', per-epoch files are saved out, containing the 
+%       permutation results of each failed fit. If 'nosave', 
 %       fails are ignored. Files are named 
-%       'SUBJECTUMBER_FREQUENCYBAND_METHOD_failedFits.mat'. Defaults to 
-%       'saveResults'.
+%       'SUBJECTUMBER_FREQUENCYBAND_METHOD_epochEPOCHNO_failedFits.mat' and
+%       are saved out into a subfolder named SUBJECTNUMBER_failedFits in
+%       the same folder where data files are located.
+%       Defaults to 'saveResults'.
 % 
 % Output:
 % The following variables are saved out for each subject.
