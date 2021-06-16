@@ -392,7 +392,7 @@ parfor subIdx = 1:subNo
     subData = load(dataFiles{subIdx});
     subData = subData.EEG.data(:, sampleBounds(1):sampleBounds(2), :, :);
     if dRate ~= 1
-        subData = subData(:, 1:dRate:end, :);
+        subData = subData(:, 1:dRate:end, :, :);
     end
     % check data size
     [subRoiNo, subSampleNo, subEpochNo, subCondNo] = size(subData);
