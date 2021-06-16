@@ -311,7 +311,7 @@ end
 % load first data file, check dimensions
 disp([char(10), 'Size check on the first data set...']);
 subData = load(dataFiles{1});
-subData = subData.EEG.data;
+subData = subData.EEG.data(:, sampleBounds(1):sampleBounds(2), :, :);
 if numel(size(subData)) ~= 4
     error(['Expected 4D array for subject data, received ',... 
         num2str(numel(size(subData))), 'D data. Investigate!']);
@@ -390,7 +390,7 @@ parfor subIdx = 1:subNo
     
     % subject's EEG data
     subData = load(dataFiles{subIdx});
-    subData = subData.EEG.data;
+    subData = subData.EEG.data(:, sampleBounds(1):sampleBounds(2), :, :);
     if dRate ~= 1
         subData = subData(:, 1:dRate:end, :);
     end
@@ -432,9 +432,9 @@ parfor subIdx = 1:subNo
 
             % for envelope correlations pass the lowpass filter object
             if ismember(method, {'ampCorr', 'orthAmpCorr'})
-                surrConnData = getSurrConn(subData(:, sampleBounds(1):sampleBounds(2), epochIdx, condIdx), surrNo, method, lpFilter);
+                surrConnData = getSurrConn(subData(:, :, epochIdx, condIdx), surrNo, method, lpFilter);
             else
-                surrConnData = getSurrConn(subData(:, sampleBounds(1):sampleBounds(2), epochIdx, condIdx), surrNo, method);
+                surrConnData = getSurrConn(subData(:, :, epochIdx, condIdx), surrNo, method);
             end
 
             % fit a normal distribution to each group of edge values,
