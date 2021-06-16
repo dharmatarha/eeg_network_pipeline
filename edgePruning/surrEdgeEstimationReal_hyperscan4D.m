@@ -397,7 +397,7 @@ parfor subIdx = 1:subNo
     % check data size
     [subRoiNo, subSampleNo, subEpochNo, subCondNo] = size(subData);
     if ~isequal([subRoiNo, subSampleNo, subEpochNo, subCondNo], [roiNo, sampleNo, epochNo, condNo])
-        error(['Data for subject ', subjects{subIndex}, ' has unexpected size, investigate!']);
+        error(['Data for subject ', subjects{subIdx}, ' has unexpected size, investigate!']);
     end 
     
     % preallocate result matrices
