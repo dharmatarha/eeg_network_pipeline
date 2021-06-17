@@ -30,6 +30,8 @@ function [distRes] = connDistanceTest_betweenSubject_epochAveraged(connArray, va
 %               adjacencySpectral, LaplacianSpectral and DeltaCon rely on 
 %               similarly named functions in
 %               /networkSimilarity. Defautls to 'corr'.
+% verbosity     - Char array, one of {'verbose', 'silent'}. Controls if
+%               user messages are displayed or not. Defaults to 'verbose'.
 %
 % Output:
 % distRes        - 2D numeric array sized subjects X subjects. Contains
@@ -44,8 +46,8 @@ function [distRes] = connDistanceTest_betweenSubject_epochAveraged(connArray, va
 %% Input checks
 
 % check no. if inputs
-if ~ismember(nargin, 1:2)
-    error('Function connDistanceTest_betweenSubject requires input arg "connArray" while arg "metric" is optional!');
+if ~ismember(nargin, 1:3)
+    error('Function connDistanceTest_betweenSubject requires input arg "connArray" while args "metric" and "verbose" are optional!');
 end
 % check mandatory input
 if ~isnumeric(connArray) || numel(size(connArray))~=3 || size(connArray, 2)~=size(connArray ,3)
@@ -56,8 +58,10 @@ if ~isempty(varargin)
     for v = 1:length(varargin)
         if ischar(varargin{v}) && ismember(varargin{v}, {'corr', 'eucl', 'adjacencySpectral', 'LaplacianSpectral', 'deltaCon'}) && ~exist('metric', 'var')
             metric = varargin{v};
+        elseif ischar(varargin{v}) && ismember(varargin{v}, {'verbose', 'silent'}) && ~exist('verbosity', 'var')
+            verbosity = varargin{v};
         else
-            error('Input could not be mapped nicely to arg "metric"!');
+            error('Optional input args could not be mapped nicely to "metric" and "verbosity"!');
         end
     end
 end
@@ -65,11 +69,24 @@ end
 if ~exist('metric', 'var')
     metric = 'corr';
 end
+if ~exist('verbosity', 'var')
+    verbosity = 'verbose';
+end
+
+% get boolean flag from verbosity
+if strcmp(verbosity, 'verbose')
+    verbosity = true;
+else
+    verbosity = false;
+end
 
 % user message
-disp([char(10), 'Called connDistanceTest_betweenSubject with input args: ',...
-    char(10), 'Input array sized ', num2str(size(connArray)), ...
-    char(10), 'Distance metric: ', metric]);
+if verbosity
+    disp([char(10), 'Called connDistanceTest_betweenSubject with input args: ',...
+        char(10), 'Input array sized ', num2str(size(connArray)), ...
+        char(10), 'Distance metric: ', metric,...
+        char(10), 'Verbosity: ', verbosity]);
+end
 
 
 %% Calculate similarities
@@ -84,7 +101,9 @@ funcClock = tic;
 distRes = nan(subNo, subNo);
 
 % user message
-disp([char(10), 'Calculating...']);
+if verbosity
+    disp([char(10), 'Calculating...']);
+end
 
 % loop through subjects
 for subIdx = 1:subNo
@@ -150,8 +169,10 @@ for subIdx = 1:subNo
     end  % for compSubIdx
     
     % user message
-    disp([char(10), 'Done with subject ', num2str(subIdx),... 
-        ', took ', num2str(round(toc(subClock), 2)), ' secs']);
+    if verbosity
+        disp([char(10), 'Done with subject ', num2str(subIdx),... 
+            ', took ', num2str(round(toc(subClock), 2)), ' secs']);
+    end
     
 end  % for subIdx
         
@@ -161,11 +182,14 @@ if ismember(metric, {'corr'})
     distRes = sqrt(1 - distRes);
 end
 
+
 %% End message, return
 
 % user message
-disp([char(10), 'Done with everything, running the function took ',... 
-    num2str(round(toc(funcClock), 2)), ' secs']);
+if verbosity
+    disp([char(10), 'Done with everything, running the function took ',... 
+        num2str(round(toc(funcClock), 2)), ' secs']);
+end
 
 
 return
