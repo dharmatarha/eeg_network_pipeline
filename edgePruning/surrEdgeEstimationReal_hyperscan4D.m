@@ -478,10 +478,11 @@ parfor subIdx = 1:subNo
                                     pd = makedist('normal', 'mu', phat(1), 'sigma', phat(2));
                                     pdToTest = truncate(pd, x_min, x_max);      
                                     kstestFlag = 1;
-                                catch
+                                catch ME
                                     disp(['Fitting with truncated normal dist failed at subject ',... 
                                         num2str(subIdx), ', epoch ', num2str(epochIdx),...
                                         ', rois ', num2str(roi1), ' and ', num2str(roi2)]);
+                                    disp(ME.message);
                                     % store permutation results
                                     if strcmp(failedFitAction, 'saveResults')
                                         failedFits{methodIdx, roi1, roi2} = surrData;
@@ -499,10 +500,11 @@ parfor subIdx = 1:subNo
                                     surrNormalMu(methodIdx, roi1, roi2, epochIdx, condIdx) = pdToTest.mu;
                                     surrNormalSigma(methodIdx, roi1, roi2, epochIdx, condIdx) = pdToTest.sigma;      
                                     kstestFlag = 1;
-                                catch
+                                catch ME
                                     disp(['Fitting with normal dist failed at subject ',... 
                                         num2str(subIdx), ', epoch ', num2str(epochIdx),...
                                         ', rois ', num2str(roi1), ' and ', num2str(roi2)]);
+                                    disp(ME.message);
                                     % store permutation results
                                     if strcmp(failedFitAction, 'saveResults')
                                         failedFits{methodIdx, roi1, roi2} = surrData;
