@@ -492,8 +492,9 @@ parfor subIdx = 1:subNo
                             elseif ~truncated(methodIdx)
                                 % use try - catch in case fitting errors out (happens when param would reach Inf / NaN value)
                                 try
-                                    % fit simple normal
-                                    pdToTest = fitdist(surrData, 'normal');  % output is a prob.NormalDistribution object
+                                    % fit simple normal, note that fitdist
+                                    % requires column vector as data input
+                                    pdToTest = fitdist(surrData', 'normal');  % output is a prob.NormalDistribution object
                                     % save out main params from fitted normal
                                     surrNormalMu(methodIdx, roi1, roi2, epochIdx, condIdx) = pdToTest.mu;
                                     surrNormalSigma(methodIdx, roi1, roi2, epochIdx, condIdx) = pdToTest.sigma;      
@@ -531,8 +532,10 @@ parfor subIdx = 1:subNo
                 end
                 % save failed fits data for current epoch into a .mat file,
                 % use the "matfile" method that can be used in a parfor loop
-                saveFailedFits = [dirName, '/' , freq, '/', failedFitDir, '/',... 
-                    subjects{subIdx}, '_', freq, '_', methodToFilename, '_epoch', num2str(epochIdx), '_cond', num2str(condIdx), '_failedFits.mat'];
+                saveFailedFits = [failedFitDir, '/',... 
+                    subjects{subIdx}, '_', freq, '_', methodToFilename,... 
+                    '_epoch', num2str(epochIdx), '_cond', num2str(condIdx),... 
+                    '_failedFits.mat'];
                 saveFF = matfile(saveFailedFits);
                 saveFF.failedFits = failedFits;
                 saveFF.failedFitsCounter = failedFitsCounter;
