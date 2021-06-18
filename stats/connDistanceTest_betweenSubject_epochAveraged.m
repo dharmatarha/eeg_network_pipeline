@@ -1,7 +1,9 @@
 function [distRes] = connDistanceTest_betweenSubject_epochAveraged(connArray, varargin)
 %% Testing the distance of connectivity data between different subjects
 %
-% USAGE: distRes = connDistanceTest_betweenSubject_epochAveraged(connArray, metric='corr') 
+% USAGE: distRes = connDistanceTest_betweenSubject_epochAveraged(connArray,
+%                                                           metric='corr',
+%                                                           verbosity='verbose') 
 %
 % If given connectivity (adjacency) matrices (epoch-averaged) across
 % multiple subjects (in input arg "connArray"), the function calculates 

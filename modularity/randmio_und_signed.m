@@ -1,4 +1,4 @@
-function [R,eff] = randmio_und_signed_mod(W, ITER)
+function [R,eff] = randmio_und_signed(W, ITER)
 % RANDMIO_UND_SIGNED	Random graph with preserved signed degree distribution
 %
 %   R       = randmio_und_signed(W,ITER);
@@ -7,8 +7,7 @@ function [R,eff] = randmio_und_signed_mod(W, ITER)
 %   This function randomizes an undirected network with positively and
 %   negatively signed connections, while preserving the positively and
 %   negatively signed degree distribution. The function does not preserve
-%   the strength distribution in weighted networks. NaN entries of the
-%   connection matrix are ignored.
+%   the strength distribution in weighted networks.
 %
 %   Input:      W,      undirected (binary/weighted) connection matrix
 %               ITER,   rewiring parameter
@@ -40,15 +39,11 @@ function [R,eff] = randmio_und_signed_mod(W, ITER)
 %   Downloaded from the Brain Connectivity Toolbox in 08/2020:
 %   https://sites.google.com/site/bctnet/null
 %
-%   Modified in a way that NaN entries of the connection matrix are 
-%   ignored during the randomization process - our use case is undirected
-%   connectivity matrices with only the upper triangle populated with
-%   values, while the rest (including the diagonal) is set to NaN.
-%
 %   Gratitude, references, etc. should be directed to the BTC people.
-%
+%   
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
 if nargin('randperm')==1
     warning('This function requires a recent (>2011) version of MATLAB.')
@@ -79,12 +74,14 @@ for iter=1:ITER
         r0_cb = R(c,b);
         
         %rewiring condition
-        if (~isnan(r0_ab)) && (~isnan(r0_cd)) && (~isnan(r0_ad)) && (~isnan(r0_cb))
+        if      (sign(r0_ab)==sign(r0_cd)) && ...
+                (sign(r0_ad)==sign(r0_cb)) && ...
+                (sign(r0_ab)~=sign(r0_ad))
             
-            R(a,d)=r0_ab;
-            R(a,b)=r0_ad;
-            R(c,b)=r0_cd;
-            R(c,d)=r0_cb;
+            R(a,d)=r0_ab; R(a,b)=r0_ad;
+            R(d,a)=r0_ab; R(b,a)=r0_ad;
+            R(c,b)=r0_cd; R(c,d)=r0_cb;
+            R(b,c)=r0_cd; R(d,c)=r0_cb;
             
             eff = eff+1;
             break;
