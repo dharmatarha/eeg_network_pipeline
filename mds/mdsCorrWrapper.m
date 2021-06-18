@@ -230,8 +230,8 @@ surrCorrTensor = nan(surrNo, behavVarNo, mdsDimNo);
 randLoopClock = tic;
 
 % Surrogate generation loop
-for surrIdx = 1:surrNo
-% parfor surrIdx = 1:surrNo
+% for surrIdx = 1:surrNo
+parfor surrIdx = 1:surrNo
     
     % Create surrogate connectivity tensor (edge rewiring for each subject separately)
     connTensorRand = nan(subNo, roiNo, roiNo);
