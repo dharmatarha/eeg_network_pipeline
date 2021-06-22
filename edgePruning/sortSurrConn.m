@@ -37,7 +37,7 @@ function sortSurrConn(selectedConnFile, surrDataDir, freq, method, truncated)
 %                       connectivity files for each subject (e.g.
 %                       'l3_s01_alpha_surrEdgeEstReal_orthAmpCorr.mat'). 
 % freq                  - Char array, one of {'delta', 'theta', 'alpha', 
-%                       'beta', 'gamma'}. Frequency band which is relfected
+%                       'beta', 'gamma'}. Frequency band which is reflected
 %                       in surrogate connectivity file names.
 % method                - Char array, one of {'plv', 'iplv', 'pli', 
 %                       'ampCorr', 'orthAmpCorr'}. Connectivity method,
