@@ -1,11 +1,12 @@
-function connectivityWrapperReal4D(freq, varargin)
+function connectivityWrapperReal_hyperscan4D(freq, varargin)
 
 %% Calculate connectivity matrices based on real valued data
+% Wrapper to be used on the hyperscan listener-listener (4D) data set.
 %
-% USAGE: connectivityWrapperReal4D(freq, dirName = pwd, subjects = {'s02', 's03', ...}, method = 'iplv')
-%
-% Version of connectivityWrapperReal for 4D input arrays, with dimensions
-% [channels, samples, epochs, conditions].
+% USAGE: connectivityWrapperReal_hyperscan4D(freq, 
+%                                           dirName = pwd, 
+%                                           subjects = {'s02', 's03', ...}, 
+%                                           method = 'iplv')
 % 
 % Calculates connectivity matrices across all channels/ROIs for 
 % real-valued data. Connectivity is calculated on an individual level.
@@ -28,8 +29,12 @@ function connectivityWrapperReal4D(freq, varargin)
 % Further assumes 4D data in the structures, i.e. numel(size(EEG.data))
 % = 4, with dimensions corresponding to 
 % [ROI/channel, samples, epochs, conditions].
-% Also assumes that all relevant files are in the working directory.
 % 
+% NOTE that for envelope correlation measures we perform a hard-coded
+% lowpass filtering with 10 Hz passbandedge on the envelopes before calculating 
+% correlations. This step - currently - requires Signal Processing
+% Toolbox!!!
+%
 % Optional input args are inferred from input arg types.
 %
 % Mandatory input:
@@ -39,16 +44,21 @@ function connectivityWrapperReal4D(freq, varargin)
 %        'theta'}
 % 
 % Optional inputs:
-% dirName   - Directory path (string) pointing to the data files. Also 
-%       used for saving out group means. Default is current working 
+% dirName   - Char array, path to folder containing the folder of 
+%       frequency band data. E.g. subject-level data files if 
+%       "freq" == 'alpha' are expected to be located under 
+%       [dirName, '/', freq, '/']. Default is current working
 %       directory (pwd).
 % subjects  - Cell array, list of subjects whose data we process. 
 %       Each cell contains a subject ID also used in the filenames 
 %       (e.g. 's01' for files like 's01_alpha.mat'). If empty, 
-%       we use the default cell arrray defined in
-%       "restingStateSubjects.mat" (var "subjectsRS").
-% method    - String, one of {'plv', 'iplv', 'pli', 'ampCorr', 'orthAmpCorr'}. 
-%       Specifies a connectivity measure. Defaults to 'iplv'.
+%       we use the default cell arrray
+%       subjects={'s02','s03','s04','s05','s06','s07','s08','s09'...
+%           ,'s11','s12','s13','s14','s15','s16','s17','s18','s19','s20',...
+%           's21','s22','s23','s24','s25','s26','s27','s28'}
+% method    - Char array, one of 
+%       {'pli', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'}. Specifies the 
+%       connectivity measure. Defaults to 'iplv'.
 % 
 
 
@@ -84,19 +94,16 @@ if ~exist('dirName', 'var')
     dirName = pwd;
 end
 if ~exist('subjects', 'var')
-    if exist('restingStateSubjects.mat' ,'file')
-        tmp = load('restingStateSubjects.mat');
-        subjects = tmp.subjectsRS;
-    else
-        error('Couldn''t find subject list in "restingStateSubjects.mat", no subject list to work on!');
-    end
+    subjects = {'s02','s03','s04','s05','s06','s07','s08','s09',...
+      's11','s12','s13','s14','s15','s16','s17','s18','s19','s20',...
+      's21','s22','s23','s24','s25','s26','s27','s28'};
 end
 if ~exist('method', 'var')
     method = 'iplv';
 end
 
 % user message
-disp([char(10), 'Called connectivityWrapperReal4D function with following arguments: ',...
+disp([char(10), 'Called connectivityWrapperReal_hyperscan4D function with following arguments: ',...
     char(10), 'Frequency band: ', freq,...
     char(10), 'Working directory: ', dirName,...
     char(10), 'Connectivity measure: ', method,...
@@ -110,7 +117,7 @@ disp(subjects);
 subNo = length(subjects);
 
 % load first data, check dimensions
-checkFile = [dirName, '/', subjects{1}, '_', freq, '.mat'];
+checkFile = fullfile(dirName, freq, [subjects{1}, '_', freq, '.mat']);
 load(checkFile, 'EEG');
 [roiNo, sampleNo, epochNo, condNo] = size(EEG.data);
 % user message
@@ -119,7 +126,9 @@ disp([char(10), 'First data file had ', num2str(condNo), ' conditions, ',...
     ' channels/ROIs', ' and ', num2str(sampleNo), ... 
     ' samples. Assuming same channel & sample numbers for all subjects.']);
 
-% prepare a lowpass filter if envelope correlation is used
+% Prepare a lowpass filter if envelope correlation is used
+% Due to PARFOR, we need to define the filter even if we would not use it
+% for the current connectivity measure
 if ismember(method, {'ampCorr', 'orthAmpCorr'})
     lowpassFilter = designfilt('lowpassiir',... 
             'PassbandFrequency', 10,...
@@ -129,6 +138,8 @@ if ismember(method, {'ampCorr', 'orthAmpCorr'})
             'SampleRate', 1000,... 
             'MatchExactly',... 
             'passband');
+else
+    lpFilter = [];
 end
 
 % clock for timing the full function run
@@ -146,7 +157,7 @@ parfor subIdx = 1:subNo
     subClock = tic;
     
     % load subjects's data
-    subFile = [dirName, '/', subjects{subIdx}, '_', freq,'.mat'];
+    subFile = fullfile(dirName, freq, [subjects{subIdx}, '_', freq,'.mat']);
     subData = load(subFile, 'EEG');
     subData = subData.EEG.data;
     % check data size
