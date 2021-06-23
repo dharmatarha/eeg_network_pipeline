@@ -199,8 +199,7 @@ disp([char(10), 'Prepared everything, starting loop across subjects.']);
 
 %% Loop across subjects
 
-% for subIdx = 1:subNo
-for subIdx = 1:2
+for subIdx = 1:subNo
     
     % subject-level clock
     subClock = tic;
@@ -409,15 +408,18 @@ for subIdx = 1:2
 end  % for subIdx
 
 % get group averages
-meanConn = mean(realConn, 1);
-meanMaskedConnPos = mean(maskedConnPos, 1);
-meanMaskedConnNeg = mean(maskedConnNeg, 1);
+meanConn = squeeze(mean(realConn, 1));
+meanMaskedConnPos = squeeze(mean(maskedConnPos, 1));
+meanMaskedConnNeg = squeeze(mean(maskedConnNeg, 1));
 
 
 %% Get also group-level thresholding results
 
 % user message
 disp([char(10), 'Finished with all subjects, calculating group-level thresholds now for each epoch']);
+
+% clock for group-level calculations
+groupClock = tic;
 
 groupP = nan([condNo, epochNo, roiNo, roiNo]);
 groupMaskedConnPos = groupP;
@@ -434,9 +436,9 @@ for condIdx = 1:condNo
         tmpSurrMu = squeeze(surrNormalMu(:, condIdx, epochIdx, :, :));
         tmpSurrSigma = squeeze(surrNormalSigma(:, condIdx, epochIdx, :, :));
         % permute dimensions for calling groupSurrStats
-        tmpConn = permute(tmpConn, [3 1 2]);
-        tmpSurrMu = permute(tmpSurrMu, [3 1 2]);
-        tmpSurrSigma = permute(tmpSurrSigma, [3 1 2]);
+        tmpConn = permute(tmpConn, [2 3 1]);
+        tmpSurrMu = permute(tmpSurrMu, [2 3 1]);
+        tmpSurrSigma = permute(tmpSurrSigma, [2 3 1]);
         % get significance values for each edge in given epoch
         if ~truncatedFlag
             [groupP(condIdx, epochIdx, :, :), groupDiffDir(condIdx, epochIdx, :, :)] = groupSurrStats(tmpConn, tmpSurrMu, tmpSurrSigma, 'silent');
@@ -467,8 +469,11 @@ for condIdx = 1:condNo
     end  % for epochIdx
 end  % for condIdx
             
+% get elapsed time
+groupTime = round(toc(groupClock), 3);
+
 % user message
-disp('Done');
+disp(['Done. Group-level thresholding took ', num2str(groupTime), ' secs']);
 
             
 %% Saving, cleaning up

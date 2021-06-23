@@ -73,14 +73,14 @@ function [p, d] = groupSurrStats(realV, surrMu, surrSigma, varargin)
 %% Input checks
 
 % check no. of args
-if ~ismember(nargin, 3:4)
-    error('Function groupSurrStats requires input args "realV", "surrMu" and "surrSigma", while input arg "truncateBounds" is optional!');
+if ~ismember(nargin, 3:5)
+    error('Function groupSurrStats requires input args "realV", "surrMu" and "surrSigma", while input args "truncateBounds" and "verbosity" are optional!');
 end
 % check mandatory args
 if ~isnumeric(realV) || ~(isvector(realV) || numel(size(realV))==3)
     error('Input arg "realV" should be a numeric vector or a 3D numeric array!');
 end
-if ~isnumeric(surrMu) || ~(isvector(surrMu) || numel(size(surrMu)==3)
+if ~isnumeric(surrMu) || ~(isvector(surrMu) || numel(size(surrMu))==3)
     error('Input arg "surrMu" should be a numeric vector or a 3D numeric array!');
 end
 if ~isnumeric(surrSigma) || ~(isvector(surrSigma) || numel(size(surrSigma))==3)
@@ -92,6 +92,7 @@ if ~isempty(varargin)
         if isnumeric(varargin{v}) && numel(varargin{v})==2 && ~exist('truncateBounds', 'var')
             truncateBounds = varargin{v};
         elseif ischar(varargin{v}) && ismember(varargin{v}, {'silent', 'verbose'}) && ~exist('verbosity', 'var')
+            verbosity = varargin{v};
         else
             error('At least one input arg could not be mapped nicely to optional args "truncateBounds" and "verbosity"!');
         end
@@ -139,14 +140,14 @@ if vectorFlag
     
     % calculate the params of the combined normal distribution
     combMu = mean(surrMu);
-    combSigma = sqrt(sum((surrSigma.^2))/(layerNo^2));
+    combSigma = sqrt(sum((surrSigma.^2))/(numel(surrSigma)^2));
     % get significance of averaged real values
     if isempty(truncateBounds)
         p = 2 * normcdf(mean(realV), combMu, combSigma);  % two-tailed test
     else
         pd = makedist('normal', 'mu', combMu, 'sigma', combSigma);  % returns a probability distribution object
         pd = truncate(pd, truncateBounds(1), truncateBounds(2));
-        p = pd.cdf(mean(realV));  % two-tailed test  
+        p = 2 * pd.cdf(mean(realV));  % two-tailed test  
     end
     % get direction of difference
     d = (mean(realV) > combMu) * 2 - 1;  % returns 1 or -1 depending on whether the mean value is larger than the combined Mu
@@ -178,14 +179,14 @@ if ~vectorFlag
                 combSigma = sqrt(sum((surrSigma(node1, node2, :).^2))/(layerNo^2));
                 % get significance of averaged real values
                 if isempty(truncateBounds)
-                    p(node1, node2) = 2 * normcdf(mean(realV(node1, node2, :), 3), combMu, combSigma);  % two-tailed test
+                    p(node1, node2) = 2 * normcdf(mean(realV(node1, node2, :)), combMu, combSigma);  % two-tailed test
                 else
                     pd = makedist('normal', 'mu', combMu, 'sigma', combSigma);  % returns a probability distribution object
                     pd = truncate(pd, truncateBounds(1), truncateBounds(2));
-                    p(node1, node2) = pd.cdf(mean(realV(node1, node2, :), 3));  % two-tailed test  
+                    p(node1, node2) = 2 * pd.cdf(mean(realV(node1, node2, :)));  % two-tailed test  
                 end
                 % get direction of difference
-                d(node1, node2) = (mean(realV(node1, node2, :), 3) > combMu) * 2 - 1;  % returns 1 or -1 depending on whether the mean value is larger than the combined Mu
+                d(node1, node2) = (mean(realV(node1, node2, :)) > combMu) * 2 - 1;  % returns 1 or -1 depending on whether the mean value is larger than the combined Mu
 
             end  % if node1 < node2    
         end  % for node2
