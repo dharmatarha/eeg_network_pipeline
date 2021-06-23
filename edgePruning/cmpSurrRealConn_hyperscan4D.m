@@ -110,7 +110,7 @@ if ~isempty(varargin)
             dirName = varargin{v};
         elseif iscell(varargin{v}) && ~exist('subjects', 'var')
             subjects = varargin{v};
-        elseif ichar(varargin{v}) && ismember(varargin{v}, {'pli', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'}) && ~exist('method', 'var')
+        elseif ischar(varargin{v}) && ismember(varargin{v}, {'pli', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'}) && ~exist('method', 'var')
             method = varargin{v};
         else
             error('At least one input arg could not be mapped nicely to "dirName", "subjects" or "method"!');
@@ -139,12 +139,14 @@ disp([char(10), 'Called function cmpSurrRealConn_hyperscan4D with inputs: ',...
 disp(subjects);
 
 
-
-%% Settings, params
+%% Settings, hardcoded params
 
 subNo = length(subjects);
 truncateBounds = [0 1];  % bounds if the surrogate prob distributions were truncated
-
+fdrQ = 0.05;  % q for FDR
+fdrType = 'bh';  % type of FDR correction to apply
+surrDimPerm = [4, 3, 1, 2];  % vector for permuting the dimensions of the surrogate data so it matches the dimensions of the real connectivity data
+saveFile = fullfile(dirName, freq, ['group_surrResults_', freq, '_', method, '.mat']);  % path for saving out results
 
 
 %% Check size of data in first file
@@ -165,7 +167,6 @@ end
 [condNo, epochNo, roiNo, ~] = size(connData.connRes);
 
 
-
 %% Preallocate output vars
 
 % vector holding the ratios of failed (truncated) normal fits on surrogate
@@ -173,12 +174,36 @@ end
 failedFitRate = nan(subNo, 1);
 % array of significance values for actual connectivity values
 realConnP = nan([subNo, condNo, epochNo, roiNo, roiNo]);
+% array for the direction fo difference between real and surrogate
+% connectivity values
+diffDirection = realConnP;
+% array for the FDR corrected, significantly stronger edges
+maskedConnPos = realConnP;
+% array for the FDR corrected, significantly weaker edges
+maskedConnNeg = realConnP;
+% array for collecting all subjects' raw connectivity values
+realConn = realConnP;
+% arrays for collecting all subjects' surrogate params
+surrNormalH = realConnP;
+surrNormalMu = realConnP;
+surrNormalSigma = realConnP;
+surrNormalP = realConnP;
+% array of critical P values
+criticalP = nan([subNo, condNo, epochNo]);
+% array of FDR-surviving edge rates
+survivalRate = criticalP;
 
-
+% user message
+disp([char(10), 'Prepared everything, starting loop across subjects.']);
+    
 
 %% Loop across subjects
 
-for subIdx = 1:subNo
+% for subIdx = 1:subNo
+for subIdx = 1:2
+    
+    % subject-level clock
+    subClock = tic;
     
     % char subject ID
     subID = subjects{subIdx};
@@ -251,18 +276,23 @@ for subIdx = 1:subNo
         error(['Cannot match input arg "method" to the methods in surrogate data file at ', subSurrFile, '!']);
     end
         
-    % extract surrogate values we will use     
+    % was the surrogate data fitted with truncated normals? 
     truncatedFlag = surrData.truncated(methodIdx);
+    if ~truncatedFlag && ismember(method, {'plv', 'iplv'})
+        warning('Method is phase based but surrogate normals are not truncated (truncatedFlag is false)!');
+    end
+    
+    % extract surrogate values we will use   
     surrH = squeeze(surrData.surrNormalH(methodIdx, :, :, :, :));
     surrMu = squeeze(surrData.surrNormalMu(methodIdx, :, :, :, :));
     surrSigma = squeeze(surrData.surrNormalSigma(methodIdx, :, :, :, :));
     surrP = squeeze(surrData.surrNormalP(methodIdx, :, :, :, :));
 
     % permute the order of dimensions on surrogate values
-    surrH = permute(surrH, [4, 3, 1, 2]);
-    surrMu = permute(surrMu, [4, 3, 1, 2]);
-    surrSigma = permute(surrSigma, [4, 3, 1, 2]);
-    surrP = permute(surrP, [4, 3, 1, 2]);
+    surrH = permute(surrH, surrDimPerm);
+    surrMu = permute(surrMu, surrDimPerm);
+    surrSigma = permute(surrSigma, surrDimPerm);
+    surrP = permute(surrP, surrDimPerm);
     
     % sanity check for size
     if ~isequal([condNo, epochNo, roiNo, roiNo], size(surrH))
@@ -277,6 +307,15 @@ for subIdx = 1:subNo
     disp('Loaded surrogate connectivity data');
     disp(['Ratio of failed fits on surrogate data: ',... 
         num2str(100*failedFitRate(subIdx)), '%']);
+    
+    
+    %% Determine the direction of difference between real and surrogate connectivity data
+    
+    tmpDiff = nan([condNo, epochNo, roiNo, roiNo]);
+    tmpDiff(connData<surrMu) = -1;
+    tmpDiff(connData==surrMu) = 0;
+    tmpDiff(connData>surrMu) = 1;
+    diffDirection(subIdx, :, :, :, :) = tmpDiff;
     
 
     %% Get significance values of real connectivity values
@@ -323,11 +362,128 @@ for subIdx = 1:subNo
                             normalP = 1-normalP;
                         end                                         
                         realConnP(subIdx, condIdx, epochIdx, roi1, roi2) = normalP*2;
+                        
+                    end  % if roi1 < roi2
+                    
+                end  % for roi2
+            end  % for roi1 
+            
+            % FDR correction on epoch-level
+            realPs = realConnP(subIdx, condIdx, epochIdx, :, :); 
+            realPs = realPs(:); realPs(isnan(realPs)) = [];
+            [~, criticalP(subIdx, condIdx, epochIdx)] = fdr(realPs, fdrQ, fdrType);             
+
+            % create masked connectivity tensor
+            epochConnData = squeeze(connData(condIdx, epochIdx, :, :));
+            epochP = squeeze(realConnP(subIdx, condIdx, epochIdx, :, :));
+            epochConnData(epochP > criticalP(subIdx, condIdx, epochIdx)) = 0;  % only edges surviving FDR
+            epochPos = epochConnData; 
+            epochPos(squeeze(diffDirection(subIdx, condIdx, epochIdx, :, :)) ~= 1) = 0;  % only edges with positive difference (real > surrogate)
+            maskedConnPos(subIdx, condIdx, epochIdx, :, :) = epochPos;
+            epochNeg = epochConnData; 
+            epochNeg(squeeze(diffDirection(subIdx, condIdx, epochIdx, :, :)) ~= -1) = 0;  % only edges with positive difference (real > surrogate)
+            maskedConnNeg(subIdx, condIdx, epochIdx, :, :) = epochNeg;            
+            % get ratio of edges below the threshold (edges surviving the
+            % pruning)
+            edgesBelowCrit = epochP <= criticalP(subIdx, condIdx, epochIdx);
+            survivalRate(subIdx, condIdx, epochIdx) = sum(edgesBelowCrit(:), 'omitnan')/(roiNo*(roiNo-1)/2);
+             
+        end  % for epochIdx
+        
+    end  % for condIdx
 
 
+    %% Collect group-level values
+    
+    realConn(subIdx, :, :, :, :) = connData;
+    surrNormalH(subIdx, :, :, :, :) = surrH;
+    surrNormalMu(subIdx, :, :, :, :) = surrMu;
+    surrNormalSigma(subIdx, :, :, :, :) = surrSigma;
+    surrNormalP(subIdx, :, :, :, :) = surrP;
+    
+    % report elapsed time
+    subTime = round(toc(subClock), 3);
+    disp(['Done with subject ', subID, '. Elapsed time: ', num2str(subTime), ' secs']);
+    
+    
+end  % for subIdx
+
+% get group averages
+meanConn = mean(realConn, 1);
+meanMaskedConnPos = mean(maskedConnPos, 1);
+meanMaskedConnNeg = mean(maskedConnNeg, 1);
 
 
+%% Get also group-level thresholding results
+
+% user message
+disp([char(10), 'Finished with all subjects, calculating group-level thresholds now for each epoch']);
+
+groupP = nan([condNo, epochNo, roiNo, roiNo]);
+groupMaskedConnPos = groupP;
+groupMaskedConnNeg = groupP;
+groupDiffDir = groupP;
+groupCritP = nan([condNo, epochNo]);
+groupSurvRate = groupCritP;
+
+for condIdx = 1:condNo
+    for epochIdx = 1:epochNo
+        
+        % epoch-level group data
+        tmpConn = squeeze(realConn(:, condIdx, epochIdx, :, :));
+        tmpSurrMu = squeeze(surrNormalMu(:, condIdx, epochIdx, :, :));
+        tmpSurrSigma = squeeze(surrNormalSigma(:, condIdx, epochIdx, :, :));
+        % permute dimensions for calling groupSurrStats
+        tmpConn = permute(tmpConn, [3 1 2]);
+        tmpSurrMu = permute(tmpSurrMu, [3 1 2]);
+        tmpSurrSigma = permute(tmpSurrSigma, [3 1 2]);
+        % get significance values for each edge in given epoch
+        if ~truncatedFlag
+            [groupP(condIdx, epochIdx, :, :), groupDiffDir(condIdx, epochIdx, :, :)] = groupSurrStats(tmpConn, tmpSurrMu, tmpSurrSigma, 'silent');
+        else
+            [groupP(condIdx, epochIdx, :, :), groupDiffDir(condIdx, epochIdx, :, :)] = groupSurrStats(tmpConn, tmpSurrMu, tmpSurrSigma, truncateBounds, 'silent');
+        end
+        
+        % fdr correction per epoch
+        tmpPs = groupP(condIdx, epochIdx, :, :); 
+        tmpPs = tmpPs(:); tmpPs(isnan(tmpPs)) = [];
+        [~, groupCritP(condIdx, epochIdx)] = fdr(tmpPs, fdrQ, fdrType); 
+        
+        % create masked connectivity tensor
+        epochData = squeeze(meanConn(condIdx, epochIdx, :, :));
+        epochP = squeeze(groupP(condIdx, epochIdx, :, :));
+        epochData(epochP > groupCritP(condIdx, epochIdx)) = 0;  % only edges surviving FDR
+        epochPos = epochData; 
+        epochPos(squeeze(groupDiffDir(condIdx, epochIdx, :, :)) ~= 1) = 0;  % only edges with positive difference (real > surrogate)
+        groupMaskedConnPos(condIdx, epochIdx, :, :) = epochPos;
+        epochNeg = epochData; 
+        epochNeg(squeeze(diffDirection(subIdx, condIdx, epochIdx, :, :)) ~= -1) = 0;  % only edges with positive difference (real > surrogate)
+        groupMaskedConnNeg(condIdx, epochIdx, :, :) = epochNeg;            
+        % get ratio of edges below the threshold (edges surviving the
+        % pruning)
+        edgesBelowCrit = epochP <= groupCritP(condIdx, epochIdx);
+        groupSurvRate(condIdx, epochIdx) = sum(edgesBelowCrit(:), 'omitnan')/(roiNo*(roiNo-1)/2);        
+        
+    end  % for epochIdx
+end  % for condIdx
+            
+% user message
+disp('Done');
+
+            
+%% Saving, cleaning up
+
+save(saveFile, 'realConn', 'realConnP', 'maskedConnPos', 'maskedConnNeg',...
+    'meanConn', 'meanMaskedConnPos', 'meanMaskedConnNeg',...
+    'diffDirection', 'criticalP', 'survivalRate', 'failedFitRate',... 
+    'surrNormalH', 'surrNormalMu', 'surrNormalSigma', 'surrNormalP',...
+    'groupP', 'groupCritP', 'groupDiffDir', 'groupMaskedConnPos',...
+    'groupMaskedConnNeg', 'groupSurvRate');
+
+% user message
+disp([char(10), 'Saved out results to ', saveFile]);
+disp('Done, finished, over, curtains.');
 
 
-
+return
 
