@@ -20,21 +20,21 @@ function cmpSurrRealConn_hyperscan4D(freq, varargin)
 %
 % NOTE that real connectivity data should be stored in 4D array "connRes",
 % while surrogate data file should contain 5D arrays "surrNormalMu",
-% "surrNormalH", "surrNormalP", "surrNormalSigma", "truncated" and
-% "method".
+% "surrNormalH", "surrNormalP", "surrNormalSigma", and cell arrays 
+% "truncated" and "method".
 %
 % Logic:
 % (1) Loop through subjects
 % (2) For each subject, load actual and surrogate connectivity data
 % (3) Check if surrogate data could be fitted well enough with (truncated)
 % normals during surrogate calculations
-% (4) If yes, compare actual values to surrogate values and derive
+% (4) Compare actual values to surrogate values and derive
 % significance values
-% (5) And perform FDR on subject-level
-% (6) If the answer to (3) was no, error out
+% (5) And perform FDR on the epoch-level
+% (6) Do the same thresholding on group-level as well, for all epochs
 %
 % The outputs are saved out into a file
-% 'surrRealConn_FREQUENCYBAND_METHOD.mat'.
+% 'group_surrResults_FREQUENCYBAND_METHOD.mat'.
 %
 % Mandatory inputs:
 % freq              - Char array, one of {'delta', 'theta', 'alpha', 
@@ -62,8 +62,43 @@ function cmpSurrRealConn_hyperscan4D(freq, varargin)
 %
 % Outputs:
 %
-% The output is saved into a file named "surrRealConn_FREQUENCYBAND_METHOD.mat".
+% The output is saved into a file named 
+% "group_surrResults_FREQUENCYBAND_METHOD.mat".
 % It contains the following variables:
+%
+% realConn
+%
+% realConnP             - 4D numeric array, contains the probabilities 
+%                       of the real connectivity values based on the normal
+%                       distributions of the surrogate values. Sized 
+%                       [subjects X epochs X rois X rois].
+%
+% maskedConnPos         - 4D numeric array, connectivity values after
+%                       thresholding based on surrogate connectivity
+%                       values.
+%
+% maskedConnNeg         - 4D numeric array, connectivity values after
+%                       thresholding based on surrogate connectivity
+%                       values.
+%
+% meanConn
+%
+% meanMaskedConnPos
+%
+% meanMaskedConnNeg
+%
+% diffDirection
+%
+% criticalP             - 2D numeric array, contains the critical p values
+%                       for each epoch from FDR (q = .05), used for 
+%                       thresholding. Sized [subjects X epochs].
+%
+% survivalRate          - 2D numeric array, contains the ratio of edges
+%                       surviving the FDR-based thresholding in each epoch.
+%                       Sized [subjects X epochs].
+%
+% failedFitRate
+%
 %
 % surrNormalMu          - 4D numeric array, contains the "mu"s of the
 %                       normal distributions fitted to the surrogate 
@@ -77,26 +112,25 @@ function cmpSurrRealConn_hyperscan4D(freq, varargin)
 %                       from the Kolmogorov-Smirnov tests on the normal 
 %                       fits of the surrogate connectivity values. Sized 
 %                       [subjects X epochs X rois X rois].
-% realConnP             - 4D numeric array, contains the probabilities 
-%                       of the real connectivity values based on the normal
-%                       distributions of the surrogate values. Sized 
-%                       [subjects X epochs X rois X rois].
-% maskedConn            - 4D numeric array, connectivity values after
-%                       thresholding based on surrogate connectivity
-%                       values.
-% criticalP             - 2D numeric array, contains the critical p values
-%                       for each epoch from FDR (q = .05), used for 
-%                       thresholding. Sized [subjects X epochs].
-% survivalRate          - 2D numeric array, contains the ratio of edges
-%                       surviving the FDR-based thresholding in each epoch.
-%                       Sized [subjects X epochs].
+%
+% groupP
+%
+% groupCritP 
+%
+% groupDiffDir 
+% 
+% groupMaskedConnPos
+%
+% groupMaskedConnNeg
+%
+% groupSurvRate
 %
 
 
 %% Input checks
 
 % check no. of inputs
-if ~ismember(nargin, 4:5)
+if ~ismember(nargin, 1:4)
     error('Function cmpSurrRealConn_hyperscan4D requires input arg "freq", while "dirName", "subjects" and "method" are optional!');
 end
 % check mandatory input
