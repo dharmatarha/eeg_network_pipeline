@@ -1,11 +1,13 @@
 function [pEst, realDiff, permDiff, CohenD, studentDiff] = permTest(a, b, varargin)
 %% Permutation test for the difference between two data vectors
 %
-% USAGE: [pEst, realDiff, permDiff, CohenD] = permTest(a, b, 
+% USAGE: [pEst, realDiff, permDiff, CohenD, studentDiff] = permTest(a, b, 
 %                                                       perm = 10000, 
 %                                                       stat='mean', 
 %                                                       student='studentized',
 %                                                       verbosity='verbose')
+%
+% For valid results, use studentized mean as test statistic!
 %
 % Two sample random permutation test to estimate the statistical 
 % significance of the difference between two data sets in terms of the 
@@ -170,6 +172,10 @@ if student
         case 'mean'
             studentDiff = ld^0.5*(mean(a, 'omitnan')-mean(b, 'omitnan'))/...
                 (sqrt(ld*(var(a)/la+var(b)/lb)));
+        case 'median'
+            studentDiff = [];  % placeholder, studentized median not supported
+        case 'std'
+            studentDiff = [];  % placeholder, a valid permutation measure for STD not supported
     end
 else
     studentDiff = [];
@@ -214,7 +220,7 @@ end  % for i
 if student
     if studentDiff <= 0
         pEst = 1-(sum(permDiff>studentDiff)/perm);
-    elseif realDiff > 0
+    elseif studentDiff > 0
         pEst = 1-(sum(permDiff<studentDiff)/perm);
     end    
 else    
