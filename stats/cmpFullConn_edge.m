@@ -19,7 +19,8 @@ function [permRes, withinCondAnova, connSim] = cmpFullConn_edge(connData, vararg
 % each connectivity matrix we only take the upper triangle into account.
 %
 % For the tests we rely on permTest.m, input args "permNo" and "permStat"
-% (if specified) are passed to permTest.m.
+% (if specified) are passed to permTest.m. Tries to call permTest.m with
+% 'studentized' flag (only supported for 'mean').
 %
 % USES PARFOR FOR THE LOOP ACROSS EDGES!
 %
@@ -202,6 +203,7 @@ acrossCondMean = nan(edgeNo, condNo);
 acrossCondSD = nan(edgeNo, condNo);
 acrossCondMedian = nan(edgeNo, condNo);
 realDiff = nan(edgeNo, condNo);
+studentDiff = nan(edgeNo, condNo);
 permDiffMean = nan(edgeNo, condNo);
 permDiffSD = nan(edgeNo, condNo);
 pEst = nan(edgeNo, condNo);
@@ -213,6 +215,7 @@ acrossAllMean = nan(edgeNo, 1);
 acrossAllSD = nan(edgeNo, 1);
 acrossAllMedian = nan(edgeNo, 1);
 realDiffAll = nan(edgeNo, 1);
+studentDiffAll = nan(edgeNo, 1);
 permDiffAllMean = nan(edgeNo, 1);
 permDiffAllSD = nan(edgeNo, 1);
 pEstAll = nan(edgeNo, 1);
@@ -282,10 +285,12 @@ parfor edgeIdx = 1:edgeNo
         [pEst(edgeIdx, condIdx),... 
          realDiff(edgeIdx, condIdx),... 
          tmpPermDiff,... 
-         cohend(edgeIdx, condIdx)] = permTest(withinCondSim(:, condIdx),... 
+         cohend(edgeIdx, condIdx),...
+         studentDiff(edgeIdx, condIdx)] = permTest(withinCondSim(:, condIdx),... 
                                              acrossCondSim(:, condIdx),... 
                                              permNo,... 
                                              permStat,...
+                                             'studentized',...
                                              'silent');
          % get only mean and SD from the distribution of permuted stats                                
          permDiffMean(edgeIdx, condIdx) = mean(tmpPermDiff);
@@ -308,15 +313,17 @@ parfor edgeIdx = 1:edgeNo
     [pEstAll(edgeIdx),... 
      realDiffAll(edgeIdx),... 
      tmpPermDiff,... 
-     cohendAll(edgeIdx)] = permTest(withinCondSim(:),... 
+     cohendAll(edgeIdx),...
+     studentDiffAll(edgeIdx)] = permTest(withinCondSim(:),... 
                                           acrossCondSim(:),... 
                                           permNo,... 
                                           permStat,...
+                                          'studentized',...
                                           'silent');
     % get only mean and SD from the distribution of permuted stats                                
     permDiffAllMean(edgeIdx) = mean(tmpPermDiff);
     permDiffAllSD(edgeIdx) = std(tmpPermDiff);          
-     
+    
     
     %% ANOVA for comparing within-cond similarities across conditions/stimuli
     
@@ -347,6 +354,7 @@ permRes.acrossCondSD = acrossCondSD;
 permRes.acrossCondMedian = acrossCondMedian;
 permRes.pEst = pEst;
 permRes.realDiff = realDiff;
+permRes.studentDiff = studentDiff;
 permRes.permDiffMean = permDiffMean;
 permRes.permDiffSD = permDiffSD;
 permRes.cohend = cohend;
@@ -358,6 +366,7 @@ permRes.acrossAllSD = acrossAllSD;
 permRes.acrossAllMedian = acrossAllMedian;
 permRes.pEstAll = pEstAll;
 permRes.realDiffAll = realDiffAll;
+permRes.studentDiffAll = studentDiffAll;
 permRes.permDiffAllMean = permDiffAllMean;
 permRes.permDiffAllSD = permDiffAllSD;
 permRes.cohendAll = cohendAll;
