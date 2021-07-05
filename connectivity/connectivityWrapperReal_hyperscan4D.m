@@ -14,7 +14,7 @@ function connectivityWrapperReal_hyperscan4D(freq, varargin)
 % Connectivity is measured by calling functions defined outside this 
 % script. 
 % Only five connectivity measures 
-% ({'plv', 'iplv', 'pli', 'ampCorr', 'orthAmpCorr'}) 
+% ({'plv', 'iplv', 'ciplv', 'ampCorr', 'orthAmpCorr'}) 
 % are supported at the moment.
 %
 % USES PARFOR! 
@@ -102,6 +102,9 @@ if ~exist('method', 'var')
     method = 'iplv';
 end
 
+% IMPORTANT!!! HARDCODED SAMPLE BOUNDS TO CONSIDER
+sampleBounds = [1001 9000];
+
 % user message
 disp([char(10), 'Called connectivityWrapperReal_hyperscan4D function with following arguments: ',...
     char(10), 'Frequency band: ', freq,...
@@ -109,6 +112,9 @@ disp([char(10), 'Called connectivityWrapperReal_hyperscan4D function with follow
     char(10), 'Connectivity measure: ', method,...
     char(10), 'Subjects: ']);
 disp(subjects);
+disp(['NOTE THAT THIS VERSION ONLY CONSIDERS SAMPLES BETWEEN ',... 
+    num2str(sampleBounds(1)), ' AND ', num2str(sampleBounds(2)), '!!!']);
+disp('NOTE THAT THIS VERSION EXPECTS 4D DATA!!!');
 
 
 %% Basics
@@ -119,7 +125,7 @@ subNo = length(subjects);
 % load first data, check dimensions
 checkFile = fullfile(dirName, freq, [subjects{1}, '_', freq, '.mat']);
 load(checkFile, 'EEG');
-[roiNo, sampleNo, epochNo, condNo] = size(EEG.data);
+[roiNo, sampleNo, epochNo, condNo] = size(EEG.data(:, sampleBounds(1):sampleBounds(2), :, :));
 % user message
 disp([char(10), 'First data file had ', num2str(condNo), ' conditions, ',... 
     num2str(epochNo), ' epochs, ', num2str(roiNo),... 
@@ -159,7 +165,7 @@ parfor subIdx = 1:subNo
     % load subjects's data
     subFile = fullfile(dirName, freq, [subjects{subIdx}, '_', freq,'.mat']);
     subData = load(subFile, 'EEG');
-    subData = subData.EEG.data;
+    subData = subData.EEG.data(:, sampleBounds(1):sampleBounds(2), :, :);
     % check data size
     [subRoiNo, subSampleNo, subEpochNo, subCondNo] = size(subData);
     if ~isequal([subRoiNo, subSampleNo], [roiNo, sampleNo])

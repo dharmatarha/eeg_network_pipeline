@@ -16,7 +16,7 @@ function surrEdgeEstimationReal_hyperscan4D(freq, varargin)
 % (truncated) normal distribution, estimating the parameters (mean and std). 
 % USES PARFOR!
 %
-% Connectivity is measured by calling functions (plv, iplv, pli, ampCorr or orthAmpCorr)
+% Connectivity is measured by calling functions (plv, iplv, ciplv, ampCorr or orthAmpCorr)
 % defined outside this script. 
 %
 % NOTE that for envelope correlation measures you should fit a
