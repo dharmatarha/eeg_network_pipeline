@@ -1,19 +1,19 @@
-function res = orthAmpCorr(epochData, varargin)
+function res = orthAmpCorr(data, varargin)
 %% Pairwise-orthogonalized envelope correlation
 %
-% USAGE: res = orthAmpCorr(epochData, lpFilter=[], verbosity=1)
+% USAGE: res = orthAmpCorr(data, lpFilter=[])
 %
 % Calculates envelope correlations on pairwise-orthogonalized ROI/channel
-% data. Expects real-valued data as input in ROIs/channels X samples
-% format. 
+% data. Expects real-valued data as input with dimensions ROIs/channels 
+% X samples. 
 %
 % As pairwise-orthogonalization is noncommutative, it is performed in both
 % directions and the average of the two connectivity values is returned in
 % the output arg.
 %
-% Mandataory input:
-% epochData     - Numeric matrix where each row is a separate channel / ROI 
-%               time series and columns correspond to samples. 
+% Mandatory input(s):
+% data          - Numeric matrix, real valued. Its dimensions are channels
+%               / ROI time series X samples.
 %
 % Optional inputs:
 % lpFilter      - Digital filter object as returned by e.g. designfilt
@@ -21,13 +21,11 @@ function res = orthAmpCorr(epochData, varargin)
 %               filtering the amplitude envelopes before correlations.
 %               Applied via the Signal Processing Toolbox (!) version of 
 %               the filter command. Defaults to [], meaning no filtering. 
-% verbosity     - Verbosity. If 1, it prints to command window, 0 means
-%               silence. Default is 1.
 %
 % Output:
 % res           - Numeric matrix of connectivity values, sized
-%               ROIs/channels X ROIs/channels, so that entry i,j is the
-%               envelope correlation of ROIs/channels i and j. Only the
+%               channels X channels, so that entry i,j is the
+%               envelope correlation of channels i and j. Only the
 %               upper triangle above the main diagonal is populated with 
 %               values, rest is NaN.
 %
@@ -40,90 +38,80 @@ function res = orthAmpCorr(epochData, varargin)
 
 %% Input checks
 
-if ~ismember(nargin, 1:3)
-    error('Function orthAmpCorr requires input arg "epochData" while args "lpFilter" and "verbosity" are optional!');
+% number of input args
+if ~ismember(nargin, 1:2)
+    error('Function orthAmpCorr requires input arg "data" while arg "lpFilter" is optional!');
 end
-if ~isnumeric(epochData) || ~ismatrix(epochData)
-    error('Input arg "epochData" should be  numeric matrix!');
+% check mandatory input
+if ~isnumeric(data) || ~isreal(data) || ~ismatrix(data)
+    error('Input arg "data" should be numeric matrix of reals!');
 end
-if ~isempty(varargin)
-    for v = 1:length(varargin)
-        if isa(varargin{v}, 'digitalFilter') && ~exist('lpFilter', 'var')
-            lpFilter = varargin{v};
-        elseif ismember(varargin{v} ,[0 1]) && ~exist('verbosity', 'var')
-            verbosity = varargin{v};
-        else
-            error('At least one input arg could not be mapped nicely to "lpFilter" or "verbosity"!');
-        end
+% check / assign optional input
+if nargin == 2
+    if isa(varargin{1}, 'digitalFilter') || isempty(varargin{1})
+        lpFilter = varargin{1};
+    else
+        error('Optional arg "lpFilter" should be either a digital filter object or empty!');            
     end
-end
-if ~exist('lpFilter', 'var')
+else
     lpFilter = [];
 end
-if ~exist('verbosity', 'var')
-    verbosity = 1;
-end
 
-% check input data size
-[roiNo, sampleNo] = size(epochData);
-if roiNo >= sampleNo
-    warning('Input data seems to have many ROIs/channels relative to the number of samples. We proceed but it is suspicious.');
-end
-
-% user message
-if verbosity
-    disp([char(10), 'Called orthAmpCorr on data with ', num2str(roiNo),... 
-        ' ROIs/channels, each with ', num2str(sampleNo), ' samples']);
+% sanity check on input data size
+[channelNo, sampleNo] = size(data);
+if channelNo >= sampleNo
+    warning('Input data has equal or larger number of channels than samples. We proceed but it is suspicious!');
 end
 
 
 %% Loops through all ROI/channel pairings
 
-epochData = epochData';
+% transpose to samples X channels
+data = data';
 
 % temp var for connectivity res
-res = nan(roiNo);
+res = nan(channelNo);
 
 % vector norms (Euclidean) of all channels 
-roiNorms = sqrt(sum(epochData.^2, 1));  % roiNorms is a row vector
+channelNorms = sqrt(sum(data.^2, 1));  % channelNorms is a row vector
 
-% get envelopes for all channels
-epochDataEnv = envelope(epochData);  % keep dims ROIs/channels X samples
+% get envelopes for all channels (across samples)
+dataEnv = envelope(data);  % dimenions here are samples X channels
 
 % filter all channels if lowpass filter was provided
 if ~isempty(lpFilter)
-    epochDataEnv = (filter(lpFilter, epochDataEnv));
+    dataEnv = (filter(lpFilter, dataEnv));
 end
 
 % loops trough ROIs
-for roiIdx = 1:roiNo 
+for channelIdx = 1:channelNo 
     
-    % select one ROI/channel to correlate with all others, replicate it
-    % roiNo times
-    roiData = repmat(epochData(:, roiIdx), [1, 62]);  
+    % select one channel to correlate with all others, replicate it
+    % channelNo times
+    channelData = repmat(data(:, channelIdx), [1, 62]);  
 
-    % scalar projections of data1 on all ROIs/channels
-    projScalars = dot(roiData, epochData)./roiNorms;  % projScalar is 1 X roiNo
+    % scalar projections of current channel data on all channels
+    projScalars = dot(channelData, data)./channelNorms;  % projScalar is 1 X channelNo
     
-    % projection vectors of data1 on all ROIs/channels
-    projVectors = (epochData./roiNorms).*projScalars;  
+    % projection vectors of current channel data on all channels
+    projVectors = (data./channelNorms).*projScalars;  
     
-    % orthogonalized data1 with regards to all other channels
-    orthVectors = roiData - projVectors;
+    % orthogonalized current channel with regards to all other channels
+    orthVectors = channelData - projVectors;
     
     % get envelopes
-    roiDataEnv = envelope(orthVectors);  
+    channelDataEnv = envelope(orthVectors);  
     
     % filter envelopes
     if ~isempty(lpFilter)
-        roiDataEnv = (filter(lpFilter, roiDataEnv));
+        channelDataEnv = (filter(lpFilter, channelDataEnv));
     end
     
     % get correlations
-    rhos = corr(roiDataEnv, epochDataEnv);
+    rhos = corr(channelDataEnv, dataEnv);
     
     % take only the diagonal for the results matrix
-    res(roiIdx, :) = diag(rhos);
+    res(channelIdx, :) = diag(rhos);
     
 end
 
@@ -131,12 +119,7 @@ end
 % triangle
 res = (triu(res, 1) + tril(res, -1)')/2;
 % lower triangle is set to NaN
-res(tril(true(roiNo))) = NaN;  
-
-% user message
-if verbosity
-    disp(['Calculated orthAmpCorr for ', num2str(roiNo*(roiNo-1)/2), ' ROI/channel pairings']);
-end
+res(tril(true(channelNo))) = NaN;  
 
 
 return

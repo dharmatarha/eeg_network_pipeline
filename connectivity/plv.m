@@ -7,9 +7,9 @@ function plvRes = plv(data)
 % channels / ROI time series. Supports PLV calculation in time series, 
 % not across trials.
 %
-% Returns symmetric matrix of PLV values, not only the upper triangle.
+% Returns PLV values only in the upper triangle.
 %
-% IMPORTANT: Expects real-valued data!
+% IMPORTANT: Expects real-valued data, unlike earlier versions!
 % 
 % Mandatory input(s):
 % data          - Numeric matrix, real valued. Its dimensions are channels
@@ -42,8 +42,14 @@ if nargin ~= 1
     error('Function plv requires input arg "data"!');
 end
 % check mandatory input
-if ~isnumeric(data) || ~isreal(data) || length(size(data)) ~= 2
+if ~isnumeric(data) || ~isreal(data) || ~ismatrix(data)
     error('Input arg "data" should be a 2D numeric matrix of reals (channels X samples)!');
+end
+
+% sanity check on input data size
+[channelNo, sampleNo] = size(data);
+if channelNo >= sampleNo
+    warning('Input data has equal or larger number of channels than samples. We proceed but it is suspicious!');
 end
 
 
@@ -51,7 +57,6 @@ end
 
 % NEW, FAST METHOD BASED ON BRUNA ET AL. (2018):
 
-[~, sampleNo] = size(data);
 % get analytic signal, across samples
 dataAnalytic = hilbert(data')';  % transposes keep the dims as channels X samples
 % normalize with magnitude
@@ -59,10 +64,12 @@ normedData = dataAnalytic ./ abs(dataAnalytic);
 % plv as matrix multiplication
 plvRes = abs(normedData * normedData') / sampleNo;
 
+% lower triangle is set to NaN, as with symmetric phase-based measures  
+plvRes(tril(true(channelNo))) = NaN; 
+
 
 % % OLD, SLOWER METHOD BASED ON MORMANN ET AL. (2000):
 % 
-% [channelNo, sampleNo] = size(data);
 % % get analytic signal, across samples
 % dataAnalytic = hilbert(data')';  % transposes keep the dims as channels X samples
 % dataPhase = angle(dataAnalytic);  % phase data
@@ -78,6 +85,7 @@ plvRes = abs(normedData * normedData') / sampleNo;
 %     plvRes(currentChannel, currentChannel+1:end) = abs(sum(exp(1i*(d1-dataPhase(currentChannel+1:end, :))), 2)/sampleNo);
 %     
 % end
+
 
 
 return

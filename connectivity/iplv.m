@@ -7,9 +7,9 @@ function iplvRes = iplv(data)
 % across a set of channels / ROI time series. Supports iPLV calculation in 
 % time series, not across trials.
 %
-% Returns symmetric matrix of iPLV values, not only the upper triangle.
+% Returns iPLV values only in the upper triangle.
 %
-% IMPORTANT: Expects real-valued data!
+% IMPORTANT: Expects real-valued data, unlike earlier versions!
 % 
 % Mandatory input(s):
 % data          - Numeric matrix, real valued. Its dimensions are channels
@@ -48,12 +48,17 @@ if ~isnumeric(data) || ~isreal(data) || length(size(data)) ~= 2
     error('Input arg "data" should be a 2D numeric matrix of reals (channels X samples)!');
 end
 
+% sanity check on input data size
+[channelNo, sampleNo] = size(data);
+if channelNo >= sampleNo
+    warning('Input data has equal or larger number of channels than samples. We proceed but it is suspicious!');
+end
 
-%% Loop across channels
+
+%% Calculations
 
 % NEW, FAST METHOD BASED ON BRUNA ET AL. (2018):
 
-[~, sampleNo] = size(data);
 % get analytic signal, across samples
 dataAnalytic = hilbert(data')';  % transposes keep the dims as channels X samples
 % normalize with magnitude
@@ -61,10 +66,12 @@ normedData = dataAnalytic ./ abs(dataAnalytic);
 % iplv as matrix multiplication
 iplvRes = abs(imag(normedData * normedData') / sampleNo);
 
+% lower triangle is set to NaN, as with symmetric phase-based measures  
+iplvRes(tril(true(channelNo))) = NaN; 
+
 
 % % OLD, SLOWER METHOD BASED ON MORMANN ET AL. (2000):
 % 
-% [channelNo, sampleNo] = size(data);
 % % get analytic signal, across samples
 % dataAnalytic = hilbert(data')';  % transposes keep the dims as channels X samples
 % dataPhase = angle(dataAnalytic);  % phase data

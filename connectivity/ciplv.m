@@ -7,10 +7,9 @@ function ciplvRes = ciplv(data)
 % value (ciPLV) across a set of channels / ROI time series. Supports ciPLV 
 % calculation in time series, not across trials.
 % 
+% Returns ciPLV values only in the upper triangle.
 %
-% Returns symmetric matrix of ciPLV values, not only the upper triangle.
-%
-% IMPORTANT: Expects real-valued data!
+% IMPORTANT: Expects real-valued data, unlike earlier versions!
 % 
 % Mandatory input(s):
 % data          - Numeric matrix, real valued. Its dimensions are channels
@@ -47,10 +46,15 @@ if ~isnumeric(data) || ~isreal(data) || length(size(data)) ~= 2
     error('Input arg "data" should be a 2D numeric matrix of reals (channels X samples)!');
 end
 
+% sanity check on input data size
+[channelNo, sampleNo] = size(data);
+if channelNo >= sampleNo
+    warning('Input data has equal or larger number of channels than samples. We proceed but it is suspicious!');
+end
+
 
 %% Calculation
 
-[~, sampleNo] = size(data);
 % get analytic signal, across samples
 dataAnalytic = hilbert(data')';  % transposes keep the dims as channels X samples
 % normalize with magnitude
@@ -62,5 +66,7 @@ tmp = (normedData * normedData');
 % with the magnitude of the real part
 ciplvRes = abs(imag(tmp)/sampleNo) ./ (sqrt(1-(abs(real(tmp))/sampleNo).^2));
 
+% lower triangle is set to NaN, as with symmetric phase-based measures  
+ciplvRes(tril(true(channelNo))) = NaN; 
 
 return
