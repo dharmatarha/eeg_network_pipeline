@@ -1,18 +1,36 @@
-% load necessary data: edge contributions and full raw connectivity
-e = load('~/eeg_network_pipeline/dev/p/edgeContributionsPlottingVars.mat');
-% only need raw connectivity and edge contributions as cohenD scores
-cohens = e.cohens;
-cohensM = e.cohensM;
-realConn = e.realConn;
+% % load necessary data: edge contributions and full raw connectivity
+% e = load('~/eeg_network_pipeline/dev/p/edgeContributionsPlottingVars.mat');
+% % only need raw connectivity and edge contributions as cohenD scores
+% cohens = e.cohens;
+% cohensM = e.cohensM;
+% realConn = e.realConn;
 
-% check if the matrix of contributions is arranged from the vector
-% correctly
-idx = tril(true(size(realConn, 1)), -1);
-c = nan(size(realConn, 1));
-c(idx) = cohens; c = c';
-if ~isequal(triu(c, 1), triu(cohensM, 1))
-    error('Bad arrangement of cohen D values from vector to matrix!');
-end
+% group level edge contributions and raw connectivity,
+% alpha,
+% iplv
+
+e = load('/media/adamb/bonczData/hyperscan/newSurrEdgeEstimates/RS_vs_edgeContr_alpha_iplv.mat');
+d = load('/media/adamb/bonczData/hyperscan/newSurrEdgeEstimates/alpha/group_surrResults_alpha_iplv.mat');
+
+cohens = e.edgeDs; cohens(isnan(cohens)) = 0;
+% cohens = mean(e.subEdgeDs,1)'; cohens(isnan(cohens)) = 0;
+realConn = squeeze(mean(mean(d.meanConn, 2), 1));
+groupRS = e.groupRS;
+% matrix version of cohen d values
+nodeNo = size(realConn, 1);
+tmp = nan(nodeNo);
+tmp(triu(true(nodeNo), 1)) = cohens;
+cohensM = tmp;
+realConnMean = realConn;
+
+% % check if the matrix of contributions is arranged from the vector
+% % correctly
+% idx = tril(true(size(realConn, 1)), -1);
+% c = nan(size(realConn, 1));
+% c(idx) = cohens; c = c';
+% if ~isequal(triu(c, 1), triu(cohensM, 1))
+%     error('Bad arrangement of cohen D values from vector to matrix!');
+% end
 
 % get labels and colors
 if ~exist('roiLabels', 'var')
@@ -45,8 +63,8 @@ end
 trimmingThr = [0, 0.114];
 group2color = [1, 1];
 
-% get averaged connectivity matrix
-realConnMean = mean(mean(realConn, 3, 'omitnan'), 4, 'omitnan');
+% % get averaged connectivity matrix
+% realConnMean = mean(mean(realConn, 3, 'omitnan'), 4, 'omitnan');
 
 % make sure we have symmetric matrices with zeros at diagonals before reordering rows/columns
 realConnMean = triu(realConnMean, 1) + triu(realConnMean, 1)';
@@ -69,7 +87,7 @@ end
 
 % define edge grouping matrix from the cohens values
 cSort = sort(cohens, 'descend');
-topN = 100;  % top contributing edges to highlight
+topN = 30;  % top contributing edges to highlight
 edgeMembership = double(cohensMReord>cSort(topN+1));  % binary, only one group to highlight
 
 % define final connectivity matrix with the right name
@@ -91,7 +109,30 @@ mainFig = circleGraphPlot_edges(connMatrix, edgeMembership, colorTriplets,...
 
 
 
+%% Version for circleGraphPlot_edgeColorWeights
 
 
+% define edge grouping matrix from the cohens values
+cSort = sort(cohens, 'descend');
+topN = 60;  % top contributing edges to highlight
+edgeMembership = double(cohensMReord>cSort(topN+1));  % binary, only one group to highlight
 
+% define final connectivity matrix with the right name
+connMatrix = realConnReord;
+% define final label cell array with the correct name
+labels = roiLabelsPlotting;
 
+% only upper triangles
+connMatrix(tril(true(size(connMatrix, 1)))) = nan;
+edgeMembership(tril(true(size(edgeMembership, 1)))) = nan;
+
+% filter for edges only in topN
+connMatrixTrimmed = connMatrix;
+connMatrixTrimmed(edgeMembership==0) = 0;
+
+% coloring is based on cohensM
+cohensMReordTrimmed = cohensMReord;
+cohensMReordTrimmed(edgeMembership==0) = nan;
+
+mainFig = circleGraphPlot_edgeColorWeights(connMatrixTrimmed, cohensMReordTrimmed, 'autumn',...
+                                trimmingThr, labels, 'draw');

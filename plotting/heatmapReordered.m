@@ -97,6 +97,9 @@ end
 
 %% Heatmap
 
+% punch the diagonal out
+connMatrixRo(1:numel(labels)+1:end) = nan;
+
 % plotting constants
 gcfMainPos = [0, 0, 0.58, 96];
 gcfBackground = [1 1 1];
@@ -105,7 +108,7 @@ missingDataColor = [1 1 1];
 fontSize = 14;
 
 % heatmap 
-h = heatmap(connMatrixRo, 'ColorMap', flipud(autumn),... 
+h = heatmap(connMatrixRo, 'ColorMap', flipud(jet),... 
     'MissingDataColor', missingDataColor,... 
     'MissingDataLabel', missingEdgeLabel,... 
     'FontSize', fontSize);
@@ -121,6 +124,8 @@ hs = struct(h);
 warning(old_warning_state);
 hs.XAxis.TickValues = [];
 hs.YAxis.TickValues = [];
+% hs.XAxis.TickValues = labelsRo;
+% hs.YAxis.TickValues = labelsRo;
 
 
 return

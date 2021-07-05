@@ -42,7 +42,7 @@ function mainFig = circleGraphPlot_edges(connMatrix, edgeMembership, colorTriple
 % 
 % Optional inputs:
 % group2color     - Numeric matrix with two columns. Contains
-%               edge group-to-color assignments. The first color contains
+%               edge group-to-color assignments. The first column contains
 %               edge group identifiers, the second corresponding row 
 %               numbers of the input arg "colorTriplets". Defaults to
 %               empty, in which case edge group-to-color assignment is 
