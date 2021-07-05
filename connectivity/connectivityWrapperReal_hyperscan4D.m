@@ -57,7 +57,7 @@ function connectivityWrapperReal_hyperscan4D(freq, varargin)
 %           ,'s11','s12','s13','s14','s15','s16','s17','s18','s19','s20',...
 %           's21','s22','s23','s24','s25','s26','s27','s28'}
 % method    - Char array, one of 
-%       {'pli', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'}. Specifies the 
+%       {'ciplv', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'}. Specifies the 
 %       connectivity measure. Defaults to 'iplv'.
 % 
 
@@ -80,7 +80,7 @@ if ~isempty(varargin)
             subjects = varargin{v};
         elseif ischar(varargin{v}) && ~exist('dirName', 'var') && exist(varargin{v}, 'dir')
             dirName = varargin{v};
-        elseif ischar(varargin{v}) && ~exist('method', 'var') && ismember(varargin{v}, {'pli', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'})
+        elseif ischar(varargin{v}) && ~exist('method', 'var') && ismember(varargin{v}, {'plv', 'iplv', 'ciplv', 'ampCorr', 'orthAmpCorr'})
             method = varargin{v};           
         else
             error(['There are either too many input args or they are not ',...
@@ -139,7 +139,7 @@ if ismember(method, {'ampCorr', 'orthAmpCorr'})
             'MatchExactly',... 
             'passband');
 else
-    lpFilter = [];
+    lowpassFilter = [];
 end
 
 % clock for timing the full function run
@@ -175,23 +175,18 @@ parfor subIdx = 1:subNo
         % loop through epochs
         for epochIdx = 1:subEpochNo
 
-            % get phase if arg method is a phase-based measure
-            if ismember(method, {'plv', 'iplv', 'pli'})
-                subDataPhase = timeSeriesToPhase(squeeze(subData(:, :, epochIdx, condIdx)));  % extracts instantaneous phase from analytical signal
-            end
-
             % measure depends on the arg method
             switch method    
                 case 'plv'
-                    connRes(condIdx, epochIdx, :, :) = plv(subDataPhase, 0);  % suppress messages from plv function
+                    connRes(condIdx, epochIdx, :, :) = plv(squeeze(subData(:, :, epochIdx, condIdx)));
                 case 'iplv'
-                    connRes(condIdx, epochIdx, :, :) = iplv(subDataPhase, 0);  % suppress messages from iplv function    
-                case 'pli'
-                    connRes(condIdx, epochIdx, :, :) = pli(subDataPhase, 0);  % suppress messages from pli function
+                    connRes(condIdx, epochIdx, :, :) = iplv(squeeze(subData(:, :, epochIdx, condIdx)));  
+                case 'ciplv'
+                    connRes(condIdx, epochIdx, :, :) = ciplv(squeeze(subData(:, :, epochIdx, condIdx)));
                 case 'ampCorr'
-                    connRes(condIdx, epochIdx, :, :) = ampCorr(squeeze(subData(:, :, epochIdx, condIdx)), lowpassFilter, 0);  % suppress messages from ampCorr function
+                    connRes(condIdx, epochIdx, :, :) = ampCorr(squeeze(subData(:, :, epochIdx, condIdx)), lowpassFilter);  
                 case 'orthAmpCorr'
-                    connRes(condIdx, epochIdx, :, :) = orthAmpCorr(squeeze(subData(:, :, epochIdx, condIdx)), lowpassFilter, 0);  % suppress messages from ampCorr function            
+                    connRes(condIdx, epochIdx, :, :) = orthAmpCorr(squeeze(subData(:, :, epochIdx, condIdx)), lowpassFilter);         
             end  % switch method
 
         end  % epochIdx for loop
