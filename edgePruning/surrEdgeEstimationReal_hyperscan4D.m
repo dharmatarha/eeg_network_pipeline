@@ -73,7 +73,7 @@ function surrEdgeEstimationReal_hyperscan4D(freq, varargin)
 %           ,'s11','s12','s13','s14','s15','s16','s17','s18','s19','s20',...
 %           's21','s22','s23','s24','s25','s26','s27','s28'}
 % method    - Either a char array, one of 
-%       {'pli', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'}, or a cell array
+%       {'plv', 'iplv', 'ciplv', 'ampCorr', 'orthAmpCorr'}, or a cell array
 %       of char arrays. Specifies one or more connectivity measures to
 %       calculate on the surrogate data. Defaults to 'iplv'.
 % dRate     - Decimation rate. We usually work with bandpass-filtered data
@@ -167,14 +167,14 @@ end
 % char arrays as well
 if ~isempty(varargin)
     for v = 1:length(varargin)    
-        if iscell(varargin{v}) && ~all(ismember(varargin{v}, {'pli', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'})) &&...
+        if iscell(varargin{v}) && ~all(ismember(varargin{v}, {'plv', 'iplv', 'ciplv', 'ampCorr', 'orthAmpCorr'})) &&...
                 ~all(ismember(varargin{v}, {'truncated', 'nontruncated'})) && ~exist('subjects', 'var')
             subjects = varargin{v};
         elseif ischar(varargin{v}) && ~exist('dirName', 'var') && exist(varargin{v}, 'dir')
             dirName = varargin{v};
-        elseif ischar(varargin{v}) && ~exist('method', 'var') && ismember(varargin{v}, {'plv', 'iplv', 'pli', 'ampCorr', 'orthAmpCorr'})
+        elseif ischar(varargin{v}) && ~exist('method', 'var') && ismember(varargin{v}, {'plv', 'iplv', 'ciplv', 'ampCorr', 'orthAmpCorr'})
             method = varargin{v};     
-        elseif iscell(varargin{v}) && all(ismember(varargin{v}, {'pli', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'})) && ~exist('method', 'var')
+        elseif iscell(varargin{v}) && all(ismember(varargin{v}, {'plv', 'iplv', 'ciplv', 'ampCorr', 'orthAmpCorr'})) && ~exist('method', 'var')
             method = varargin{v};            
         elseif isnumeric(varargin{v}) && ~exist('dRate', 'var') && ismember(varargin{v}, 1:20)
             dRate = varargin{v};

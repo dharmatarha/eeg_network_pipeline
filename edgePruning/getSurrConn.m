@@ -6,7 +6,7 @@ function [surrConnData] = getSurrConn(realData, varargin)
 % Generates surrogate connectivity data from the input matrix using 
 % phase scrambling (phase randomization) and calculates connectivity using
 % the specified method or methods
-% (one or more of {'pli', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'}).
+% (one or more of {'plv', 'iplv', 'ciplv', 'ampCorr', 'orthAmpCorr'}).
 %
 % It works either with row vector input (single variable / time series) or 
 % a matrix where each row is treated as a variable / time series.
@@ -22,8 +22,8 @@ function [surrConnData] = getSurrConn(realData, varargin)
 % surrNo            - Numeric value, one of 1:10^5. Defines number of 
 %                   surrogates. Defaults to 10^4.
 % method            - Either a char array, one of 
-%                   {'pli', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'}, or a 
-%                   cell array of char array. Specifies one or more 
+%                   {'plv', 'iplv', 'ciplv', 'ampCorr', 'orthAmpCorr'}, or 
+%                   a cell array of char array. Specifies one or more 
 %                   connectivity measures to calculate on the surrogate 
 %                   data. Defaults to 'iplv'.
 % lpFilter          -Digital filter object as returned by e.g. designfilt
@@ -60,9 +60,9 @@ if ~isempty(varargin)
     for v = 1:length(varargin)
         if isnumeric(varargin{v}) && ismember(varargin{v}, 1:10^5) && ~exist('surrNo', 'var')
             surrNo = varargin{v};        
-        elseif ischar(varargin{v}) && ismember(varargin{v}, {'pli', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'}) && ~exist('method', 'var')
+        elseif ischar(varargin{v}) && ismember(varargin{v}, {'plv', 'iplv', 'ciplv', 'ampCorr', 'orthAmpCorr'}) && ~exist('method', 'var')
             method = varargin{v};
-        elseif iscell(varargin{v}) && all(ismember(varargin{v}, {'pli', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'})) && ~exist('method', 'var')
+        elseif iscell(varargin{v}) && all(ismember(varargin{v}, {'plv', 'iplv', 'ciplv', 'ampCorr', 'orthAmpCorr'})) && ~exist('method', 'var')
             method = varargin{v};    
         elseif isa(varargin{v}, 'digitalFilter') && ~exist('lpFilter', 'var')
             lpFilter = varargin{v};
@@ -98,7 +98,7 @@ end
 
 % give a warning if a lowpass filter is supplied with only phase-based
 % connectivity methods
-if all(ismember(method, {'pli', 'plv', 'iplv'})) && ~isempty(lpFilter)
+if all(ismember(method, {'plv', 'iplv', 'ciplv'})) && ~isempty(lpFilter)
     warning(['A lowpass filter object was supplied as input arg ',...
         '(mapped to "lpFilter") but the selected connectivity method(s) is (are) phase-based.',... 
         char(10), 'No filtering will take place.']);
@@ -121,11 +121,6 @@ for surrIdx = 1:surrNo
     % get phase-scrambled version of input data
     surrogateData = phaseScramble(realData);
     
-    % for phase-based methods, extract instantaneous phase from analytical signal
-    if any(ismember(method, {'pli', 'plv', 'iplv'}))
-        surrogatePhaseData = timeSeriesToPhase(surrogateData);
-    end
-    
     % loop through connectivity methods requested
     for methodIdx = 1:methodNo
         % char array of current method
@@ -133,23 +128,23 @@ for surrIdx = 1:surrNo
 
         % connectivity measure is specified by input arg "method"
         switch currentMethod
-            case 'pli'
-                surrConnData(methodIdx, surrIdx, :, :) = pli(surrogatePhaseData, 0);
             case 'plv'
-                surrConnData(methodIdx, surrIdx, :, :) = plv(surrogatePhaseData, 0);
+                surrConnData(methodIdx, surrIdx, :, :) = plv(surrogatePhaseData);
             case 'iplv'
-                surrConnData(methodIdx, surrIdx, :, :) = iplv(surrogatePhaseData, 0);
+                surrConnData(methodIdx, surrIdx, :, :) = iplv(surrogatePhaseData);
+            case 'ciplv'
+                surrConnData(methodIdx, surrIdx, :, :) = ciplv(surrogatePhaseData);                
             case 'ampCorr'
                 if ~isempty(lpFilter)
-                    surrConnData(methodIdx, surrIdx, :, :) = ampCorr(surrogateData, lpFilter, 0);      
+                    surrConnData(methodIdx, surrIdx, :, :) = ampCorr(surrogateData, lpFilter);      
                 else
-                    surrConnData(methodIdx, surrIdx, :, :) = ampCorr(surrogateData, 0);
+                    surrConnData(methodIdx, surrIdx, :, :) = ampCorr(surrogateData);
                 end
             case 'orthAmpCorr'
                 if ~isempty(lpFilter)
-                    surrConnData(methodIdx, surrIdx, :, :) = orthAmpCorr(surrogateData, lpFilter, 0);
+                    surrConnData(methodIdx, surrIdx, :, :) = orthAmpCorr(surrogateData, lpFilter);
                 else
-                    surrConnData(methodIdx, surrIdx, :, :) = orthAmpCorr(surrogateData, 0);
+                    surrConnData(methodIdx, surrIdx, :, :) = orthAmpCorr(surrogateData);
                 end
         end  % switch method
         
