@@ -287,7 +287,7 @@ for subIdx = 1:subNo
     %% Load surrogate connectivity data
         
     % expected surrogate connectivity data file name
-    subSurrFile = dir(fullfile(dirName, freq, [subID, '_', freq, '_surrEdgeEstReal_*_', method, '_*.mat']));
+    subSurrFile = dir(fullfile(dirName, freq, [subID, '_', freq, '_surrEdgeEstReal*_', method, '_*.mat']));
     if numel(subSurrFile) ~= 1
         error(['There are none or too many surrogate data file(s) for subject ', subID, '!']);
     end
