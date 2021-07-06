@@ -14,16 +14,16 @@ function [surrConnData] = getSurrConn(realData, varargin)
 % Optional inputs are inferred from types and values.
 %
 % Mandatory input: 
-% realData         - Numeric matrix (real) sized (no. of channels/rois X samples). 
-%                   Multichannel input data, with each row a separate 
-%                   channel / time series.
+% realData         - Numeric matrix, real valued, with dimensions 
+%                   channels/rois X samples. Multichannel input data, 
+%                   with each row a separate channel / time series.
 %
 % Optional inputs:
 % surrNo            - Numeric value, one of 1:10^5. Defines number of 
 %                   surrogates. Defaults to 10^4.
 % method            - Either a char array, one of 
 %                   {'plv', 'iplv', 'ciplv', 'ampCorr', 'orthAmpCorr'}, or 
-%                   a cell array of char array. Specifies one or more 
+%                   a cell array of char arrays. Specifies one or more 
 %                   connectivity measures to calculate on the surrogate 
 %                   data. Defaults to 'iplv'.
 % lpFilter          -Digital filter object as returned by e.g. designfilt
@@ -129,11 +129,11 @@ for surrIdx = 1:surrNo
         % connectivity measure is specified by input arg "method"
         switch currentMethod
             case 'plv'
-                surrConnData(methodIdx, surrIdx, :, :) = plv(surrogatePhaseData);
+                surrConnData(methodIdx, surrIdx, :, :) = plv(surrogateData);
             case 'iplv'
-                surrConnData(methodIdx, surrIdx, :, :) = iplv(surrogatePhaseData);
+                surrConnData(methodIdx, surrIdx, :, :) = iplv(surrogateData);
             case 'ciplv'
-                surrConnData(methodIdx, surrIdx, :, :) = ciplv(surrogatePhaseData);                
+                surrConnData(methodIdx, surrIdx, :, :) = ciplv(surrogateData);                
             case 'ampCorr'
                 if ~isempty(lpFilter)
                     surrConnData(methodIdx, surrIdx, :, :) = ampCorr(surrogateData, lpFilter);      
