@@ -55,7 +55,7 @@ function cmpSurrRealConn_hyperscan4D(freq, varargin)
 %                   subjects={'s02','s03','s04','s05','s06','s07','s08','s09'...
 %                   ,'s11','s12','s13','s14','s15','s16','s17','s18','s19','s20',...
 %                   's21','s22','s23','s24','s25','s26','s27','s28'}
-% method            - Char array, one of {'plv', 'iplv', 'pli', 
+% method            - Char array, one of {'plv', 'iplv', 'ciplv', 
 %                   'ampCorr', 'orthAmpCorr'}. Connectivity method,
 %                   reflected in connectivity file names. Defaults to
 %                   'iplv'. 
@@ -144,7 +144,7 @@ if ~isempty(varargin)
             dirName = varargin{v};
         elseif iscell(varargin{v}) && ~exist('subjects', 'var')
             subjects = varargin{v};
-        elseif ischar(varargin{v}) && ismember(varargin{v}, {'pli', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'}) && ~exist('method', 'var')
+        elseif ischar(varargin{v}) && ismember(varargin{v}, {'ciplv', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'}) && ~exist('method', 'var')
             method = varargin{v};
         else
             error('At least one input arg could not be mapped nicely to "dirName", "subjects" or "method"!');
