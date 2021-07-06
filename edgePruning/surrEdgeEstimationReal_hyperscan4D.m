@@ -226,15 +226,15 @@ end
 
 % transform truncated to vector of logicals
 % if there is only one value (char array), set to logical and expand it to
-% match the number of methods
+% match the number of measures specified in "method"
 if ischar(truncated)
     if strcmp(truncated, 'nontruncated')
         truncated = false;
     elseif strcmp(truncated, 'truncated')
         truncated = true;
     end
-    if numel(methods) > 1
-        truncated = repmat(truncated, [1, numel(methods)]);
+    if numel(method) > 1
+        truncated = repmat(truncated, [1, numel(method)]);
     end
 % if "truncated" is cell, transform to boolean vector
 elseif iscell(truncated)
