@@ -17,6 +17,11 @@ function [permRes, withinCondPermRes, connSim] = cmpFullConn(connData, varargin)
 % (if specified) are passed to permTest.m. Tries to call permTest.m with
 % 'studentized' flag (only supported for 'mean').
 %
+% IMPORTANT: If the similarity matrix contains NaN values (e.g. if a
+% thresholded matrixholding only zero values is compared to anything 
+% else with "corr"), NaN values are removed from the affected within- or
+% across-condition similarity arrays before permutation tests.
+%
 % Mandatory input:
 % connData      - 4D numeric array, sets of connectivity matrices across
 %               epochs and conditions (stimuli). First two dimensions have
@@ -185,9 +190,11 @@ permRes = struct;
 permRes.withinCondMean = nan;
 permRes.withinCondSD = nan;
 permRes.withinCondMedian = nan;
+permRes.withinCondNan = nan;
 permRes.acrossCondMean = nan;
 permRes.acrossCondSD = nan;
 permRes.acrossCondMedian = nan;
+permRes.acrossCondNan = nan;
 permRes.realDiff = nan;
 permRes.studentDiff = nan;
 permRes.permDiff = nan(permNo, 1);
@@ -197,11 +204,16 @@ permRes.pEst = nan;
 withinCondSim = nan((epochNo^2-epochNo)/2, condNo);
 acrossCondSim = nan(epochNo^2*(condNo-1), condNo);
 
+
 for condIdx = 1:condNo
     
     % within-cond epoch pairing similarities for given condition
     tmp = connSim((condIdx-1)*epochNo+1:condIdx*epochNo, (condIdx-1)*epochNo+1:condIdx*epochNo); 
     withinCondSim(:, condIdx) = tmp(triu(true(epochNo), 1));
+    
+    % get number of NaN values among similarity values - occurs e.g. from fully
+    % zero connectivity matrices compared with "corr"
+    withinCondNan = sum(isnan(withinCondSim(:, condIdx)));
     
     % across-condition pairings for epochs in given condition
     tmpParts = cell(2, 1);
@@ -222,22 +234,35 @@ for condIdx = 1:condNo
     % linearize into a vector
     acrossCondSim(:, condIdx) = reshape(tmpAll', [epochNo^2*(condNo-1), 1]);
     
+    % get number of NaN values among similarity values - occurs e.g. from fully
+    % zero connectivity matrices compared with "corr"
+    acrossCondNan = sum(isnan(acrossCondSim(:, condIdx)));    
+    
     % store descriptives in result struct
-    permRes(condIdx).withinCondMean = mean(withinCondSim(:, condIdx));
-    permRes(condIdx).withinCondSD = std(withinCondSim(:, condIdx));
-    permRes(condIdx).withinCondMedian = median(withinCondSim(:, condIdx));
-    permRes(condIdx).acrossCondMean = mean(acrossCondSim(:, condIdx));
-    permRes(condIdx).acrossCondSD = std(acrossCondSim(:, condIdx)); 
-    permRes(condIdx).acrossCondMedian = median(acrossCondSim(:, condIdx));
+    permRes(condIdx).withinCondMean = mean(withinCondSim(:, condIdx), 'omitnan');
+    permRes(condIdx).withinCondSD = std(withinCondSim(:, condIdx), 'omitnan');
+    permRes(condIdx).withinCondMedian = median(withinCondSim(:, condIdx), 'omitnan');
+    permRes(condIdx).withinCondNan = withinCondNan;
+    permRes(condIdx).acrossCondMean = mean(acrossCondSim(:, condIdx), 'omitnan');
+    permRes(condIdx).acrossCondSD = std(acrossCondSim(:, condIdx), 'omitnan'); 
+    permRes(condIdx).acrossCondMedian = median(acrossCondSim(:, condIdx), 'omitnan');
+    permRes(condIdx).acrossCondNan = acrossCondNan;
+    
+    % remove NaN values before calling permTest, as it errors out when NaN
+    % values are included in data arrays
+    tmpWithin = withinCondSim(:, condIdx);
+    tmpWithin(isnan(tmpWithin)) = [];
+    tmpAcross = acrossCondSim(:, condIdx);
+    tmpAcross(isnan(tmpAcross)) = [];    
     
     % permutation test across the two groups of connectivity similarity
-    % values
+    % values    
     [permRes(condIdx).pEst,... 
      permRes(condIdx).realDiff,... 
      permRes(condIdx).permDiff,... 
      permRes(condIdx).cohenD,...
-     permRes(condIdx).studentDiff] = permTest(withinCondSim(:, condIdx),... 
-                                         acrossCondSim(:, condIdx),... 
+     permRes(condIdx).studentDiff] = permTest(tmpWithin,... 
+                                         tmpAcross,... 
                                          permNo,... 
                                          permStat,...
                                          'studentized',...
@@ -252,20 +277,29 @@ disp([char(10), 'Compared similarity within- versus across-condition epoch-pairi
 %% Comparison between within- and across-condition pairings across all conditions / stimuli
 
 % store descriptives in result struct
-permRes(condNo+1).withinCondMean = mean(withinCondSim(:));
-permRes(condNo+1).withinCondSD = std(withinCondSim(:));
-permRes(condNo+1).withinCondMedian = median(withinCondSim(:));
-permRes(condNo+1).acrossCondMean = mean(acrossCondSim(:));
-permRes(condNo+1).acrossCondSD = std(acrossCondSim(:)); 
-permRes(condNo+1).acrossCondMedian = median(acrossCondSim(:));
+permRes(condNo+1).withinCondMean = mean(withinCondSim(:), 'omitnan');
+permRes(condNo+1).withinCondSD = std(withinCondSim(:), 'omitnan');
+permRes(condNo+1).withinCondMedian = median(withinCondSim(:), 'omitnan');
+permRes(condIdx).withinCondNan = sum(isnan(withinCondSim(:)));
+permRes(condNo+1).acrossCondMean = mean(acrossCondSim(:), 'omitnan');
+permRes(condNo+1).acrossCondSD = std(acrossCondSim(:), 'omitnan'); 
+permRes(condNo+1).acrossCondMedian = median(acrossCondSim(:), 'omitnan');
+permRes(condIdx).acrossCondNan = sum(isnan(acrossCondSim(:)));
+
+% remove NaN values before calling permTest, as it errors out when NaN
+% values are included in data arrays
+tmpWithin = withinCondSim(:);
+tmpWithin(isnan(tmpWithin)) = [];
+tmpAcross = acrossCondSim(:);
+tmpAcross(isnan(tmpAcross)) = []; 
 
 % permutation test on vectorized withinCondSim and acrossCondSim matrices
 [permRes(condNo+1).pEst,... 
  permRes(condNo+1).realDiff,... 
  permRes(condNo+1).permDiff,... 
  permRes(condNo+1).cohenD,...
- permRes(condNo+1).studentDiff] = permTest(withinCondSim(:),... 
-                                      acrossCondSim(:),... 
+ permRes(condNo+1).studentDiff] = permTest(tmpWithin,... 
+                                      tmpAcross,... 
                                       permNo,... 
                                       permStat,...
                                       'studentized',...
@@ -292,14 +326,21 @@ for condOne = 1:condNo
             % adjust counter
             counter = counter + 1;
             
+            % remove NaN values before calling permTest, as it errors out when NaN
+            % values are included in data arrays
+            tmpWithinOne = withinCondSim(:, condOne);
+            tmpWithinOne(isnan(tmpWithinOne)) = [];
+            tmpWithinTwo = withinCondSim(:, condTwo);
+            tmpWithinTwo(isnan(tmpWithinTwo)) = []; 
+            
             % permutation test across the two groups of connectivity similarity
             % values
             [withinCondPermRes(counter).pEst,... 
                 withinCondPermRes(counter).realDiff,... 
                 withinCondPermRes(counter).permDiff,...
                 withinCondPermRes(counter).cohenD,...
-                withinCondPermRes(counter).studentDiff] = permTest(withinCondSim(:, condOne),... 
-                                                              withinCondSim(:, condTwo),... 
+                withinCondPermRes(counter).studentDiff] = permTest(tmpWithinOne,... 
+                                                              tmpWithinTwo,... 
                                                               permNo,... 
                                                               permStat,...
                                                               'studentized',...
