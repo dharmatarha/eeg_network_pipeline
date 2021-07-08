@@ -303,7 +303,7 @@ for subIdx = 1:subNo
     % index corresponding to the current method
     if numel(surrData.method) ~= 1 && ismember(method, surrData.method)
         methodIdx = find(strcmp(method, surrData.method));
-    elseif surrData.method == 1 && ismember(method, surrData.method)  % if there is only one method and it matches inpuat arg "method"
+    elseif numel(surrData.method) == 1 && ismember(method, surrData.method)  % if there is only one method and it matches inpuat arg "method"
         methodIdx = 1;
     else
         error(['Cannot match input arg "method" to the methods in surrogate data file at ', subSurrFile, '!']);
