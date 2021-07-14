@@ -160,6 +160,9 @@ if strcmp(metric, 'corr')
     tmpMeans = mean(dataLin, 1);
     tmpSds = std(dataLin, 1, 1);
     dataLin = (dataLin-tmpMeans)./tmpSds; % it is still crazy we can do this    
+    % After normalization we want to avoid NaN values arising from division
+    % with zero when the whole column was only zeros. We change NaN values back to zero
+    dataLin(isnan(dataLin)) = 0;
 end
 
 % calculation depends on metric type

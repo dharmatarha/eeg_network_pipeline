@@ -72,8 +72,8 @@ if ~ismember(nargin, 2:6)
         'while input args "perm", "stat", "student" and "verbosity" are optional (see the help)!']);
 end
 % check mandatory args    
-if ~isvector(a) || ~isvector(b)
-    error('Input args "a" and "b" should be numeric vectors!');
+if ~isvector(a) || isempty(a) || ~isvector(b) || isempty(b)
+    error('Input args "a" and "b" should be non-empty numeric vectors!');
 end
 if ~iscolumn(a)
     a = a';
