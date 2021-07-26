@@ -87,7 +87,7 @@ labelsRo = {'latOrbFront L', 'medOrbFront L', 'parsOrb L', 'parsTriang L', 'pars
     'precentral R', 'supFront R', 'caudMidFront R', 'rostrMidFront R', 'parsOpercul R', 'parsTriang R', 'parsOrb R', 'medOrbFront R', 'latOrbFront R',...
     };
 
-% check is supplied labels correspond to target labels, reorder if true
+% check if supplied labels correspond to target labels, reorder if true
 if all(ismember(labelsRo, labels))
     [connMatrixRo, ~] = matrixReorder(connMatrix, labels, labelsRo);
 else
@@ -108,7 +108,7 @@ missingDataColor = [1 1 1];
 fontSize = 14;
 
 % heatmap 
-h = heatmap(connMatrixRo, 'ColorMap', flipud(jet),... 
+h = heatmap(connMatrixRo, 'ColorMap', flipud(copper),... 
     'MissingDataColor', missingDataColor,... 
     'MissingDataLabel', missingEdgeLabel,... 
     'FontSize', fontSize);
