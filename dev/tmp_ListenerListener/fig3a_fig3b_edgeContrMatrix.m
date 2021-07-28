@@ -89,11 +89,37 @@ end
 
 
 
-
-
-
-
-
+% histogram
+if histFlag
+    
+    % plotting params
+    gcfMainPos = [0, 0, 0.40, 0.60];
+    gcfBackground = [1 1 1];
+    fontSize = 14;
+    fontWeight = 'Bold';    
+    facecolor = [0.7290, 0.5440, 0.0950];
+    linewidth = 1.5;
+    
+    h = histogram(ds, 40);
+    xlabel('Effect size (Cohen''s d)');
+    ylabel('Count');
+    h.FaceColor = facecolor;
+    h.LineWidth = linewidth;
+    
+    % background to white
+    set(gcf,'Color', gcfBackground);
+    % set size
+    set(gcf, 'Units', 'Normalized', 'OuterPosition', gcfMainPos);
+    % Font size, weight
+    set(gca, 'FontSize', fontSize);
+    set(gca, 'FontWeight', fontWeight);
+    
+    % cutoff line
+    l = line([dCutoff, dCutoff], [0 250], 'LineWidth', 2);
+    
+    saveas(gcf, fullfile(baseDir, ['edgeEffectSize_histogram_', thr, '_', freq, '_', method, '.svg']));
+    saveas(gcf, fullfile(baseDir, ['edgeEffectSize_histogram_', thr, '_', freq, '_', method, '.png']));
+    close(gcf);
 
 
 
