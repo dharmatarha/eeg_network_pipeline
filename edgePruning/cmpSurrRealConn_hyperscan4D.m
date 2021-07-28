@@ -303,7 +303,7 @@ for subIdx = 1:subNo
     % index corresponding to the current method
     if numel(surrData.method) ~= 1 && ismember(method, surrData.method)
         methodIdx = find(strcmp(method, surrData.method));
-    elseif numel(surrData.method) == 1 && ismember(method, surrData.method)  % if there is only one method and it matches inpuat arg "method"
+    elseif numel(surrData.method) == 1 && ismember(method, surrData.method)  % if there is only one method and it matches input arg "method"
         methodIdx = 1;
     else
         error(['Cannot match input arg "method" to the methods in surrogate data file at ', subSurrFile, '!']);
@@ -311,7 +311,7 @@ for subIdx = 1:subNo
         
     % was the surrogate data fitted with truncated normals? 
     truncatedFlag = surrData.truncated(methodIdx);
-    if ~truncatedFlag && ismember(method, {'plv', 'iplv'})
+    if ~truncatedFlag && ismember(method, {'plv', 'iplv', 'ciplv'})
         warning('Method is phase based but surrogate normals are not truncated (truncatedFlag is false)!');
     end
     
@@ -359,7 +359,7 @@ for subIdx = 1:subNo
             
             for roi1 = 1:roiNo
                 for roi2 = 1:roiNo
-                    % only for upper triangle of connetivity matrix
+                    % only for upper triangle of connectivity matrix
                     if roi1 < roi2
 
                         % if the surrogate normal was truncated, create a
