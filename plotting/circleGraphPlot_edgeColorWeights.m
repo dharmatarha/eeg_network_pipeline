@@ -11,8 +11,8 @@ function mainFig = circleGraphPlot_edgeColorWeights(connMatrix, edgeColorWeights
 %                                           drawFlag='draw')
 % 
 % Creates a circle plot for the supplied network (graph) highlighting 
-% edge based on their weights ("edgeColorWeights") with colors from the defined
-% colormap ("colorMap").
+% edges based on their weights ("edgeColorWeights") with colors from the 
+% defined colormap ("colorMap").
 %
 % Figure details are fine-tuned for undirected EEG connectivity data. 
 % 
@@ -29,12 +29,13 @@ function mainFig = circleGraphPlot_edgeColorWeights(connMatrix, edgeColorWeights
 % connMatrix    - Numeric matrix containing connectivity (adjacency) 
 %               values (square matrix). Only upper triangle is used for 
 %               graph construction. 
-% edgeColorWeights   - Numeric matrix containing the membership of each
-%               edge in the graph. Only upper triangle is used for 
-%               graph construction. The values in the matrix will be mapped
-%               to the colormap in "colorMap" for edge-based coloring. Zero
-%               is valid value and is mapped to the colormap as well, use
-%               NaN to avoid coloring of edges.
+% edgeColorWeights   - Numeric matrix containing the weight of each
+%               edge in the graph used for coloring. Only upper triangle 
+%               is used for graph construction. 
+%               The values in the matrix will be mapped to the colormap 
+%               in "colorMap" for edge-based coloring. Zero is valid value 
+%               and is mapped to the colormap as well, use NaN to avoid 
+%               coloring of edges.
 % colorMap      - Char array, name of valid Matlab colormap (e.g. "jet"). 
 % 
 % Optional inputs:
@@ -172,8 +173,8 @@ baseEdgeColor = [0.5, 0.5, 0.5];
 % base edge width range - we map the supplied data to this range 
 % irrespective of actual weights 
 baseEdgeWidthRange = [0.1, 8];
-% multiplier for the width of highlighted edges
-highlEdgeWidthMultip = 2;
+% % multiplier for the width of highlighted edges
+% highlEdgeWidthMultip = 2;
 % edge line styles for highlighted and not-highlighted edges
 %edgeTypes = {'-', 'none'};
 edgeTypes = {'-', '-'};
@@ -284,41 +285,14 @@ weights = G.Edges.Weight;
 % edge ending nodes in a cell array
 nodesPerEdge = G.Edges.EndNodes;
 
-% % go through all edge groups, set different edge properties per group
-% edgeColors = repmat(baseEdgeColor, [size(weights, 1), 1]);  % preallocate variable for edge colors, filled with base color
-% 
 % map connectivity values to basic edge width range specified earlier
 % edgeWidth = (weights-min(weights))./(max(weights)-min(weights))*(baseEdgeWidthRange(2)-baseEdgeWidthRange(1))+baseEdgeWidthRange(1); 
 
 % set edge width values based on weights
 edgeWidth = weights./mean(weights).*mean(baseEdgeWidthRange);
 
-% % prepare binary vectors identifying edges per group (one column per group)
-% groupEdges = zeros(size(weights, 1), groupNo); 
-% 
-% % go through group edges
-% for i = 1:groupNo
-%     % find label pairs for edges in group "groupIndices(i)"
-%     currentGroupIdx = groupIndices(i);  % current edge group whose edges we work with
-%     [iRow, iCol] = ind2sub(size(edgeMembership), find(edgeMembership==currentGroupIdx));  % find row, col indices of edges in edgeMembership who belong to "currentGroupIdx"
-%     groupLabels = [labels(iRow), labels(iCol)];  % get cell array of node labels for each edge in current edge group
-%     % compare label pairs of edges in group "currentGroupIdx" to all edges, get binary
-%     % vector 
-%     groupEdges(:, i) = ismember(string(nodesPerEdge), string(groupLabels), 'rows');
-%     % assign RGB color for edges in group "currentGroupIdx"
-%     edgeGroupColor = colorTriplets(group2color(group2color(:, 1) == groupIndices(i), 2), :);  % get RGB color for current module
-%     edgeColors(logical(groupEdges(:, i)), :) = repmat(edgeGroupColor, [sum(groupEdges(:, i)), 1]);  % set edge color for edges within current group
-%     % for highlighted edge groups, apply the corresponding width multiplier
-%     edgeWidth(logical(groupEdges(:, i))) = edgeWidth(logical(groupEdges(:, i)))*highlEdgeWidthMultip;  % set edge width for current module
-% end
-% 
-% % identify not-highlighted edges
-% backgroundEdgeIdx = ~logical(sum(groupEdges, 2));
-
 % set line styles for highlighted and not-highlighted edges
 edgeStyle = repmat(edgeTypes(1), [size(weights, 1), 1]);
-
-% edgeStyle(backgroundEdgeIdx) = repmat(edgeTypes(2), [sum(backgroundEdgeIdx, 1), 1]);
 
 % Set edge colors
 edgeColors = nan(size(weights, 1), 3);
@@ -326,6 +300,7 @@ for i = 1:numel(weights)
     % find the corresponding edgeColorWeights value for current weight
     idxM = connMatrix==weights(i);
     tmpColorW = edgeColorWeights(idxM);
+    tmpColorW(isnan(tmpColorW)) = [];
     if numel(tmpColorW)>1
         tmpColorW = tmpColorW(1);
     end
