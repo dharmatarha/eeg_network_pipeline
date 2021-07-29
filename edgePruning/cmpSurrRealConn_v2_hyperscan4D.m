@@ -167,7 +167,7 @@ if ~exist('method', 'var')
 end 
 
 % user message
-disp([char(10), 'Called function cmpSurrRealConn_hyperscan4D with inputs: ',...
+disp([char(10), 'Called function cmpSurrRealConn_v2_hyperscan4D with inputs: ',...
     char(10), 'Frequency band: ', freq,...
     char(10), 'Data folder: ', dirName,...
     char(10), 'Connectivity measure: ', method,...
@@ -181,7 +181,7 @@ subNo = length(subjects);
 truncateBounds = [0 1];  % bounds if the surrogate prob distributions were truncated
 fdrQ = 0.05;  % q for FDR
 fdrType = 'bh';  % type of FDR correction to apply
-surrDimPerm = [4, 3, 1, 2];  % vector for permuting the dimensions of the surrogate data so it matches the dimensions of the real connectivity data
+surrDimPerm = [4, 3, 1, 2];  % vector for permuting the dimensions of the surrogate data so it matches the dimensions of the real connectivity data, from ROIs X ROIs X epochs X conditions to conditions X epochs X ROIs X ROIs
 saveFile = fullfile(dirName, freq, ['group_surrResultsv2_', freq, '_', method, '.mat']);  % path for saving out results
 
 
@@ -219,15 +219,14 @@ maskedConnPos = nan([subNo, condNo, epochNo, roiNo, roiNo]);
 maskedConnNeg = nan([subNo, condNo, epochNo, roiNo, roiNo]);
 % array for collecting all subjects' raw connectivity values
 realConn = nan([subNo, condNo, epochNo, roiNo, roiNo]);
-% arrays for collecting all subjects' surrogate params
-surrNormalH = realConnP;
-surrNormalMu = realConnP;
-surrNormalSigma = realConnP;
-surrNormalP = realConnP;
 % array of critical P values
 criticalP = nan([subNo, 1]);
 % array of FDR-surviving edge rates
 survivalRate = criticalP;
+% array for subject-averaged normal distribution mu, sigma and connectivity
+surrMuSubAvg = nan([subNo, roiNo, roiNo]);
+surrSigmaSubAvg = nan([subNo, roiNo, roiNo]);
+connDataSubAvg = nan([subNo, roiNo, roiNo]);
 
 % user message
 disp([char(10), 'Prepared everything, starting loop across subjects.']);
@@ -321,12 +320,6 @@ for subIdx = 1:subNo
     surrH = squeeze(surrData.surrNormalH(methodIdx, :, :, :, :));  % dims ROIs X ROIs X epochs X conditions
     surrMu = squeeze(surrData.surrNormalMu(methodIdx, :, :, :, :));  % dims ROIs X ROIs X epochs X conditions
     surrSigma = squeeze(surrData.surrNormalSigma(methodIdx, :, :, :, :));  % dims ROIs X ROIs X epochs X conditions
-    surrP = squeeze(surrData.surrNormalP(methodIdx, :, :, :, :));  % dims ROIs X ROIs X epochs X conditions
-    
-    % sanity check for size
-    if ~isequal([condNo, epochNo, roiNo, roiNo], size(surrH))
-        error('Surrogate values have unexpected size after dimension reordering, investigate!');
-    end
 
     % get rate of successful fits of surrogate data
     edgesNo = condNo*epochNo*roiNo*(roiNo-1)/2;  % only upper triangles should hold values
@@ -341,19 +334,18 @@ for subIdx = 1:subNo
     %% Prepare connectivity and surrogate data for groupSurrStats
     % Reshape them into 3D arrays with dims ROIs X ROIs X epochs
     
-    connDataReshaped = permute(connData, [3 4 2 1]);
-    connDataReshaped = reshape(connDataReshaped, [roiNo, roiNo, epochNo*condNo]);
-    surrMu = reshape(surrMu, [roiNo, roiNo, epochNo*condNo]);
-    surrSigma = reshape(surrSigma, [roiNo, roiNo, epochNo*condNo]);    
+    connDataReshaped = permute(connData, [3 4 2 1]);  % dims ROIs X ROIs X epochs X conditions
+    connDataReshaped = reshape(connDataReshaped, [roiNo, roiNo, epochNo*condNo]);  % dims ROIs X ROIs X epochs*conditinos
+    surrMuReshaped = reshape(surrMu, [roiNo, roiNo, epochNo*condNo]);  % dims ROIs X ROIs X epochs*conditinos
+    surrSigmaReshaped = reshape(surrSigma, [roiNo, roiNo, epochNo*condNo]);  % dims ROIs X ROIs X epochs*conditinos
 
 
     %% Get signifance values as derived from the combination of all epochs
     
     if truncatedFlag
-        truncateBounds = [0 1];
-        [p, d] = groupSurrStats(connDataReshaped, surrMu, surrSigma, truncateBounds, 'silent');
+        [p, d] = groupSurrStats(connDataReshaped, surrMuReshaped, surrSigmaReshaped, truncateBounds, 'silent');
     else
-        [p, d] = groupSurrStats(connDataReshaped, surrMu, surrSigma, 'silent');
+        [p, d] = groupSurrStats(connDataReshaped, surrMuReshaped, surrSigmaReshaped, 'silent');
     end
     
     % store in aggregate arrays
@@ -385,14 +377,21 @@ for subIdx = 1:subNo
     edgesBelowCrit = p <= criticalP(subIdx);
     survivalRate(subIdx) = sum(edgesBelowCrit(:), 'omitnan')/(roiNo*(roiNo-1)/2);    
     
+    % user message
+    disp(['Ratio of edges surviving thresholding: ',... 
+        num2str(survivalRate(subIdx)*100), '%']);
+    
+    
+    %% Get average surrogate distributions for each subject (across all epochs)
+    
+    surrMuSubAvg(subIdx, :, :) = mean(surrMuReshaped, 3, 'omitnan');
+    surrSigmaSubAvg(subIdx, :, :) = sqrt(sum(surrSigmaReshaped.^2, 3)./((epochNo*condNo)^2));
+    connDataSubAvg(subIdx, :, :) = squeeze(mean(mean(connData, 1, 'omitnan'), 2, 'omitnan'));
+    
     
     %% Collect group-level values
     
     realConn(subIdx, :, :, :, :) = connData;
-    surrNormalH(subIdx, :, :, :, :) = surrH;
-    surrNormalMu(subIdx, :, :, :, :) = surrMu;
-    surrNormalSigma(subIdx, :, :, :, :) = surrSigma;
-    surrNormalP(subIdx, :, :, :, :) = surrP;
     
     % report elapsed time
     subTime = round(toc(subClock), 3);
@@ -410,58 +409,46 @@ meanMaskedConnNeg = squeeze(mean(maskedConnNeg, 1));
 %% Get also group-level thresholding results
 
 % user message
-disp([char(10), 'Finished with all subjects, calculating group-level thresholds now for each epoch']);
+disp([char(10), 'Finished with all subjects, calculating group-level thresholds now']);
 
 % clock for group-level calculations
 groupClock = tic;
 
-groupP = nan([condNo, epochNo, roiNo, roiNo]);
-groupMaskedConnPos = groupP;
-groupMaskedConnNeg = groupP;
-groupDiffDir = groupP;
-groupCritP = nan([condNo, epochNo]);
-groupSurvRate = groupCritP;
+% dimension rearrangements for calling groupSurrStats
+tmp_conn = permute(connDataSubAvg, [2 3 1]);
+tmp_mu = permute(surrMuSubAvg, [2 3 1]);
+tmp_sigma = permute(surrSigmaSubAvg, [2 3 1]);
 
-for condIdx = 1:condNo
-    for epochIdx = 1:epochNo
-        
-        % epoch-level group data
-        tmpConn = squeeze(realConn(:, condIdx, epochIdx, :, :));
-        tmpSurrMu = squeeze(surrNormalMu(:, condIdx, epochIdx, :, :));
-        tmpSurrSigma = squeeze(surrNormalSigma(:, condIdx, epochIdx, :, :));
-        % permute dimensions for calling groupSurrStats
-        tmpConn = permute(tmpConn, [2 3 1]);
-        tmpSurrMu = permute(tmpSurrMu, [2 3 1]);
-        tmpSurrSigma = permute(tmpSurrSigma, [2 3 1]);
-        % get significance values for each edge in given epoch
-        if ~truncatedFlag
-            [groupP(condIdx, epochIdx, :, :), groupDiffDir(condIdx, epochIdx, :, :)] = groupSurrStats(tmpConn, tmpSurrMu, tmpSurrSigma, 'silent');
-        else
-            [groupP(condIdx, epochIdx, :, :), groupDiffDir(condIdx, epochIdx, :, :)] = groupSurrStats(tmpConn, tmpSurrMu, tmpSurrSigma, truncateBounds, 'silent');
-        end
-        
-        % fdr correction per epoch
-        tmpPs = groupP(condIdx, epochIdx, :, :); 
-        tmpPs = tmpPs(:); tmpPs(isnan(tmpPs)) = [];
-        [~, groupCritP(condIdx, epochIdx)] = fdr(tmpPs, fdrQ, fdrType); 
-        
-        % create masked connectivity tensor
-        epochData = squeeze(meanConn(condIdx, epochIdx, :, :));
-        epochP = squeeze(groupP(condIdx, epochIdx, :, :));
-        epochData(epochP > groupCritP(condIdx, epochIdx)) = 0;  % only edges surviving FDR
-        epochPos = epochData; 
-        epochPos(squeeze(groupDiffDir(condIdx, epochIdx, :, :)) ~= 1) = 0;  % only edges with positive difference (real > surrogate)
-        groupMaskedConnPos(condIdx, epochIdx, :, :) = epochPos;
-        epochNeg = epochData; 
-        epochNeg(squeeze(diffDirection(subIdx, condIdx, epochIdx, :, :)) ~= -1) = 0;  % only edges with positive difference (real > surrogate)
-        groupMaskedConnNeg(condIdx, epochIdx, :, :) = epochNeg;            
-        % get ratio of edges below the threshold (edges surviving the
-        % pruning)
-        edgesBelowCrit = epochP <= groupCritP(condIdx, epochIdx);
-        groupSurvRate(condIdx, epochIdx) = sum(edgesBelowCrit(:), 'omitnan')/(roiNo*(roiNo-1)/2);        
-        
-    end  % for epochIdx
-end  % for condIdx
+% Get p-values
+if truncatedFlag
+    [groupP, groupDiffDir] = groupSurrStats(tmp_conn, tmp_mu, tmp_sigma, truncateBounds, 'silent');
+else
+    [groupP, groupDiffDir] = groupSurrStats(tmp_conn, tmp_mu, tmp_sigma, 'silent');
+end
+
+% FDR
+groupPs = groupP(:); groupPs(isnan(groupPs)) = [];
+[~, groupCritP] = fdr(groupPs, fdrQ, fdrType);
+
+% create masked connectivity tensor
+pTensor = repmat(groupP, [1, 1, epochNo, condNo]);  % one layer of same p values for each epoch in each cond
+pTensor = permute(pTensor, [4 3 1 2]);  % dims conditions X epochs X ROIs X ROIs
+meanConnMasked = meanConn;
+meanConnMasked(pTensor > groupCritP) = 0;     
+
+% get positively different part
+dTensor = repmat(groupDiffDir, [1, 1, epochNo, condNo]);  % one layer of same p values for each epoch in each cond
+dTensor = permute(dTensor, [4 3 1 2]);  % dims conditions X epochs X ROIs X ROIs    
+groupMaskedConnPos = meanConnMasked;
+groupMaskedConnPos(dTensor ~= 1) = 0;  % only edges with positive difference (real > surrogate)
+
+% get negatively different part
+groupMaskedConnNeg = meanConnMasked;
+groupMaskedConnNeg(dTensor ~= -1) = 0;  % only edges with positive difference (real > surrogate)
+
+% get ratio of edges below the threshold (edges surviving pruning)
+edgesBelowCrit = groupP <= groupCritP;
+groupSurvRate = sum(edgesBelowCrit(:), 'omitnan')/(roiNo*(roiNo-1)/2);   
             
 % get elapsed time
 groupTime = round(toc(groupClock), 3);
@@ -474,8 +461,8 @@ disp(['Done. Group-level thresholding took ', num2str(groupTime), ' secs']);
 
 save(saveFile, 'realConn', 'realConnP', 'maskedConnPos', 'maskedConnNeg',...
     'meanConn', 'meanMaskedConnPos', 'meanMaskedConnNeg',...
+    'surrMuSubAvg', 'surrSigmaSubAvg', 'connDataSubAvg', ...
     'diffDirection', 'criticalP', 'survivalRate', 'failedFitRate',... 
-    'surrNormalH', 'surrNormalMu', 'surrNormalSigma', 'surrNormalP',...
     'groupP', 'groupCritP', 'groupDiffDir', 'groupMaskedConnPos',...
     'groupMaskedConnNeg', 'groupSurvRate');
 

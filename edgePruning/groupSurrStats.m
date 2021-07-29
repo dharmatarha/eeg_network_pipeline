@@ -143,12 +143,17 @@ if vectorFlag
     combSigma = sqrt(sum((surrSigma.^2))/(numel(surrSigma)^2));
     % get significance of averaged real values
     if isempty(truncateBounds)
-        p = 2 * normcdf(mean(realV), combMu, combSigma);  % two-tailed test
+        p = normcdf(mean(realV), combMu, combSigma);  % two-tailed test
     else
         pd = makedist('normal', 'mu', combMu, 'sigma', combSigma);  % returns a probability distribution object
         pd = truncate(pd, truncateBounds(1), truncateBounds(2));
-        p = 2 * pd.cdf(mean(realV));  % two-tailed test  
+        p = pd.cdf(mean(realV));  % two-tailed test  
     end
+    % correction for two-tailed test
+    if p > 0.5
+        p = 1-p;
+    end 
+    p = p * 2;
     % get direction of difference
     d = (mean(realV) > combMu) * 2 - 1;  % returns 1 or -1 depending on whether the mean value is larger than the combined Mu
     
@@ -179,12 +184,22 @@ if ~vectorFlag
                 combSigma = sqrt(sum((surrSigma(node1, node2, :).^2))/(layerNo^2));
                 % get significance of averaged real values
                 if isempty(truncateBounds)
-                    p(node1, node2) = 2 * normcdf(mean(realV(node1, node2, :)), combMu, combSigma);  % two-tailed test
+                    tmpP = normcdf(mean(realV(node1, node2, :)), combMu, combSigma); 
                 else
                     pd = makedist('normal', 'mu', combMu, 'sigma', combSigma);  % returns a probability distribution object
                     pd = truncate(pd, truncateBounds(1), truncateBounds(2));
-                    p(node1, node2) = 2 * pd.cdf(mean(realV(node1, node2, :)));  % two-tailed test  
+                    tmpP = pd.cdf(mean(realV(node1, node2, :))); 
                 end
+                
+                % correction for two-tailed test
+                if tmpP > 0.5
+                    tmpP = 1-tmpP;
+                end 
+                tmpP = tmpP * 2;
+                
+                % store value in significance matrix
+                p(node1, node2) = tmpP;
+                
                 % get direction of difference
                 d(node1, node2) = (mean(realV(node1, node2, :)) > combMu) * 2 - 1;  % returns 1 or -1 depending on whether the mean value is larger than the combined Mu
 
