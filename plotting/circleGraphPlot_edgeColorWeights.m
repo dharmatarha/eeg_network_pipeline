@@ -78,7 +78,7 @@ if ~ischar(colorMap)
     error(['Input arg "colorMap" should be a character array, the name of a valid matlab colormap (e.g. "jet")!']);
 % check if "colorMap" can be treated as a colormap function
 else 
-    mycmap = str2func(colorMap);
+    mycmap = flipud(str2func(colorMap));
     try
         tmp = mycmap(1);
         if numel(tmp)~=3 || any(tmp<0) || any(tmp>1)
@@ -172,7 +172,7 @@ end
 baseEdgeColor = [0.5, 0.5, 0.5];
 % base edge width range - we map the supplied data to this range 
 % irrespective of actual weights 
-baseEdgeWidthRange = [0.1, 8];
+baseEdgeWidthRange = [2, 6];
 % % multiplier for the width of highlighted edges
 % highlEdgeWidthMultip = 2;
 % edge line styles for highlighted and not-highlighted edges
@@ -286,10 +286,10 @@ weights = G.Edges.Weight;
 nodesPerEdge = G.Edges.EndNodes;
 
 % map connectivity values to basic edge width range specified earlier
-% edgeWidth = (weights-min(weights))./(max(weights)-min(weights))*(baseEdgeWidthRange(2)-baseEdgeWidthRange(1))+baseEdgeWidthRange(1); 
+edgeWidth = (weights-min(weights))./(max(weights)-min(weights))*(baseEdgeWidthRange(2)-baseEdgeWidthRange(1))+baseEdgeWidthRange(1); 
 
-% set edge width values based on weights
-edgeWidth = weights./mean(weights).*mean(baseEdgeWidthRange);
+% % set edge width values based on weights
+% edgeWidth = weights./mean(weights).*mean(baseEdgeWidthRange);
 
 % set line styles for highlighted and not-highlighted edges
 edgeStyle = repmat(edgeTypes(1), [size(weights, 1), 1]);
