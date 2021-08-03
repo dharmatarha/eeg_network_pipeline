@@ -9,18 +9,23 @@
 
 method = 'plv'; 
 freq = 'alpha';
+onlyPos = true;
 
 simMetric = 'corr';
 
 % type of thresholding (if any), one of {'unthr', 'thrSub', 'thrGroup'}
-thr = 'thrSub';
+thr = 'groupv2thrSub';
 
 baseDir = '/media/NAS502/adamb/hyperscan/newSurrEdgeEstimates/';
 
 
 %% Load edge contributions data, determined by "method", "freq" and "thr"
 
-edgeContrF = fullfile(baseDir, 'edgeContr', ['edgeContr_', freq, '_', method, '_group_', thr, '.mat']);
+if onlyPos
+    edgeContrF = fullfile(baseDir, 'edgeContr', ['edgeContr_', freq, '_', method, '_', thr, '_onlyPos.mat']);
+else
+    edgeContrF = fullfile(baseDir, 'edgeContr', ['edgeContr_', freq, '_', method, '_', thr, '.mat']);
+end
 data = load(edgeContrF);
 
 % sanity check - were the edge contributions calculated with the requested
@@ -57,7 +62,7 @@ labels = labels.roisShort;  % short names
 
 %% Load connectivity data, determined by "method" and "freq"
 
-fileP = fullfile(baseDir, freq, ['group_surrResults_', freq, '_', method, '.mat']);
+fileP = fullfile(baseDir, freq, ['group_surrResultsv2_', freq, '_', method, '.mat']);
 res = load(fileP);
 
 
@@ -66,15 +71,24 @@ res = load(fileP);
 switch thr
     case 'unthr'
         connData = res.meanConn;
-    case 'thrSub'
+    case 'groupv2thrSub'
         % get the data from the averaged, subject-level thresholded matrices, both
         % negative and positive diffs
-        connData = res.meanMaskedConnPos + res.meanMaskedConnNeg;   
-    case 'thrGroup'
-        connData = res.groupMaskedConnPos + res.groupMaskedConnNeg;
+        if onlyPos
+            connData = res.meanMaskedConnPos;   
+        else
+            connData = res.meanMaskedConnPos + res.meanMaskedConnNeg; 
+        end
+    case 'groupv2thrGroup'
+        if onlyPos
+            connData = res.groupMaskedConnPos;
+        else
+            connData = res.groupMaskedConnPos + res.groupMaskedConnNeg;
+        end
 end  % switch
         
 % get averaged conn matrix
+
 meanConn = squeeze(mean(mean(connData, 1), 2));
 
 
@@ -106,8 +120,15 @@ shiftLabels = 15;
 newLabelsShort = [newLabelsShort(end-shiftLabels:end), newLabelsShort(1:end-shiftLabels-1)];
 
 connMatrix = meanConnFdr;
+edgeWeights = dMapFdr;
+
+% symmetrize
+connMatrix = triu(connMatrix, 1) + triu(connMatrix, 1)';
+edgeWeights = triu(edgeWeights, 1) + triu(edgeWeights, 1)';
+
+% reorder
 [connMatrix, old2new] = matrixReorder(connMatrix, labels, newLabelsShort);
-edgeWeights = dMapFdr(old2new, old2new);
+edgeWeights = edgeWeights(old2new, old2new);
 
 % NaN values for zeros
 connMatrix(connMatrix == 0) = nan;
@@ -115,16 +136,26 @@ edgeWeights(edgeWeights == 0) = nan;
 
 % sanity check
 if ~isequal(isnan(connMatrix), isnan(edgeWeights))
-    error('Oops, non-matching NaN locations in connectivity and edge weight matrices!');
+    warning('Oops, non-matching NaN locations in connectivity and edge weight matrices!');
+    warning('Adjusting edge weights to match connections!');
+    edgeWeights(isnan(connMatrix)) = nan;
 end
+
+
+%% Extra thresholding for visualization
+
+edgeThr = 0.2;
+finalConn = connMatrix;
+finalWeights = edgeWeights;
+finalConn(edgeWeights < edgeThr) = nan;
+finalWeights(edgeWeights < edgeThr) = nan;
 
 
 %% Circle plot
 
-colorMap = 'jet';
-mainFig = circleGraphPlot_edgeColorWeights(connMatrix, edgeWeights,... 
+colorMap = 'autumn';
+mainFig = circleGraphPlot_edgeColorWeights(finalConn, finalWeights,... 
                                             colorMap, 0, newLabelsShort);
-
 
 
 
