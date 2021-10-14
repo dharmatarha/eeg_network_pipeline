@@ -27,6 +27,15 @@ function pliRes = pli(epochData, v)
 % Nolte et al., 2004. Identifying true brain interaction from EEG data 
 %   using the imaginary part of coherency. Clin. Neurophys.
 %
+% NOTES:
+% Measures PLV, iPLV and ciPLV are faster due to the simple trick desribed
+% by Bruna et al. (2018, Phase locking value revisited...). The same trick,
+% namely the use of dot products (in a matrix multiplication step) on the
+% exponential form of the analytic signals, cannot be applied to PLI, as
+% for PLI we would need the signs of the piecewise multiplied data points. 
+% It might still make sense to carry out calculations on the analytic
+% signal directly, at least to standardize the data input formats.
+%
 
 
 %% Input checks
