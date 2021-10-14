@@ -197,8 +197,8 @@ if ~exist('dirName', 'var')
 end
 if ~exist('subjects', 'var')
     if exist('restingStateSubjects.mat' ,'file')
-        surrData = load('restingStateSubjects.mat');
-        subjects = surrData.subjectsRS;
+        tmp = load('restingStateSubjects.mat');
+        subjects = tmp.subjectsRS;
     else
         error('Couldn''t find subject list in "restingStateSubjects.mat", no subject list to work on!');
     end
@@ -239,9 +239,9 @@ if ischar(truncated)
     end
 % if "truncated" is cell, transform to boolean vector
 elseif iscell(truncated)
-    surrData = zeros(1, length(truncated));
-    surrData(strcmp(truncated, 'truncated')) = 1;    
-    truncated = logical(surrData);
+    tmp = zeros(1, length(truncated));
+    tmp(strcmp(truncated, 'truncated')) = 1;    
+    truncated = logical(tmp);
 end
 
 % check if the length of "method" and "truncated" are the same, that is,
@@ -555,7 +555,7 @@ parfor subIdx = 1:subNo
     saveM.subject = subjects{subIdx};
     saveM.truncated = truncated;
     % include the bounds if truncated normals were used
-    if truncated
+    if any(truncated)
         saveM.x_min_max = [x_min, x_max];
     end
     
