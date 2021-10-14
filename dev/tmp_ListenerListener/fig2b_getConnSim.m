@@ -6,7 +6,7 @@
 
 %% Base params
 
-method = 'plv'; 
+method = 'ciplv'; 
 freq = 'alpha';
 simMethod = 'corr';
 
@@ -29,7 +29,7 @@ end
 
 %% Get connectivity similarity
 
-connSim = res.(['groupRes_', thr]).connSim;
+connSim = res.(['groupRes_v2_', thr]).connSim;
 
         
 %% Plot as heatmap

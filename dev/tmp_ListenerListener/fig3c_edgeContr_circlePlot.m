@@ -7,7 +7,7 @@
 
 %% Base params
 
-method = 'plv'; 
+method = 'ciplv'; 
 freq = 'alpha';
 onlyPos = true;
 
@@ -144,7 +144,7 @@ end
 
 %% Extra thresholding for visualization
 
-edgeThr = 0.2;
+edgeThr = 0.1;
 finalConn = connMatrix;
 finalWeights = edgeWeights;
 finalConn(edgeWeights < edgeThr) = nan;

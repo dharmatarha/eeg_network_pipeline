@@ -11,20 +11,20 @@
 
 %% Base params
 
-method = 'plv'; 
+method = 'ciplv'; 
 freq = 'alpha';
 
 simMetric = 'corr';
 
 % type of thresholding (if any), one of {'unthr', 'thrSub', 'thrGroup'}
-thr = 'thrSub';
+thr = 'v2thrSub';
 
 baseDir = '/media/NAS502/adamb/hyperscan/newSurrEdgeEstimates/';
 
 
 %% Load edge contributions data, determined by "method", "freq" and "thr"
 
-edgeContrF = fullfile(baseDir, 'edgeContr', ['edgeContr_', freq, '_', method, '_group_', thr, '.mat']);
+edgeContrF = fullfile(baseDir, 'edgeContr', ['edgeContr_', freq, '_', method, '_groupv2thrSub_onlyPos.mat']);
 data = load(edgeContrF);
 
 % sanity check - were the edge contributions calculated with the requested
@@ -64,7 +64,7 @@ close(gcf);
 %% Get histogram of effect sizes with statistical cut-off (FDR)
 
 % fdr
-q = 0.05;
+q = 0.01;
 fdrMethod = 'bh';
 [h, crit] = fdr(ps, q, fdrMethod);
 
@@ -75,18 +75,17 @@ disp([char(10), char(10),...
     
 % test if there is a clear cutoff for effect sizes as well
 if any(ds(~h) > min(ds(h)))
-    histFlag = true;
+    histFlag = false;
     tmpNo = sum(ds(~h) > min(ds(h)));
     disp([char(10), 'There is no clean cutoff in terms of effect size.', ...
         char(10), 'There are ', num2str(tmpNo), ' edges with relatively ',...
         'large effect sizes that do not survive the FDR.', char(10)]);
 else
-    histFlag = false;
+    histFlag = true;
     dCutoff = min(ds(h));
     disp([char(10), 'There is a clear cutoff in terms of effect size.',...
         char(10), 'Cutoff (cohen D): ', num2str(dCutoff), char(10)]);
 end
-
 
 
 % histogram
@@ -100,11 +99,11 @@ if histFlag
     facecolor = [0.7290, 0.5440, 0.0950];
     linewidth = 1.5;
     
-    h = histogram(ds, 40);
+    hFig = histogram(ds, 40);
     xlabel('Effect size (Cohen''s d)');
     ylabel('Count');
-    h.FaceColor = facecolor;
-    h.LineWidth = linewidth;
+    hFig.FaceColor = facecolor;
+    hFig.LineWidth = linewidth;
     
     % background to white
     set(gcf,'Color', gcfBackground);
@@ -121,7 +120,7 @@ if histFlag
     saveas(gcf, fullfile(baseDir, ['edgeEffectSize_histogram_', thr, '_', freq, '_', method, '.png']));
     close(gcf);
 
-
+end
 
 
 

@@ -5,7 +5,7 @@
 
 %% Base params
 
-method = 'plv'; 
+method = 'ciplv'; 
 freq = 'alpha';
 metric = 'corr';  % similarity metric
 
@@ -17,21 +17,21 @@ baseDir = '/media/NAS502/adamb/hyperscan/newSurrEdgeEstimates/';
 
 %% Load data, determined by "method" and "freq"
 
-fileP = fullfile(baseDir, freq, ['group_surrResults_', freq, '_', method, '.mat']);
+fileP = fullfile(baseDir, freq, ['group_surrResultsv2_', freq, '_', method, '.mat']);
 res = load(fileP);
 
 
 %% Get mean connectivity, depending on "thr"
+% Only versions where the positively larger connections are considered
 
 switch thr
     case 'unthr'
         connData = res.meanConn;
     case 'thrSub'
-        % get the data from the averaged, subject-level thresholded matrices, both
-        % negative and positive diffs
-        connData = res.meanMaskedConnPos + res.meanMaskedConnNeg;   
+        % get the data from the averaged, subject-level thresholded matrices, only positive diffs
+        connData = res.meanMaskedConnPos;   
     case 'thrGroup'
-        connData = res.groupMaskedConnPos + res.groupMaskedConnNeg;
+        connData = res.groupMaskedConnPos;
 end  % switch
 
 
@@ -172,7 +172,7 @@ labels = {'Narrative 1', 'Narrative 2', 'Narrative 3', 'Narrative 4'};
 [h, l, mx, med, bw] = violin(data(1:4), 'medc', [], 'mc', 'k', 'xlabel', labels, ... 
     'facealpha', 0.6, 'facecolor', facecolor, 'edgecolor', []);
 ylabel({'Connectivity similarity', 'across epochs (correlation)'});
-ylim([-0.1, 0.35]);
+ylim([0.4, 0.8]);
 
 % background to white
 set(gcf,'Color', gcfBackground);
@@ -229,7 +229,7 @@ labels = {'Within-narratives', 'Across-narratives'};
     'facealpha', 0.6, 'facecolor', facecolor, 'edgecolor', []);
 l.Location = 'north';
 ylabel({'Connectivity similarity', 'across epochs (correlation)'});
-ylim([-0.1, 0.35]);
+ylim([0.4, 0.8]);
 
 % background to white
 set(gcf,'Color', gcfBackground);
