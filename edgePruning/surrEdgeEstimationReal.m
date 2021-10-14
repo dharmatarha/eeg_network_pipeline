@@ -488,7 +488,7 @@ parfor subIdx = 1:subNo
                             try
                                 % fit simple normal
                                 % requires column vector as data input
-                                pdToTest = fitdist(surrData, 'normal');  % output is a prob.NormalDistribution object
+                                pdToTest = fitdist(surrData', 'normal');  % output is a prob.NormalDistribution object
                                 % save out main params from fitted normal
                                 surrNormalMu(methodIdx, roi1, roi2, epochIdx) = pdToTest.mu;
                                 surrNormalSigma(methodIdx, roi1, roi2, epochIdx) = pdToTest.sigma;      
