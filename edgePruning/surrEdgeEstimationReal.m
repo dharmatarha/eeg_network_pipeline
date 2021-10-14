@@ -16,7 +16,7 @@ function surrEdgeEstimationReal(freq, varargin)
 % (truncated) normal distribution, estimating the parameters (mean and std). 
 % USES PARFOR!
 %
-% Connectivity is measured by calling functions (plv, iplv, pli, ampCorr or orthAmpCorr)
+% Connectivity is measured by calling functions (plv, iplv, ciplv, ampCorr or orthAmpCorr)
 % defined outside this script. 
 %
 % NOTE that for envelope correlation measures you should fit a
@@ -71,7 +71,7 @@ function surrEdgeEstimationReal(freq, varargin)
 %       we use the default cell arrray defined in
 %       "restingStateSubjects.mat" (var "subjectsRS").
 % method    - Either a char array, one of 
-%       {'pli', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'}, or a cell array
+%       {'plv', 'iplv', 'ciplv', 'ampCorr', 'orthAmpCorr'}, or a cell array
 %       of char arrays. Specifies one or more connectivity measures to
 %       calculate on the surrogate data. Defaults to 'iplv'.
 % dRate     - Decimation rate. We usually work with bandpass-filtered data
@@ -165,14 +165,14 @@ end
 % char arrays as well
 if ~isempty(varargin)
     for v = 1:length(varargin)    
-        if iscell(varargin{v}) && ~all(ismember(varargin{v}, {'pli', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'})) &&...
+        if iscell(varargin{v}) && ~all(ismember(varargin{v}, {'plv', 'iplv', 'ciplv', 'ampCorr', 'orthAmpCorr'})) &&...
                 ~all(ismember(varargin{v}, {'truncated', 'nontruncated'})) && ~exist('subjects', 'var')
             subjects = varargin{v};
         elseif ischar(varargin{v}) && ~exist('dirName', 'var') && exist(varargin{v}, 'dir')
             dirName = varargin{v};
-        elseif ischar(varargin{v}) && ~exist('method', 'var') && ismember(varargin{v}, {'plv', 'iplv', 'pli', 'ampCorr', 'orthAmpCorr'})
+        elseif ischar(varargin{v}) && ~exist('method', 'var') && ismember(varargin{v}, {'plv', 'iplv', 'ciplv', 'ampCorr', 'orthAmpCorr'})
             method = varargin{v};     
-        elseif iscell(varargin{v}) && all(ismember(varargin{v}, {'pli', 'plv', 'iplv', 'ampCorr', 'orthAmpCorr'})) && ~exist('method', 'var')
+        elseif iscell(varargin{v}) && all(ismember(varargin{v}, {'plv', 'iplv', 'ciplv', 'ampCorr', 'orthAmpCorr'})) && ~exist('method', 'var')
             method = varargin{v};            
         elseif isnumeric(varargin{v}) && ~exist('dRate', 'var') && ismember(varargin{v}, 1:20)
             dRate = varargin{v};
@@ -197,8 +197,8 @@ if ~exist('dirName', 'var')
 end
 if ~exist('subjects', 'var')
     if exist('restingStateSubjects.mat' ,'file')
-        tmp = load('restingStateSubjects.mat');
-        subjects = tmp.subjectsRS;
+        surrData = load('restingStateSubjects.mat');
+        subjects = surrData.subjectsRS;
     else
         error('Couldn''t find subject list in "restingStateSubjects.mat", no subject list to work on!');
     end
@@ -234,14 +234,14 @@ if ischar(truncated)
     elseif strcmp(truncated, 'truncated')
         truncated = true;
     end
-    if numel(methods) > 1
-        truncated = repmat(truncated, [1, numel(methods)]);
+    if numel(method) > 1
+        truncated = repmat(truncated, [1, numel(method)]);
     end
 % if "truncated" is cell, transform to boolean vector
 elseif iscell(truncated)
-    tmp = zeros(1, length(truncated));
-    tmp(strcmp(truncated, 'truncated')) = 1;    
-    truncated = logical(tmp);
+    surrData = zeros(1, length(truncated));
+    surrData(strcmp(truncated, 'truncated')) = 1;    
+    truncated = logical(surrData);
 end
 
 % check if the length of "method" and "truncated" are the same, that is,
@@ -263,6 +263,7 @@ if any(truncated & ismember(method, {'ampCorr', 'orthAmpCorr'}))
 end
 
 % user message
+disp([char(10), char(10), 'IGNORE WARNINGS ABOUT TEMPORARY VARIABLES IN PARFOR LOOPS!', char(10), char(10)]);
 disp([char(10), 'Starting surrEdgeEstimationReal function with following arguments: ',...
     char(10), 'Frequency band: ', freq,...
     char(10), 'Working directory: ', dirName,...
@@ -273,6 +274,7 @@ disp([char(10), 'Starting surrEdgeEstimationReal function with following argumen
     char(10), 'Action to take when fitting fails: ', failedFitAction,...
     char(10), 'Subjects: ']);
 disp(subjects);
+disp('NOTE THAT THIS VERSION EXPECTS 3D DATA!!!');
 
 
 %% Basics: set params, functions, prepare for parfor loop
@@ -443,12 +445,12 @@ parfor subIdx = 1:subNo
                     if roi2 > roi1
 
                         % get data for current ROI-pairing
-                        tmp = squeeze(surrConnData(methodIdx, :, roi1, roi2));
+                        surrData = squeeze(surrConnData(methodIdx, :, roi1, roi2));
 
                         % for envelope correlations, first use Fisher-Z
                         % transform on values
                         if ismember(currentMethod, {'ampCorr', 'orthAmpCorr'})
-                            tmp = atanh(tmp);
+                            surrData = atanh(surrData);
                         end
 
                         % fitting
@@ -460,7 +462,7 @@ parfor subIdx = 1:subNo
                             % use try - catch in case fitting errors out (happens when param would reach Inf / NaN value)
                             try
                                 % fit truncated normal
-                                phat = mle(tmp , 'pdf', norm_trunc, 'start', [mean(tmp), std(tmp)], 'Options', opts); 
+                                phat = mle(surrData , 'pdf', norm_trunc, 'start', [mean(surrData), std(surrData)], 'Options', opts); 
                                 % save out main params from fitted normal
                                 surrNormalMu(methodIdx, roi1, roi2, epochIdx) = phat(1);
                                 surrNormalSigma(methodIdx, roi1, roi2, epochIdx) = phat(2);
@@ -469,13 +471,14 @@ parfor subIdx = 1:subNo
                                 pd = makedist('normal', 'mu', phat(1), 'sigma', phat(2));
                                 pdToTest = truncate(pd, x_min, x_max);      
                                 kstestFlag = 1;
-                            catch
+                            catch ME
                                 disp(['Fitting with truncated normal dist failed at subject ',... 
                                     num2str(subIdx), ', epoch ', num2str(epochIdx),...
                                     ', rois ', num2str(roi1), ' and ', num2str(roi2)]);
+                                disp(ME.message);
                                 % store permutation results
                                 if strcmp(failedFitAction, 'saveResults')
-                                    failedFits{methodIdx, roi1, roi2} = tmp;
+                                    failedFits{methodIdx, roi1, roi2} = surrData;
                                     failedFitsCounter = failedFitsCounter + 1;
                                 end
                             end  % try
@@ -484,18 +487,20 @@ parfor subIdx = 1:subNo
                             % use try - catch in case fitting errors out (happens when param would reach Inf / NaN value)
                             try
                                 % fit simple normal
-                                pdToTest = fitdist(tmp, 'normal');  % output is a prob.NormalDistribution object
+                                % requires column vector as data input
+                                pdToTest = fitdist(surrData, 'normal');  % output is a prob.NormalDistribution object
                                 % save out main params from fitted normal
                                 surrNormalMu(methodIdx, roi1, roi2, epochIdx) = pdToTest.mu;
                                 surrNormalSigma(methodIdx, roi1, roi2, epochIdx) = pdToTest.sigma;      
                                 kstestFlag = 1;
-                            catch
+                            catch ME
                                 disp(['Fitting with normal dist failed at subject ',... 
                                     num2str(subIdx), ', epoch ', num2str(epochIdx),...
                                     ', rois ', num2str(roi1), ' and ', num2str(roi2)]);
+                                disp(ME.message);
                                 % store permutation results
                                 if strcmp(failedFitAction, 'saveResults')
-                                    failedFits{methodIdx, roi1, roi2} = tmp;
+                                    failedFits{methodIdx, roi1, roi2} = surrData;
                                     failedFitsCounter = failedFitsCounter + 1;
                                 end
                             end  % try
@@ -504,7 +509,7 @@ parfor subIdx = 1:subNo
                         % test the goodness-of-fit with single sample
                         % Kolmogorov-Smirnov
                         if kstestFlag  % only if fitting succeeded
-                            [surrNormalH(methodIdx, roi1, roi2, epochIdx), surrNormalP(methodIdx, roi1, roi2, epochIdx)] = kstest(tmp, 'CDF', pdToTest);
+                            [surrNormalH(methodIdx, roi1, roi2, epochIdx), surrNormalP(methodIdx, roi1, roi2, epochIdx)] = kstest(surrData, 'CDF', pdToTest);
                         end
 
                     end  % if roi2 > roi1
@@ -522,8 +527,9 @@ parfor subIdx = 1:subNo
             end
             % save failed fits data for current epoch into a .mat file,
             % use the "matfile" method that can be used in a parfor loop
-            saveFailedFits = [dirName, '/' , freq, '/', failedFitDir, '/',... 
-                subjects{subIdx}, '_', freq, '_', methodToFilename, '_epoch', num2str(epochIdx),'_failedFits.mat'];
+                saveFailedFits = [failedFitDir, '/',... 
+                    subjects{subIdx}, '_', freq, '_', methodToFilename,... 
+                    '_epoch', num2str(epochIdx), '_failedFits.mat'];
             saveFF = matfile(saveFailedFits);
             saveFF.failedFits = failedFits;
             saveFF.failedFitsCounter = failedFitsCounter;
