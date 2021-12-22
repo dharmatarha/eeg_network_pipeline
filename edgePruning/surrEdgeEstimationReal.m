@@ -522,12 +522,13 @@ parfor subIdx = 1:subNo
             % first check if there is already a folder created for holding
             % failed fits data - create folder if it has not been made yet
             if ~failedFitDirFlag
-                failedFitDir = mkdir([dirName, '/' , freq, '/', subjects{subIdx}, '_failedFits']);
+                failedFitDir = [dirName, '/' , freq, '/', subjects{subIdx}, '_failedFits'];
+                mkdir(failedFitDir);
                 failedFitDirFlag = true;  % adjust flag
             end
             % save failed fits data for current epoch into a .mat file,
             % use the "matfile" method that can be used in a parfor loop
-                saveFailedFits = [failedFitDir, '/',... 
+            saveFailedFits = [failedFitDir, '/',... 
                     subjects{subIdx}, '_', freq, '_', methodToFilename,... 
                     '_epoch', num2str(epochIdx), '_failedFits.mat'];
             saveFF = matfile(saveFailedFits);

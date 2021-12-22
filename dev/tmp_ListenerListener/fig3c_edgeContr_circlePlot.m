@@ -144,7 +144,7 @@ end
 
 %% Extra thresholding for visualization
 
-edgeThr = 0.1;
+edgeThr = 0.001;
 finalConn = connMatrix;
 finalWeights = edgeWeights;
 finalConn(edgeWeights < edgeThr) = nan;

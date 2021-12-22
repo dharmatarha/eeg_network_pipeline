@@ -138,116 +138,7 @@ for condIdx = 1:condNo
 end
 
 
-%% Violin plot 2c - the four narratives in one plot
-
-% data into cell array
-data = cell(1, 5); 
-for i = 1:4
-    data{i} = withinCondSim(:, i);
-end
-data{5} = acrossCondSim(:);
-% sanity check for NaN values
-for i=1:5
-    flag = any(isnan(data{i})); 
-    if flag
-        disp(['NaN value(s) in cell ', num2str(i), '!']);
-    end
-end
-
-% plotting constants
-gcfMainPos = [0, 0, 0.40, 0.60];
-gcfBackground = [1 1 1];
-fontSize = 14;
-fontWeight = 'Bold';
-
-% colors for violins
-facecolor = [0.8500, 0.3250, 0.0980;
-    0.8500, 0.3250, 0.0980;
-    0.8500, 0.3250, 0.0980;
-    0.8500, 0.3250, 0.0980];
-
-% labels for violins
-labels = {'Narrative 1', 'Narrative 2', 'Narrative 3', 'Narrative 4'};
-
-[h, l, mx, med, bw] = violin(data(1:4), 'medc', [], 'mc', 'k', 'xlabel', labels, ... 
-    'facealpha', 0.6, 'facecolor', facecolor, 'edgecolor', []);
-ylabel({'Connectivity similarity', 'across epochs (correlation)'});
-ylim([0.4, 0.8]);
-
-% background to white
-set(gcf,'Color', gcfBackground);
-% set size
-set(gcf, 'Units', 'Normalized', 'OuterPosition', gcfMainPos);
-
-% Font size, weight
-set(gca, 'FontSize', fontSize);
-set(gca, 'FontWeight', fontWeight);
-
-% Misc
-set(gca, 'YGrid', 'on');
-
-saveas(gcf, fullfile(baseDir, ['narrativesViolins_', thr, '_', freq, '_', method, '.svg']));
-saveas(gcf, fullfile(baseDir, ['narrativesViolins_', thr, '_', freq, '_', method, '.png']));
-
-
-%% Violin plot 2d - the within- vs across-narratives data in one plot
-
-close(gcf);
-
-% data into cell array
-data = cell(1, 5); 
-for i = 1:4
-    data{i} = withinCondSim(:, i);
-end
-data{5} = acrossCondSim(:);
-% sanity check for NaN values
-for i=1:5
-    flag = any(isnan(data{i})); 
-    if flag
-        disp(['NaN value(s) in cell ', num2str(i), '!']);
-    end
-end
-
-% data together for within-narratives
-dataWithin = cat(1, data{1}, data{2}, data{3}, data{4});
-dataAcross = data{5};
-
-% plotting constants
-gcfMainPos = [0, 0, 0.30, 0.60];
-gcfBackground = [1 1 1];
-fontSize = 14;
-fontWeight = 'Bold';
-
-% colors for violins
-facecolor = [0.8500, 0.3250, 0.0980;
-    0, 0.4470, 0.7410];
-
-% labels for violins
-labels = {'Within-narratives', 'Across-narratives'};
-
-[h, l, mx, med, bw] = violin({dataWithin, dataAcross}, 'medc', [], 'mc', 'k', 'xlabel', labels, ... 
-    'facealpha', 0.6, 'facecolor', facecolor, 'edgecolor', []);
-l.Location = 'north';
-ylabel({'Connectivity similarity', 'across epochs (correlation)'});
-ylim([0.4, 0.8]);
-
-% background to white
-set(gcf,'Color', gcfBackground);
-% set size
-set(gcf, 'Units', 'Normalized', 'OuterPosition', gcfMainPos);
-
-% Font size, weight
-set(gca, 'FontSize', fontSize);
-set(gca, 'FontWeight', fontWeight);
-
-% Misc
-set(gca, 'YGrid', 'on');
-
-
-saveas(gcf, fullfile(baseDir, ['withinVSacrossViolins_', thr, '_', freq, '_', method, '.svg']));
-saveas(gcf, fullfile(baseDir, ['withinVSacrossViolins_', thr, '_', freq, '_', method, '.png']));
-
-% %% Violin plot - fig 2c and 2d in one
+% %% Violin plot 2c - the four narratives in one plot
 % 
 % % data into cell array
 % data = cell(1, 5); 
@@ -264,7 +155,7 @@ saveas(gcf, fullfile(baseDir, ['withinVSacrossViolins_', thr, '_', freq, '_', me
 % end
 % 
 % % plotting constants
-% gcfMainPos = [0, 0, 0.58, 96];
+% gcfMainPos = [0, 0, 0.40, 0.60];
 % gcfBackground = [1 1 1];
 % fontSize = 14;
 % fontWeight = 'Bold';
@@ -273,16 +164,15 @@ saveas(gcf, fullfile(baseDir, ['withinVSacrossViolins_', thr, '_', freq, '_', me
 % facecolor = [0.8500, 0.3250, 0.0980;
 %     0.8500, 0.3250, 0.0980;
 %     0.8500, 0.3250, 0.0980;
-%     0.8500, 0.3250, 0.0980;
-%     0, 0.4470, 0.7410];
+%     0.8500, 0.3250, 0.0980];
 % 
 % % labels for violins
-% labels = {'Narrative 1', 'Narrative 2', 'Narrative 3', 'Narrative 4', 'Across-narrative'};
+% labels = {'Context 1', 'Context 2', 'Context 3', 'Context 4'};
 % 
-% [h, l, mx, med, bw] = violin(data, 'medc', [], 'mc', 'k', 'xlabel', labels, ... 
+% [h, l, mx, med, bw] = violin(data(1:4), 'medc', [], 'mc', 'k', 'xlabel', labels, ... 
 %     'facealpha', 0.6, 'facecolor', facecolor, 'edgecolor', []);
-% ylabel({'Connectivity similarity', 'across epochs (correlation)'});
-% ylim([-0.1, 0.35]);
+% ylabel({'FC matrix similarity', 'across epochs (correlation)'});
+% ylim([0.4, 0.8]);
 % 
 % % background to white
 % set(gcf,'Color', gcfBackground);
@@ -295,6 +185,118 @@ saveas(gcf, fullfile(baseDir, ['withinVSacrossViolins_', thr, '_', freq, '_', me
 % 
 % % Misc
 % set(gca, 'YGrid', 'on');
+% 
+% saveas(gcf, fullfile(baseDir, ['narrativesViolins_', thr, '_', freq, '_', method, '.svg']));
+% saveas(gcf, fullfile(baseDir, ['narrativesViolins_', thr, '_', freq, '_', method, '.png']));
+% 
+% 
+% %% Violin plot 2d - the within- vs across-narratives data in one plot
+% 
+% close(gcf);
+% 
+% % data into cell array
+% data = cell(1, 5); 
+% for i = 1:4
+%     data{i} = withinCondSim(:, i);
+% end
+% data{5} = acrossCondSim(:);
+% % sanity check for NaN values
+% for i=1:5
+%     flag = any(isnan(data{i})); 
+%     if flag
+%         disp(['NaN value(s) in cell ', num2str(i), '!']);
+%     end
+% end
+% 
+% % data together for within-narratives
+% dataWithin = cat(1, data{1}, data{2}, data{3}, data{4});
+% dataAcross = data{5};
+% 
+% % plotting constants
+% gcfMainPos = [0, 0, 0.30, 0.60];
+% gcfBackground = [1 1 1];
+% fontSize = 14;
+% fontWeight = 'Bold';
+% 
+% % colors for violins
+% facecolor = [0.8500, 0.3250, 0.0980;
+%     0, 0.4470, 0.7410];
+% 
+% % labels for violins
+% labels = {'Within-narratives', 'Across-narratives'};
+% 
+% [h, l, mx, med, bw] = violin({dataWithin, dataAcross}, 'medc', [], 'mc', 'k', 'xlabel', labels, ... 
+%     'facealpha', 0.6, 'facecolor', facecolor, 'edgecolor', []);
+% l.Location = 'north';
+% ylabel({'Connectivity similarity', 'across epochs (correlation)'});
+% ylim([0.4, 0.8]);
+% 
+% % background to white
+% set(gcf,'Color', gcfBackground);
+% % set size
+% set(gcf, 'Units', 'Normalized', 'OuterPosition', gcfMainPos);
+% 
+% % Font size, weight
+% set(gca, 'FontSize', fontSize);
+% set(gca, 'FontWeight', fontWeight);
+% 
+% % Misc
+% set(gca, 'YGrid', 'on');
+% 
+% 
+% saveas(gcf, fullfile(baseDir, ['withinVSacrossViolins_', thr, '_', freq, '_', method, '.svg']));
+% saveas(gcf, fullfile(baseDir, ['withinVSacrossViolins_', thr, '_', freq, '_', method, '.png']));
+
+
+%% Violin plot - fig 2c and 2d in one
+
+% data into cell array
+data = cell(1, 5); 
+for i = 1:4
+    data{i} = withinCondSim(:, i);
+end
+data{5} = acrossCondSim(:);
+% sanity check for NaN values
+for i=1:5
+    flag = any(isnan(data{i})); 
+    if flag
+        disp(['NaN value(s) in cell ', num2str(i), '!']);
+    end
+end
+
+% plotting constants
+gcfMainPos = [0, 0, 0.58, 96];
+gcfBackground = [1 1 1];
+fontSize = 14;
+fontWeight = 'Bold';
+
+% colors for violins
+facecolor = [0.8500, 0.3250, 0.0980;
+    0.8500, 0.3250, 0.0980;
+    0.8500, 0.3250, 0.0980;
+    0.8500, 0.3250, 0.0980;
+    0, 0.4470, 0.7410];
+
+% labels for violins
+labels = {'Context 1', 'Context 2', 'Context 3', 'Context 4', 'Across-context'};
+
+[h, l, mx, med, bw] = violin(data, 'medc', [], 'mc', 'k', 'xlabel', labels, ... 
+    'facealpha', 0.6, 'facecolor', facecolor, 'edgecolor', []);
+% ylabel({'FC matrix similarity', 'across epochs (correlation)'});
+ylabel('FC matrix similarity');
+ylim([0.4, 0.8]);
+
+% background to white
+set(gcf,'Color', gcfBackground);
+% set size
+set(gcf, 'Units', 'Normalized', 'OuterPosition', gcfMainPos);
+
+% Font size, weight
+set(gca, 'FontSize', fontSize);
+set(gca, 'FontWeight', fontWeight);
+
+% Misc
+set(gca, 'YGrid', 'on');
 
 
 
