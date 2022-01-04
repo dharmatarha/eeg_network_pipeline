@@ -201,47 +201,48 @@ end
 % 
 % 
 % 
-% %% Plot main results so far
-% 
-% m1 = mean(cer1); m2 = mean(cer2); s1 = std(cer1); s2 = std(cer2);
-% figure;
-% plot(m1, 'b-'); hold on; 
-% plot(m1+s1, 'b--'); plot(m1-s1, 'b--'); 
+%% Plot main results so far
+
+m1 = mean(cer1); s1 = std(cer1);
+% m2 = mean(cer2); s2 = std(cer2);
+figure;
+plot(m1, 'b-'); hold on; 
+plot(m1+s1, 'b--'); plot(m1-s1, 'b--'); 
 % plot(m2, 'r-'); plot(m2+s2, 'r--'); plot(m2-s2, 'r--'); 
-% hold off;
-% 
-% 
-% 
-% %% Filter the mean CER values and find the first local minima
-% 
-% filtOrder = 9;
-% cer1_medfilt = medfilt1(m1, filtOrder);
-% figure; plot(cer1_medfilt);
-% localMinima = find(diff(cer1_medfilt)>0);
-% disp([char(10), 'First few local minimas are with the first ', num2str(localMinima(1:5)), ' edges']);
-% 
-% finalN = localMinima(1); 
-% disp([char(10), 'Selected number of edges: ', num2str(finalN)]);
-% 
-% % prediction accuracies / errors can veiwed with kfoldPredict
-% 
-% 
-% 
-% %% Get connectivity matrix and edge list for topN edges selected in previous steps
-% 
-% finalCritValue = dsFdrSorted(finalN);
-% finalMap = dMapFdr >= finalCritValue;
-% finalDMap = dMapFdr; finalDMap(~finalMap) = 0;
-% finalConnMap = meanConn; finalConnMap(~finalMap) = 0;
-% 
-% % correlation between ds and connectivity strength values in final network
-% d_conn_corr = corr(finalDMap(finalMap), finalConnMap(finalMap));
-% 
-% % get matlab graph object
-% G = graph(finalConnMap, labels);
-% % some useful metrics
-% table(G.centrality('degree'), G.centrality('betweenness'), labels')
-% 
-% % MST
-% G.minspantree('Root', 59).Edges
+hold off;
+
+
+
+%% Filter the mean CER values and find the first local minima
+
+filtOrder = 9;
+cer1_medfilt = medfilt1(m1, filtOrder);
+figure; plot(cer1_medfilt);
+localMinima = find(diff(cer1_medfilt)>0);
+disp([char(10), 'First few local minimas are with the first ', num2str(localMinima(1:5)), ' edges']);
+
+finalN = localMinima(1); 
+disp([char(10), 'Selected number of edges: ', num2str(finalN)]);
+
+% prediction accuracies / errors can veiwed with kfoldPredict
+
+
+
+%% Get connectivity matrix and edge list for topN edges selected in previous steps
+
+finalCritValue = dsFdrSorted(finalN);
+finalMap = dMapFdr >= finalCritValue;
+finalDMap = dMapFdr; finalDMap(~finalMap) = 0;
+finalConnMap = meanConn; finalConnMap(~finalMap) = 0;
+
+% correlation between ds and connectivity strength values in final network
+d_conn_corr = corr(finalDMap(finalMap), finalConnMap(finalMap));
+
+% get matlab graph object
+G = graph(finalConnMap, labels, 'upper');
+% some useful metrics
+table(G.centrality('degree'), G.centrality('betweenness'), labels')
+
+% MST
+G.minspantree('Root', 59).Edges
 
