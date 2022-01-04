@@ -1,3 +1,5 @@
+function ecocFitting(freq)
+
 %% ECOC script
 % Script to calculate the "ideal" set of edges detecting a difference in
 % context, using ECOC
@@ -6,7 +8,7 @@
 %% Base params
 
 method = 'ciplv'; 
-freq = 'alpha';
+% freq = 'alpha';
 onlyPos = true;
 
 simMetric = 'corr';
@@ -130,7 +132,7 @@ parfor topN = 1:maxEdges
         ecocPred = connData3d(:, dMapFdr >= topCritValue);
 
         % temp var for collecting results in parfor
-        tmpParfor = zeros(maxRuns);
+        tmpParfor = zeros(maxRuns, 1);
         
         for runN = 1:maxRuns
         
@@ -144,50 +146,102 @@ parfor topN = 1:maxEdges
         end  % for runNo
         
         % slice into results var
-        cer1(:, topN) = tmpparfor;
+        cer1(:, topN) = tmpParfor;
         
 end  % parfor topNo
 
 
+saveF = ['ecocRes_', freq, '_', method];
+save(saveF, 'cer1', 'freq', 'method');
 
-%% Different ECOC params
 
-maxRuns = 100;
-maxEdges = 300;
+end
 
-% var holding classification error rate results for each run and edge
-% number
-cer2 = zeros(maxRuns, maxEdges);
+% %% Different ECOC params
+% 
+% maxRuns = 100;
+% maxEdges = 300;
+% 
+% % var holding classification error rate results for each run and edge
+% % number
+% cer2 = zeros(maxRuns, maxEdges);
+% 
+% % ecoc params
+% kfold = 5;
+% codingType = 'ternarycomplete';
+% learners = 'svm';
+% verbosity = 0;
+% opts = statset;
+% opts.UseParallel = false;
+% 
+% parfor topN = 1:maxEdges
+%     
+%         % select the top N edges as predictors
+%         topCritValue = dsFdrSorted(topN);
+%         ecocPred = connData3d(:, dMapFdr >= topCritValue);
+% 
+%         % temp var for collecting results in parfor
+%         tmpParfor = zeros(maxRuns, 1);
+%         
+%         for runN = 1:maxRuns
+%         
+%             % select the top N edges as predictors
+%             ecocObj = fitcecoc(ecocPred, storyLabels, 'Learners', learners,... 
+%                 'Coding', codingType, 'KFold', kfold, 'Verbose', verbosity,...
+%                 'Options', opts);
+%             
+%             tmpParfor(runN) = kfoldLoss(ecocObj);
+%         
+%         end  % for runNo
+%         
+%         % slice into results var
+%         cer2(:, topN) = tmpParfor;
+%         
+% end  % parfor topNo
+% 
+% 
+% 
+% %% Plot main results so far
+% 
+% m1 = mean(cer1); m2 = mean(cer2); s1 = std(cer1); s2 = std(cer2);
+% figure;
+% plot(m1, 'b-'); hold on; 
+% plot(m1+s1, 'b--'); plot(m1-s1, 'b--'); 
+% plot(m2, 'r-'); plot(m2+s2, 'r--'); plot(m2-s2, 'r--'); 
+% hold off;
+% 
+% 
+% 
+% %% Filter the mean CER values and find the first local minima
+% 
+% filtOrder = 9;
+% cer1_medfilt = medfilt1(m1, filtOrder);
+% figure; plot(cer1_medfilt);
+% localMinima = find(diff(cer1_medfilt)>0);
+% disp([char(10), 'First few local minimas are with the first ', num2str(localMinima(1:5)), ' edges']);
+% 
+% finalN = localMinima(1); 
+% disp([char(10), 'Selected number of edges: ', num2str(finalN)]);
+% 
+% % prediction accuracies / errors can veiwed with kfoldPredict
+% 
+% 
+% 
+% %% Get connectivity matrix and edge list for topN edges selected in previous steps
+% 
+% finalCritValue = dsFdrSorted(finalN);
+% finalMap = dMapFdr >= finalCritValue;
+% finalDMap = dMapFdr; finalDMap(~finalMap) = 0;
+% finalConnMap = meanConn; finalConnMap(~finalMap) = 0;
+% 
+% % correlation between ds and connectivity strength values in final network
+% d_conn_corr = corr(finalDMap(finalMap), finalConnMap(finalMap));
+% 
+% % get matlab graph object
+% G = graph(finalConnMap, labels);
+% % some useful metrics
+% table(G.centrality('degree'), G.centrality('betweenness'), labels')
+% 
+% % MST
+% G.minspantree('Root', 59).Edges
 
-% ecoc params
-kfold = 5;
-codingType = 'ternarycomplete';
-learners = 'svm';
-verbosity = 0;
-opts = statset;
-opts.UseParallel = false;
-
-parfor topN = 1:maxEdges
-    
-        % select the top N edges as predictors
-        topCritValue = dsFdrSorted(topN);
-        ecocPred = connData3d(:, dMapFdr >= topCritValue);
-
-        % temp var for collecting results in parfor
-        tmpParfor = zeros(maxRuns);
-        
-        for runN = 1:maxRuns
-        
-            % select the top N edges as predictors
-            ecocObj = fitcecoc(ecocPred, storyLabels, 'Learners', learners,... 
-                'Coding', codingType, 'KFold', kfold, 'Verbose', verbosity,...
-                'Options', opts);
-            
-            tmpParfor(runN) = kfoldLoss(ecocObj);
-        
-        end  % for runNo
-        
-        % slice into results var
-        cer2(:, topN) = tmpparfor;
-        
-end  % parfor topNo
