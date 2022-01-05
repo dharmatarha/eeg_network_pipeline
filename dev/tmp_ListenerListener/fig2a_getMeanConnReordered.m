@@ -7,7 +7,7 @@
 %% Base params
 
 method = 'ciplv'; 
-freq = 'alpha';
+freq = 'delta';
 
 % type of thresholding (if any), one of {'unthr', 'thrSub', 'thrGroup'}
 thr = 'thrSub';
@@ -15,7 +15,7 @@ thr = 'thrSub';
 baseDir = '/media/NAS502/adamb/hyperscan/newSurrEdgeEstimates/';
 
 % option for jackknife-based thresholding of group mean data
-jkknife = true; 
+jkknife = false; 
 jkknife_threshold = 0.05;  % probability threshold that the sample mean is zero ( = level for confidence interval)
 
 if ~strcmp(freq, 'delta')
