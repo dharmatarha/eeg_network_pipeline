@@ -371,7 +371,7 @@ end  % for subIdx
 
 %% Save out
 
-saveF = [surrDataDir, '/surrConn_', freq, '_', method, '.mat'];
+saveF = [surrDataDir, '/', freq, '_', method, '_surrConn','.mat'];
 save(saveF, 'surrNormalMu', 'surrNormalSigma', 'surrNormalP',... 
     'realConnP', 'maskedConn', 'criticalP', 'survivalRate',... 
     'acrossEpochs', 'truncated');

@@ -119,8 +119,8 @@ end
 mdsDimNo = 5;  % number of MDS dimensions to consider in correlations
 fileName_behavData = 'Big_data_all_behav.xlsx';  % file name of behavioral data
 freq = frequencyBand;
-fileNameStartThr = ['surrConn_', freq, '_'];  % file name start for thresholded connectivity data
-fileNameStartUnthr = ['group_', freq, '_'];  % file name start for unthresholded connectivity data
+fileNameEndThr = ['surrConn'];  % file name start for thresholded connectivity data
+fileNameEndUnthr = ['group'];  % file name start for unthresholded connectivity data
 behavVarNo = 7;  % number of behavioral variables to work with
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -172,11 +172,11 @@ disp('Loaded behavioral data');
 % (3) Check for connectivity matrices filled only with zeros
 
 if thresholding
-    fileName_connData = fullfile(dirName, [fileNameStartThr, connMeasure, '.mat']);
+    fileName_connData = fullfile(dirName, [freq, '_', connMeasure, '_', fileNameEndThr,'.mat']);
     dataStructure = open(fileName_connData);
     connTensor = dataStructure.acrossEpochs.maskedConn;
 else
-    fileName_connData = fullfile(dirName, [fileNameStartUnthr, connMeasure, '.mat']);
+    fileName_connData = fullfile(dirName, [freq, '_', connMeasure, '_', fileNameEndUnthr,'.mat']);
     dataStructure = open(fileName_connData);
     connTensor = dataStructure.connData;
     connTensor = squeeze(mean(connTensor, 2));
