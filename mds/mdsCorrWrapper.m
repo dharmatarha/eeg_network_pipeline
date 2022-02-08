@@ -1,9 +1,10 @@
-function mdsCorrWrapper(dirName, connMeasure, thresholding, graphDistMetric, surrType, surrNo)
+function mdsCorrWrapper(dirName, connMeasure, frequencyBand, thresholding, graphDistMetric, surrType, surrNo)
 
 %% Wrapper function to correlate behavioral measures with surrogate (randomized) connectivity matrix MDS dimensions in the RS data set
 %
 % USAGE: mdsCorrWrapper(dirName=pwd, 
-%                       connMeasure='plv', 
+%                       connMeasure='plv',
+%                       frequencyBand='alpha'
 %                       thresholding='unthr', 
 %                       grapDistMetric='adjacencySpectral', 
 %                       surrType='edgesRandom', 
@@ -37,6 +38,11 @@ function mdsCorrWrapper(dirName, connMeasure, thresholding, graphDistMetric, sur
 %               measure. The connectivity data file for the selected
 %               connectivity measure is loaded for surrogate data
 %               generation. Defaults to 'plv'.
+% frequencyBand     - Char array, one of 
+%               {'delta', 'theta', 'alpha', 'beta', 'gamma'}. Frequency
+%               band. The connectivity data file for the selected
+%               frequency band is loaded for surrogate data
+%               generation. Defaults to 'alpha'.
 % thresholding      - Char array, one of {'thr', 'unthr'}. Flag for loading
 %               thresholded or unthresholded data. Defaults to 'unthr'
 %               (unthresholded data).
@@ -64,28 +70,34 @@ function mdsCorrWrapper(dirName, connMeasure, thresholding, graphDistMetric, sur
 %% Simplified input arg handling
 
 % surrNo
-if nargin < 6 || isempty(surrNo)
+if nargin < 7 || isempty(surrNo)
     surrNo = 10;
 elseif ~isnumeric(surrNo) || ~ismember(surrNo, 1:10^5)
     error('Input arg "surrNo" should be numeric value in range 1:10^5!');
 end
 % surrType
-if nargin < 5 || isempty(surrType)
+if nargin < 6 || isempty(surrType)
     surrType = 'edgesRandom';
 elseif ~ischar(surrType) || ~ismember(surrType, {'edgesRandom', 'existingEdgesRandom', 'preserving'})
     error('Input arg "surrType" should be one of {"edgesRandom", "existingEdgesRandom", "preserving"}!');
 end
 % graphDistMetric
-if nargin < 4 || isempty(graphDistMetric)
+if nargin < 5 || isempty(graphDistMetric)
     graphDistMetric = 'adjacencySpectral';
 elseif ~ischar(graphDistMetric) || ~ismember(graphDistMetric, {'adjacencySpectral', 'LaplacianSpectral'})
     error('Input arg "graphDistMetric" should be one of {"adjacencySpectral", "LaplacianSpectral"}!');
 end
 % thresholding
-if nargin < 3 || isempty(thresholding)
+if nargin < 4 || isempty(thresholding)
     thresholding = 'thr';
 elseif ~ischar(thresholding) || ~ismember(thresholding, {'thr', 'unthr'})
     error('Input arg "thresholding" should be one of {"thr", "unthr"}!');
+end
+% frequencyBand
+if nargin < 3 || isempty(frequencyBand)
+    frequencyBand = 'alpha';
+elseif ~ischar(frequencyBand) || ~ismember(frequencyBand, {'delta', 'theta', 'alpha', 'beta', 'gamma'})
+    error('Input arg "frequencyBand" should be one of {"delta", "theta", "alpha", "beta", "gamma"}!');
 end
 % connMeasure
 if nargin < 2 || isempty(connMeasure)
@@ -106,7 +118,7 @@ end
 %%%%%%%%%%%%%%% HARDCODED PARAMS !!! %%%%%%%%%%%%%%%%%%%%%%
 mdsDimNo = 5;  % number of MDS dimensions to consider in correlations
 fileName_behavData = 'Big_data_all_behav.xlsx';  % file name of behavioral data
-freq = 'alpha';
+freq = frequencyBand;
 fileNameStartThr = ['surrConn_', freq, '_'];  % file name start for thresholded connectivity data
 fileNameStartUnthr = ['group_', freq, '_'];  % file name start for unthresholded connectivity data
 behavVarNo = 7;  % number of behavioral variables to work with
@@ -125,6 +137,7 @@ end
 % user message
 disp([char(10), 'Called mdsCorrWrapper with input args: ',...
     char(10), 'Connectivity measure: ', connMeasure,...
+    char(10), 'Frequency band: ', frequencyBand,...
     char(10), 'Thresholding: ', num2str(thresholding),...
     char(10), 'Distance metric: ', graphDistMetric,...
     char(10), 'Randomization type: ', surrType,...
@@ -336,7 +349,8 @@ end
 %% Save out main results
 
 saveFile = [dirName, 'RsBehavCorr_', connMeasure, '_',... 
-    thresholdingText, '_', graphDistMetric, '_', surrType, '.mat'];
+    frequencyBand, '_', thresholdingText, '_', graphDistMetric, '_',...
+    surrType, '.mat'];
 save(saveFile, 'behaviorVectors', 'realDistMatrix', 'Y_real', 'eigvals_real',...
     'realCoordVectors', 'realCorrValues', 'distMatrixCorrs',...
     'surrRealDistCorrs', 'surrCorrTensor', 'pValues', 'graphDistMetric',...
