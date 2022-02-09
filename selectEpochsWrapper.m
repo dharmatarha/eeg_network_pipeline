@@ -30,6 +30,7 @@ for freqBandIndex = 1 : numberOfFrequencyBands
                 fileNameunderTest = subjectFiles{subjectIndex};
                 subjectIDs{subjectIndex} = fileNameunderTest(numel([dirName, '/'])+1 : end-numel(['_' filePattern]));
             end
+            save([dirName, '/', 'selectedEpochsSelectedSubjects.mat'], 'epochIndicesConstraint', 'subjectIDs');
         else
             [subjectFiles, epochIndices, connData] = selectEpochs(dirName, ...
                 filePattern, varname, epochDim, subjectIDs, epochIndicesConstraint);
