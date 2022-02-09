@@ -182,7 +182,7 @@ for subIdx = 1:subNo
     % check if it is a file containing multiple surrogates, get method
     % index, if necessary
     methodFlag = false;
-    if numel(tmp.method) > 1
+    if iscell(tmp.method) && numel(tmp.method) > 1
         methodFlag = true;
         methodIdx = find(strcmp(method, tmp.method));
         if isempty(methodIdx)
@@ -217,10 +217,18 @@ for subIdx = 1:subNo
     % check for information about truncation: 
     % truncation info should be a logical var "truncated"
     if strcmp(truncated, 'filebased')
-        if tmp.truncated
-            subTruncated = 'truncated';
+        if methodFlag
+            if tmp.truncated(methodIdx)
+                subTruncated = 'truncated';
+            else
+                subTruncated = 'nontruncated';
+            end
         else
-            subTruncated = 'nontruncated';
+            if tmp.truncated
+                subTruncated = 'truncated';
+            else
+                subTruncated = 'nontruncated';
+            end
         end
     else
         subTruncated = truncated;

@@ -1,5 +1,5 @@
 
-frequencyBands = {'delta', 'theta', 'alpha', 'beta', 'gamma'};
+frequencyBands = {'theta', 'alpha', 'beta', 'gamma', 'delta'};
 numberOfFrequencyBands = numel(frequencyBands);
 connMetrics = {'plv', 'iplv', 'ampCorr', 'orthAmpCorr'};
 numberOfConnMetrics = numel(connMetrics);
@@ -132,6 +132,11 @@ for freqBandIndex = 1 : numberOfFrequencyBands
         disp([char(10), 'Connectivity file: ', connectivityFileName,...
             char(10), 'saved with variables: "subjects", "epochIndices", "connData"']);
 
-        sortSurrConn([dirName, '/', connectivityFileName], dirName, frequencyBand, connMetric);
+        if ismember(connMetric, {'plv', 'iplv'})
+            truncated = 'truncated';
+        else
+            truncated = 'nontruncated';
+        end
+        sortSurrConn([dirName, '/', connectivityFileName], dirName, frequencyBand, connMetric, truncated);
     end
 end
