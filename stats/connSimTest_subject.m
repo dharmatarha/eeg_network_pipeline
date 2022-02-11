@@ -88,7 +88,7 @@ funcClock = tic;
 [subNo, epochNo, roiNo, ~] = size(connArray);
 
 % preallocate results var
-simRes = nan(200, permNo);
+simRes = nan(subNo, permNo);
 
 % user message
 disp([char(10), 'Calculating...']);
