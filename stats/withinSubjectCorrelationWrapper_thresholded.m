@@ -23,7 +23,7 @@ for freqBandIndex = 1 : numberOfFrequencyBands
         simResCorr = connSimTest_subject_thresholding([dirName, '/', connectivityFileName], ...
             dirName, freqBandString, connMetricString, truncated);
         
-        simResCorrFileName = [freqBandString, '_', connMetricString, '_simResCorr', '.mat'];
+        simResCorrFileName = [freqBandString, '_', connMetricString, '_simResCorr_thr', '.mat'];
         save([dirName, '/', simResCorrFileName], 'simResCorr');
         simResCorr_vector = reshape(simResCorr, [], 1);
         tensorOfCorrValues(freqBandIndex, connMetricIndex, :) = simResCorr_vector;

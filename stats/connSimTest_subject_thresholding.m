@@ -138,35 +138,36 @@ epochIndices = tmp.epochIndices;  % subjects X 1 cell array, each cell contains 
 connData = tmp.connData;  % 4D array, subects X epochs X rois X rois
 [subNo, epochNo, roiNo, ~] = size(connData);
 
-
+    
 %% Loop through subjects
 
-% preallocate result vars
-surrNormalMuA = nan(subNo, epochNo, roiNo, roiNo);
-surrNormalSigmaA = surrNormalMuA;
-surrNormalPA = surrNormalMuA;
-surrNormalMuB = nan(subNo, epochNo, roiNo, roiNo);
-surrNormalSigmaB = surrNormalMuB;
-surrNormalPB = surrNormalMuB;
-% preallocate a struct for holding the group-level thresholding results
-acrossEpochs = struct;
-acrossEpochs.surrNormalMuA = nan(subNo, roiNo, roiNo);
-acrossEpochs.surrNormalMuB = nan(subNo, roiNo, roiNo);
-acrossEpochs.surrNormalSigmaA = acrossEpochs.surrNormalMuA;
-acrossEpochs.surrNormalSigmaB = acrossEpochs.surrNormalMuB;
-acrossEpochs.realConnPA = acrossEpochs.surrNormalMuA;
-acrossEpochs.realConnPB = acrossEpochs.surrNormalMuB;
-acrossEpochs.maskedConnA = acrossEpochs.surrNormalMuA;
-acrossEpochs.maskedConnB = acrossEpochs.surrNormalMuB;
-acrossEpochs.criticalPA = nan(subNo, 1);
-acrossEpochs.criticalPB = nan(subNo, 1);
-acrossEpochs.survivalRateA = nan(subNo, 1);
-acrossEpochs.survivalRateB = nan(subNo, 1);
-
-
-for subIdx = 1:subNo
+% preallocate results var
+simRes = nan(subNo, permNo);
     
+parfor subIdx = 1:subNo
     
+    % preallocate result vars
+%     surrNormalMuA = nan(round(epochNo/2), roiNo, roiNo);
+%     surrNormalSigmaA = surrNormalMuA;
+%     surrNormalPA = surrNormalMuA;
+%     surrNormalMuB = nan(epochNo-round(epochNo/2), roiNo, roiNo);
+%     surrNormalSigmaB = surrNormalMuB;
+%     surrNormalPB = surrNormalMuB;
+    % preallocate a struct for holding the group-level thresholding results
+    acrossEpochs = struct;
+    acrossEpochs.surrNormalMuA = nan(roiNo, roiNo);
+    acrossEpochs.surrNormalMuB = nan(roiNo, roiNo);
+    acrossEpochs.surrNormalSigmaA = acrossEpochs.surrNormalMuA;
+    acrossEpochs.surrNormalSigmaB = acrossEpochs.surrNormalMuB;
+    acrossEpochs.realConnPA = acrossEpochs.surrNormalMuA;
+    acrossEpochs.realConnPB = acrossEpochs.surrNormalMuB;
+    acrossEpochs.maskedConnA = acrossEpochs.surrNormalMuA;
+    acrossEpochs.maskedConnB = acrossEpochs.surrNormalMuB;
+    acrossEpochs.criticalPA = nan(1);
+    acrossEpochs.criticalPB = nan(1);
+    acrossEpochs.survivalRateA = nan(1);
+    acrossEpochs.survivalRateB = nan(1);
+
     %% Load surrogate data, preparations
     
     subClock = tic;
@@ -191,20 +192,17 @@ for subIdx = 1:subNo
         end
     end
     
-    % preallocate results var
-    simRes = nan(subNo, permNo);
-    
     % select mu, sigma and fit p-value for selected epochs
     % change the order of their dimensions first as they are rois X rois X
     % epochs
     if methodFlag
     	tmpMu = permute(squeeze(tmp.surrNormalMu(methodIdx, :, :, :)), [3 1 2]);
     	tmpSigma = permute(squeeze(tmp.surrNormalSigma(methodIdx, :, :, :)), [3 1 2]);
-     	tmpP = permute(squeeze(tmp.surrNormalP(methodIdx, :, :, :)), [3 1 2]);        
+%      	tmpP = permute(squeeze(tmp.surrNormalP(methodIdx, :, :, :)), [3 1 2]);        
     else
     	tmpMu = permute(tmp.surrNormalMu, [3 1 2]);
     	tmpSigma = permute(tmp.surrNormalSigma, [3 1 2]);
-    	tmpP = permute(tmp.surrNormalP, [3 1 2]);
+%     	tmpP = permute(tmp.surrNormalP, [3 1 2]);
     end
         
     % loop through permutations
@@ -223,12 +221,12 @@ for subIdx = 1:subNo
         subEpochsB = subEpochs(permIndicesB);
 
         % collect subject-level (truncated) normal params to group-level var
-        surrNormalMuA(subIdx, :, :, :) = tmpMu(subEpochsA, :, :);
-        surrNormalSigmaA(subIdx, :, :, :) = tmpSigma(subEpochsA, :, :);
-        surrNormalPA(subIdx, :, :, :) = tmpP(subEpochsA, :, :);
-        surrNormalMuB(subIdx, :, :, :) = tmpMu(subEpochsB, :, :);
-        surrNormalSigmaB(subIdx, :, :, :) = tmpSigma(subEpochsB, :, :);
-        surrNormalPB(subIdx, :, :, :) = tmpP(subEpochsB, :, :);
+        surrNormalMuA = tmpMu(subEpochsA, :, :);
+        surrNormalSigmaA = tmpSigma(subEpochsA, :, :);
+%         surrNormalPA = tmpP(subEpochsA, :, :);
+        surrNormalMuB = tmpMu(subEpochsB, :, :);
+        surrNormalSigmaB = tmpSigma(subEpochsB, :, :);
+%         surrNormalPB = tmpP(subEpochsB, :, :);
 
         subTruncated = truncated;
 
@@ -241,8 +239,8 @@ for subIdx = 1:subNo
         % - Thresholding
 
         % mean connectivity across epochs for current subject
-        subConnDataA = squeeze(mean(connData(subIdx, subEpochsA, :, :), 2));
-        subConnDataB = squeeze(mean(connData(subIdx, subEpochsB, :, :), 2));
+        subConnDataA = squeeze(mean(connData(subIdx, permIndicesA, :, :), 2));
+        subConnDataB = squeeze(mean(connData(subIdx, permIndicesB, :, :), 2));
 
         % loops across ROIs (defining edges)
         for roi1 = 1:roiNo
@@ -255,10 +253,10 @@ for subIdx = 1:subNo
                     % "group of epochs"
                     % NOTE: Linear combinations of normal distributions are
                     % just linear combinations of parameters
-                    muA = mean(squeeze(surrNormalMuA(subIdx, :, roi1, roi2)), 'omitnan');  % mu is simple the mean of all mu values
-                    sigmaA = mean(squeeze(surrNormalSigmaA(subIdx, :, roi1, roi2)), 'omitnan')/sqrt(epochNo);  % sigma is the mean sigma divided by sqrt(n)
-                    muB = mean(squeeze(surrNormalMuB(subIdx, :, roi1, roi2)), 'omitnan');  % mu is simple the mean of all mu values
-                    sigmaB = mean(squeeze(surrNormalSigmaB(subIdx, :, roi1, roi2)), 'omitnan')/sqrt(epochNo);  % sigma is the mean sigma divided by sqrt(n)
+                    muA = mean(squeeze(surrNormalMuA(:, roi1, roi2)), 'omitnan');  % mu is simple the mean of all mu values
+                    sigmaA = mean(squeeze(surrNormalSigmaA(:, roi1, roi2)), 'omitnan')/sqrt(epochNo);  % sigma is the mean sigma divided by sqrt(n)
+                    muB = mean(squeeze(surrNormalMuB(:, roi1, roi2)), 'omitnan');  % mu is simple the mean of all mu values
+                    sigmaB = mean(squeeze(surrNormalSigmaB(:, roi1, roi2)), 'omitnan')/sqrt(epochNo);  % sigma is the mean sigma divided by sqrt(n)
 
                     % Case of using simple normal distribution
                     if strcmp(subTruncated, 'nontruncated')
@@ -285,8 +283,8 @@ for subIdx = 1:subNo
                     if normalPB > 0.5
                         normalPB = 1-normalPB;
                     end
-                    acrossEpochs.realConnPA(subIdx, roi1, roi2) = normalPA*2;
-                    acrossEpochs.realConnPB(subIdx, roi1, roi2) = normalPB*2;
+                    acrossEpochs.realConnPA(roi1, roi2) = normalPA*2;
+                    acrossEpochs.realConnPB(roi1, roi2) = normalPB*2;
 
                     % store normal params
                     acrossEpochs.surrNormalMuA = muA;
@@ -299,30 +297,30 @@ for subIdx = 1:subNo
         end  % for roi2
 
         % FDR correction on average connectivity matrix
-        realPsA = acrossEpochs.realConnPA(subIdx, :, :); 
+        realPsA = acrossEpochs.realConnPA; 
         realPsA = realPsA(:); realPsA(isnan(realPsA)) = [];
-        [~, acrossEpochs.criticalPA(subIdx)] = fdr(realPsA, 0.05, 'bh');
-        realPsB = acrossEpochs.realConnPB(subIdx, :, :); 
+        [~, acrossEpochs.criticalPA] = fdr(realPsA, 0.05, 'bh');
+        realPsB = acrossEpochs.realConnPB; 
         realPsB = realPsB(:); realPsB(isnan(realPsB)) = [];
-        [~, acrossEpochs.criticalPB(subIdx)] = fdr(realPsB, 0.05, 'bh'); 
+        [~, acrossEpochs.criticalPB] = fdr(realPsB, 0.05, 'bh'); 
 
         % create masked connectivity tensor
-        pMaskA = squeeze(acrossEpochs.realConnPA(subIdx, :, :)) <= acrossEpochs.criticalPA(subIdx);
+        pMaskA = acrossEpochs.realConnPA <= acrossEpochs.criticalPA;
         tmpDataA = subConnDataA;
         tmpDataA(~pMaskA) = 0;  % values not surviving the threshold are set to zero
-        acrossEpochs.maskedConnA(subIdx, :, :) = tmpDataA;
-        pMaskB = squeeze(acrossEpochs.realConnPB(subIdx, :, :)) <= acrossEpochs.criticalPB(subIdx);
+        acrossEpochs.maskedConnA = tmpDataA;
+        pMaskB = acrossEpochs.realConnPB <= acrossEpochs.criticalPB;
         tmpDataB = subConnDataB;
         tmpDataB(~pMaskB) = 0;  % values not surviving the threshold are set to zero
-        acrossEpochs.maskedConnB(subIdx, :, :) = tmpDataB;
+        acrossEpochs.maskedConnB = tmpDataB;
 
         % get rate of edges surviving pruning
-        acrossEpochs.survivalRateA(subIdx) = sum(pMaskA(:), 'omitnan')/(roiNo*(roiNo-1)/2);
-        acrossEpochs.survivalRateB(subIdx) = sum(pMaskB(:), 'omitnan')/(roiNo*(roiNo-1)/2);
+        acrossEpochs.survivalRateA = sum(pMaskA(:), 'omitnan')/(roiNo*(roiNo-1)/2);
+        acrossEpochs.survivalRateB = sum(pMaskB(:), 'omitnan')/(roiNo*(roiNo-1)/2);
         
         % calculate similarity
-        matrixA = squeeze(acrossEpochs.maskedConnA(subIdx, :, :));
-        matrixB = squeeze(acrossEpochs.maskedConnB(subIdx, :, :));
+        matrixA = acrossEpochs.maskedConnA;
+        matrixB = acrossEpochs.maskedConnB;
         
         % for certain metrics get symmetric adjacency matrices with zeros at diagonal
         if ismember(metric, {'eucl', 'deltaCon'})
@@ -358,12 +356,12 @@ for subIdx = 1:subNo
                 [~, simRes(subIdx, permIdx)] = deltaCon(matrixA, matrixB, false);  % "false" is for verbosity
                 
         end  % switch metric
-
-        % display elapsed time 
-        elapsedT = round(toc(subClock), 2);
-        disp([char(10), 'Finished with subject ', subID, '. Took ', num2str(elapsedT), ' secs.'])
         
     end % for permIdx
+    
+    % display elapsed time 
+    elapsedT = round(toc(subClock), 2);
+    disp([char(10), 'Finished with subject ', subID, '. Took ', num2str(elapsedT), ' secs.'])
 
 end % for subIdx
 

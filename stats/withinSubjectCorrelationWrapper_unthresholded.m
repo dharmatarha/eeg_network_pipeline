@@ -19,7 +19,7 @@ for freqBandIndex = 1 : numberOfFrequencyBands
         connectivityTensor = dataStructure.connData;
         simResCorr = connSimTest_subject(connectivityTensor, permutationNo, 'corr');
         
-        simResCorrFileName = [freqBandString, '_', connMetricString, '_simResCorr', '.mat'];
+        simResCorrFileName = [freqBandString, '_', connMetricString, '_simResCorr_unthr', '.mat'];
         save([dirName, '/', simResCorrFileName], 'simResCorr');
         simResCorr_vector = reshape(simResCorr, [], 1);
         tensorOfCorrValues(freqBandIndex, connMetricIndex, :) = simResCorr_vector;
