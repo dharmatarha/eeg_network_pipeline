@@ -249,36 +249,71 @@ for subIdx = 1:subNo
                 % (assume symmetric values)
                 if roi1 < roi2
                     
-                    % Case of using simple normal distribution
-                    if strcmp(subTruncated, 'nontruncated')
+                    % Check if surrNormalMu and surrNormalSigma values are 
+                    % NaNs. Function surrEdgeEstimationReal can result in 
+                    % NaN values when fitting a normal distribution fails.
+                    % We only let the function continue in the following
+                    % loops if they are NaN
+                    if ~isnan(surrNormalMu(subIdx, epochIdx, roi1, roi2)) && ~isnan(surrNormalSigma(subIdx, epochIdx, roi1, roi2))
                     
-                        % get p-value based on normal distribution of surrogate
-                        % values
-                        normalP = normcdf(connData(subIdx, epochIdx, roi1, roi2),... 
-                                            surrNormalMu(subIdx, epochIdx, roi1, roi2),... 
-                                            surrNormalSigma(subIdx, epochIdx, roi1, roi2));
+                    
+                        % Case of using simple normal distribution
+                        if strcmp(subTruncated, 'nontruncated')
+
+                            % get p-value based on normal distribution of surrogate
+                            % values
+                            normalP = normcdf(connData(subIdx, epochIdx, roi1, roi2),... 
+                                                surrNormalMu(subIdx, epochIdx, roi1, roi2),... 
+                                                surrNormalSigma(subIdx, epochIdx, roi1, roi2));
+
+                        % Case of using truncated normal distribution
+                        elseif strcmp(subTruncated, 'truncated')
+
+                            % get a truncated normal distribution first
+                            pd = makedist('normal', 'mu', surrNormalMu(subIdx, epochIdx, roi1, roi2), 'sigma', surrNormalSigma(subIdx, epochIdx, roi1, roi2));  % returns a probability distribution object
+
+                            % Sometimes earlier fitting resulted in ill-fitted
+                            % disttributions, specifically for truncated
+                            % normals. This is very rare, but can result in an
+                            % error at the following step, so we use a
+                            % try-catch construct
+                            try
+                                % the following is a necessity for 
+                                pd = truncate(pd, 0, 1);
+
+                                % get p-value from the cumulative version of the
+                                % distribution function
+                                normalP = pd.cdf(connData(subIdx, epochIdx, roi1, roi2));
+
+                            catch ME
+                                disp(['Fitting with truncated normal dist failed at subject ',... 
+                                    num2str(subIdx), ', epoch ', num2str(epochIdx),...
+                                    ', rois ', num2str(roi1), ' and ', num2str(roi2)]);
+                                disp('Significance for real value was set to 0.5');
+                                disp(ME.message);
+
+                                normalP = 0.5; 
+                            end
+
+                        end
+
+                        % convert for a 2-two-sided test, apply correction as
+                        % well
+                        if normalP > 0.5
+                            normalP = 1-normalP;
+                        end                                         
+                        realConnP(subIdx, epochIdx, roi1, roi2) = normalP*2;
                         
-                    % Case of using truncated normal distribution
-                    elseif strcmp(subTruncated, 'truncated')
                         
-                        % get a truncated normal distribution first
-                        pd = makedist('normal', 'mu', surrNormalMu(subIdx, epochIdx, roi1, roi2), 'sigma', surrNormalSigma(subIdx, epochIdx, roi1, roi2));  % returns a probability distribution object
-                        
-                        % the following is a necessity for 
-                        pd = truncate(pd, 0, 1);
-                        
-                        % get p-value from the cumulative version of the
-                        % distribution function
-                        normalP = pd.cdf(connData(subIdx, epochIdx, roi1, roi2));
-                        
+                    % if earlier fitting failed and Mu is Nan, we throw a
+                    % warning and set significance to 1 to remain on the
+                    % safe side
+                    else
+                        warning(['Surrogate distribution Mu and Sigma are NaNs for subject ',... 
+                                    num2str(subIdx), ', epoch ', num2str(epochIdx),...
+                                    ', rois ', num2str(roi1), ' and ', num2str(roi2)]);
+                        realConnP(subIdx, epochIdx, roi1, roi2) = 1;
                     end
-                    
-                    % convert for a 2-two-sided test, apply correction as
-                    % well
-                    if normalP > 0.5
-                        normalP = 1-normalP;
-                    end                                         
-                    realConnP(subIdx, epochIdx, roi1, roi2) = normalP*2;
                     
                 end
             end
