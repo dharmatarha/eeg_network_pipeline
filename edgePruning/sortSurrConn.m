@@ -204,6 +204,15 @@ for subIdx = 1:subNo
         tmpSigma = permute(squeeze(tmp.surrNormalSigma(methodIdx, :, :, :)), [3 1 2]);
         tmpP = permute(squeeze(tmp.surrNormalP(methodIdx, :, :, :)), [3 1 2]);        
     else
+        if any(size(tmp.surrNormalMu) == 1)
+            tmp.surrNormalMu = squeeze(tmp.surrNormalMu);
+        end
+        if any(size(tmp.surrNormalSigma) == 1)
+            tmp.surrNormalSigma = squeeze(tmp.surrNormalSigma);
+        end
+        if any(size(tmp.surrNormalP) == 1)
+            tmp.surrNormalP = squeeze(tmp.surrNormalP);
+        end
         tmpMu = permute(tmp.surrNormalMu, [3 1 2]);
         tmpSigma = permute(tmp.surrNormalSigma, [3 1 2]);
         tmpP = permute(tmp.surrNormalP, [3 1 2]);
