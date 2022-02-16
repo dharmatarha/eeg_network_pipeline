@@ -1,4 +1,4 @@
-function withinSubjectCorrelationWrap_thresholded(freq, connMethod)
+function withinSubjectCorrelationNoWrap_thresholded(freq, connMethod)
 %% Wrapper for calling the function connSimTest_subject_thresholding
 %
 % For a specific frequency band and connectivity method. Saves out
