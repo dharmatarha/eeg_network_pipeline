@@ -1,6 +1,6 @@
 
 frequencyBands = {'theta', 'alpha', 'beta', 'gamma', 'delta'};
-numberOfFrequencyBands = numel(frequencyBands)-1;
+numberOfFrequencyBands = numel(frequencyBands);
 connMetrics = {'plv', 'iplv', 'ampCorr', 'orthAmpCorr'};
 numberOfConnMetrics = numel(connMetrics);
 dirNameBase = '/home/peternagy/NAS502/EEG_resting_state/';
@@ -38,15 +38,15 @@ for freqBandIndex = 1 : numberOfFrequencyBands
     ylabel('Within-subject correlation');
     switch freqBandIndex
         case 1
-            title('Theta band');
+            title('Theta band, no thresholding');
         case 2
-            title('Alpha band');
+            title('Alpha band, no thresholding');
         case 3
-            title('Beta band');
+            title('Beta band, no thresholding');
         case 4
-            title('Gamma band');
+            title('Gamma band, no thresholding');
         case 5
-            title('Delta band');
+            title('Delta band, no thresholding');
     end
     set(gca, 'FontSize', 20);
     set(gcf, 'Color', 'w');
