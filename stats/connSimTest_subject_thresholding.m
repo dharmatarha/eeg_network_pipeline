@@ -46,12 +46,6 @@ function simRes = connSimTest_subject_thresholding(connFile, surrDataDir, freq, 
 % method                - Char array, one of {'plv', 'iplv', 'pli', 
 %                       'ampCorr', 'orthAmpCorr'}. Connectivity method,
 %                       reflected in surrogate connectivity file names.
-% truncated             - Char array, one of {'truncated', 'nontruncated'}.
-%                       Defines if the normal distributions derived from
-%                       the surrogate data should be truncated to [0 1]. If
-%                       left empty, the function tries to get this
-%                       information from the surrogate data files (from var
-%                       "truncated"). Defaults to empty.
 %
 % Optional inputs:
 % truncated             - Char array, one of 
@@ -98,9 +92,6 @@ if ~ischar(freq) || ~ismember(freq, {'alpha', 'beta', 'gamma', 'delta', 'theta'}
 end
 if ~ischar(method) || ~ismember(method, {'plv', 'iplv', 'pli', 'ampCorr', 'orthAmpCorr'})
     error('Input arg "method" should be a char array, one of {"plv", "iplv", "pli", "ampCorr", "orthAmpCorr"}!');
-end
-if ~ismember(truncated, {'truncated', 'nontruncated'})
-	error('Input arg "truncated" should be one of {"truncated", "nontruncated"}!');
 end
 
 % check optional inputs
