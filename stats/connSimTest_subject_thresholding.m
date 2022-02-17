@@ -260,6 +260,12 @@ parfor subIdx = 1:subNo
     	tmpMu = permute(squeeze(tmp.surrNormalMu(methodIdx, :, :, :)), [3 1 2]);
     	tmpSigma = permute(squeeze(tmp.surrNormalSigma(methodIdx, :, :, :)), [3 1 2]);     
     else
+        if any(size(tmp.surrNormalMu) == 1)
+            tmp.surrNormalMu = squeeze(tmp.surrNormalMu);
+        end
+        if any(size(tmp.surrNormalSigma) == 1)
+            tmp.surrNormalSigma = squeeze(tmp.surrNormalSigma);
+        end
     	tmpMu = permute(tmp.surrNormalMu, [3 1 2]);
     	tmpSigma = permute(tmp.surrNormalSigma, [3 1 2]);
     end
