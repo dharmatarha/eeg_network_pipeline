@@ -1,6 +1,6 @@
 
 frequencyBands = {'theta', 'alpha', 'beta', 'gamma', 'delta'};
-numberOfFrequencyBands = numel(frequencyBands)-1;
+numberOfFrequencyBands = numel(frequencyBands);
 connMetrics = {'plv', 'iplv', 'ampCorr', 'orthAmpCorr'};
 numberOfConnMetrics = numel(connMetrics);
 dirNameBase = '/home/peternagy/NAS502/EEG_resting_state/';

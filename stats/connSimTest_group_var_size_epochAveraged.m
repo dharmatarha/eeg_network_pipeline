@@ -1,19 +1,18 @@
-function simRes = connSimTest_group_var_size(connArray, varargin)
+function simRes = connSimTest_group_var_size_epochAveraged(connArray, varargin)
 %% Testing the similarity of connectivity data across epoch groupings on the group level
 %
-% USAGE: simRes = connSimTest_group_var_size(connArray, groupSize=floor(size(connArray, 1))/2, permNo=1000, metric='corr') 
+% USAGE: simRes = connSimTest_group_var_size_epochAveraged(connArray, groupSize=floor(size(connArray, 1))/2, permNo=1000, metric='corr') 
 %
-% If given connectivity (adjacency) matrices for a set of epochs, across
+% If given connectivity (adjacency) matrices for epoch-averaged data, across
 % multiple subjects (in input arg "connArray"), the function calculates the
 % similarity (reliability) of average connectivity matrices derived from 
-% random divisions of the dataset into two groups (keeping all epochs for
-% each subject within a single group).
+% random divisions of the dataset into two groups.
 %
 % Workflow, separately performed for each subject:
-% (1) Randomly divide subjects into two groups (keeping all epochs for
+% (1) Randomly divide subjects into two groups (epoch-averaged data for
 % each subject within a single group)
 % (2) Average the connectivity (adjacency) matrices of the two groups of
-% subjects (average all epochs of all subjects within one group).
+% subject-level average connectivity matrices.
 % (3) Calculate the similarity of the two averaged conenctivity matrices
 % (4) Repeat steps (1)-(3) "permNo" times (default is 1000) 
 %
@@ -26,9 +25,9 @@ function simRes = connSimTest_group_var_size(connArray, varargin)
 % position: the numeric value occuring earlier is assigned to "groupSize".
 %
 % Mandatory inputs:
-% connArray     - 4D numeric array, with dimensions: subjects X epochs X
-%               ROIs X ROIs. Contains a connectivity matrix for each epoch
-%               of each subject. Might only contain valid data in the upper
+% connArray     - 3D numeric array, with dimensions: subjects X ROIs X ROIs.
+%               Contains an epoch-averaged connectivity matrix for each
+%               subject. Might only contain valid data in the upper
 %               triangles of the connectivity matrices, the rest might be
 %               NaN (in case of symmetric connectivity measures).
 %
@@ -57,7 +56,7 @@ if ~ismember(nargin, 1:4)
     error('Function connSimTest_group requires input arg "connArray" while args "permNo", "groupSize", and "metric" are optional!');
 end
 % check mandatory input
-if ~isnumeric(connArray) || numel(size(connArray))~=4 || size(connArray, 3)~=size(connArray ,4)
+if ~isnumeric(connArray) || numel(size(connArray))~=3 || size(connArray, 2)~=size(connArray ,3)
     error('Input rag "connArray" should be a 4D numeric array where the 3rd and 4th dimensions have the same size!');
 end
 % check optional inputs
@@ -104,8 +103,7 @@ funcClock = tic;
 % preallocate results var
 simRes = nan(1, permNo);
 
-% average over epochs before subgroup comparisons
-connArray = squeeze(mean(connArray, 2));
+% averaging over epochs before subgroup comparisons is not necessary
 
 % user message
 disp([char(10), 'Calculating...']);
