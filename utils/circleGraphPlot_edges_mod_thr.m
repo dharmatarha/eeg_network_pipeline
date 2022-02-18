@@ -1,4 +1,4 @@
-function mainFig = circleGraphPlot_edges_mod(edgeContr, edgeStrength, edgeMembership, colorTriplets, varargin)
+function mainFig = circleGraphPlot_edges_mod_thr(edgeContr, edgeStrength, edgeMembership, colorTriplets, varargin)
 %% Plotting network connectivity with module-structure in a circle layout
 % Version highlighting given edge sets
 %
@@ -349,6 +349,8 @@ edgeStyle(backgroundEdgeIdx) = repmat(edgeTypes(2), [sum(backgroundEdgeIdx, 1), 
 % preallocate variable to collect edges to be deleted
 edgesToTrim = [];
 edgesBelowThr = abs(weights) < trimmingThr(2);
+prunedEdges = (edgeStrength == 0);
+edgesBelowThr = or(edgesBelowThr, prunedEdges);
 edgesToTrim = sort(find(edgesBelowThr));
 G = G.rmedge(edgesToTrim);
 
