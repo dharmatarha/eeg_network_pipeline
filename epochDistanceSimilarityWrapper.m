@@ -22,7 +22,7 @@ for freqBandIndex = 1 : numberOfFrequencyBands
         frequencyBand = freqBandString;
         connMetric = connMetricString;
         
-        [distSimResult] = epochDistSim_subject(dirName, ...
+        [~, ~, distSimResult] = epochDistSim_subject(dirName, ...
             filePattern, varname, epochDim, epochNo, subjectIDs, epochMask);
 
         %% Sanity check

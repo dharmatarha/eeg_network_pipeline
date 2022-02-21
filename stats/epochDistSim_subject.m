@@ -1,5 +1,6 @@
-function [distSimResult] = epochDistSim_subject(dirName, filePattern, varName, varargin)
-%% Function for randomly selecting epochs in multi-subject EEG dataset
+function [selectedFiles, selectedEpochs, distSimResult] = epochDistSim_subject(dirName, filePattern, varName, varargin)
+%% Function to calculate the similarity (correlation) between epochs as a
+%% function of the distance between epochs.
 %
 % USAGE: [selectedFiles, selectedEpochs, epochData] = selectEpochs(dirName, 
 %                                                               filePattern, 
@@ -10,8 +11,8 @@ function [distSimResult] = epochDistSim_subject(dirName, filePattern, varName, v
 %                                                               epochMask=[], 
 %                                                               loadBehav='incremental')
 % 
-% Function for selecting (randomly) an equal number of epochs from a set 
-% of subjects with variable epoch numbers.
+% Function to calculate the similarity (correlation) between epochs as a
+% function of the distance between epochs.
 %
 % Basic usage is pointing the function to a set of files using input
 % args "dirName", "filePattern" and "varName", and then using the 
@@ -37,22 +38,20 @@ function [distSimResult] = epochDistSim_subject(dirName, filePattern, varName, v
 % one or more subjects, we still apply it. Epochs outside the length of the
 % mask are not considered.
 %
-% If "epochIndices" are specified, its cells contain the epochs to be
-% selected for each subject. Useful for consistent selection of epochs
-% across different aspects of the data (e.g. different frequency bands). 
-%
 % Arg "loadBehav" specifies if all data should be loaded in one sweep
 % ('onesweep') and kept in memory for epoch selection, or if loading and
 % epoch selection should be done incrementally ('incremental'). The later
 % is useful if a relatively small subset of epochs is selected from a large
 % dataset. 
-% IMPORTANT! If "loadBehav" is set to 'incremental' and neither "epochNo" 
-% or "epochIndices" are specified, the files are loaded twice, one-by-one 
+% IMPORTANT! If "loadBehav" is set to 'incremental' and "epochNo" is not
+% specified, the files are loaded twice, one-by-one 
 % in both cases - first to determine epoch numbers and then to collect 
 % selected epochs. This can take a while for a large dataset.
 %
-% Selected epochs for each subject are arranged into a 4D array with
-% dimensions subjects X epochs X ROIs X ROIs (output "epochData").
+% Similarity and distance between selected epochs for each subject are ...
+% arranged into a 3D array with dimensions subjects X 2 X numberOfEpochPairings
+% (output "distSimResult"). The second dimension defines if it is
+% similarity (1) or distance (2).
 % 
 % Optional args are inferred from types and values. If that is ambigious,
 % position is taken into account (only in the case of differentiating
@@ -117,10 +116,10 @@ function [distSimResult] = epochDistSim_subject(dirName, filePattern, varName, v
 %                   "subjectFiles" and the first dimension of "epochData".
 %                   The length of each numeric vector is the number of
 %                   selected epochs.
-% epochData         - Numeric array, 4D, firs dimension is subjects, second 
-%                   is epochs, the rest is the EEG data of the selected 
-%                   epochs sized. E.g. for connectivity data it is sized 
-%                   [subjects X epochs X ROIs X ROIs].
+% distSimResult     - Numeric array, 3D, firs dimension is subjects, second 
+%                   is if it is similarity (1) or distance (2), third is
+%                   epoch comparisons. E.g. for connectivity data it is sized 
+%                   [subjects X 2 X ((ROIs * ROIs-1)/2)].
 %
 %
 %
@@ -136,11 +135,11 @@ function [distSimResult] = epochDistSim_subject(dirName, filePattern, varName, v
 % estimate, we do:
 % 
 % % get subject ids for the resting state dataset from /utils
-% load('restingStateSubjects.mat', 'subjectsRS');
+% load('selectedEpochsSelectedSubjects.mat', 'subjectIDs');
 % % define the mask for non-overlapping epochs (every second in our case)
 % epochMask = zeros(1,300); epochMask(1:2:end) = 1;  % 300 is definitely more than the max number of epochs we have
 % % call selectEpochs
-% [subjectFiles, selectedEpochs, epochData] = selectEpochs('alpha/', 'alpha_plv.mat', subjectsRS, epochMask);
+% [subjectFiles, selectedEpochs, epochData] = epochDistSim_subject(dirName, filePattern, varname, epochDim, epochNo, subjectIDs, epochMask);
 % 
 %
 
