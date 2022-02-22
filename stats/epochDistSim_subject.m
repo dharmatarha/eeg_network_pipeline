@@ -49,9 +49,9 @@ function [selectedFiles, selectedEpochs, distSimResult] = epochDistSim_subject(d
 % selected epochs. This can take a while for a large dataset.
 %
 % Similarity and distance between selected epochs for each subject are ...
-% arranged into a 3D array with dimensions subjects X 2 X numberOfEpochPairings
+% arranged into a 4D array with dimensions subjects X 2 X EpochNo X EpochNo
 % (output "distSimResult"). The second dimension defines if it is
-% similarity (1) or distance (2).
+% distance (1) or similarity (2).
 % 
 % Optional args are inferred from types and values. If that is ambigious,
 % position is taken into account (only in the case of differentiating
@@ -117,9 +117,11 @@ function [selectedFiles, selectedEpochs, distSimResult] = epochDistSim_subject(d
 %                   The length of each numeric vector is the number of
 %                   selected epochs.
 % distSimResult     - Numeric array, 3D, firs dimension is subjects, second 
-%                   is if it is similarity (1) or distance (2), third is
-%                   epoch comparisons. E.g. for connectivity data it is sized 
-%                   [subjects X 2 X ((ROIs * ROIs-1)/2)].
+%                   is if it is distance (1) or similarity (2), third is
+%                   index of the first epoch in comparison, fourth is the
+%                   the index of the second epoch in comparison.
+%                   E.g. for connectivity data it is sized 
+%                   [subjects X 2 X EpochNo X EpochNo].
 %
 %
 %
@@ -139,7 +141,7 @@ function [selectedFiles, selectedEpochs, distSimResult] = epochDistSim_subject(d
 % % define the mask for non-overlapping epochs (every second in our case)
 % epochMask = zeros(1,300); epochMask(1:2:end) = 1;  % 300 is definitely more than the max number of epochs we have
 % % call selectEpochs
-% [subjectFiles, selectedEpochs, epochData] = epochDistSim_subject(dirName, filePattern, varname, epochDim, epochNo, subjectIDs, epochMask);
+% [subjectFiles, selectedEpochs, distSimResult] = epochDistSim_subject(dirName, filePattern, varname, epochDim, epochNo, subjectIDs, epochMask);
 % 
 %
 
@@ -408,8 +410,8 @@ disp('Done');
 % user message
 disp([char(10), 'Selecting epochs from each file...']);
 
-% preallocate epoch data holding var: files X epochs X [rest1 X rest2 X...]
-distSimResult = nan([length(selectedFiles), 2, epochNo*(epochNo-1)/2]);
+% preallocate epoch data holding var: files X 2 X epochs X epochs
+distSimResult = nan([length(selectedFiles), 2, epochNo, epochNo]);
 
 % loop through data sets
 for i = 1:length(selectedFiles)
@@ -445,16 +447,14 @@ for i = 1:length(selectedFiles)
     selectedData = subsref(tmpData, S);  % select the relevant data slice
     roiNo = epochFirstRefSize(2);
     
-    counter = 1;
     for epochIndexFirst = 1 : epochNo-1
         for epochIndexSecond = epochIndexFirst+1 : epochNo
             epochMatrixA = squeeze(selectedData(epochIndexFirst, :, :));
             epochMatrixB = squeeze(selectedData(epochIndexSecond, :, :));
             linA = epochMatrixA(triu(true(roiNo), 1));
             linB = epochMatrixB(triu(true(roiNo), 1));
-            distSimResult(i, 1, counter) = corr(linA, linB); % store the epoch similarity
-            distSimResult(i, 2, counter) = epochIndexSecond - epochIndexFirst; % store the epoch distance
-            counter = counter + 1;
+            distSimResult(i, 1, epochIndexFirst, epochIndexSecond) = epochIndexSecond - epochIndexFirst; % store the epoch distance
+            distSimResult(i, 2, epochIndexFirst, epochIndexSecond) = corr(linA, linB); % store the epoch similarity
         end % for epochIndexSecond = epochIndexFirst+1 : epochNo
     end % epochIndexFirst = 1 : epochNo
     
