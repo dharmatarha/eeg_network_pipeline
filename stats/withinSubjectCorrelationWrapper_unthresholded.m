@@ -35,6 +35,7 @@ for freqBandIndex = 1 : numberOfFrequencyBands
     xticks([1 2 3 4]);
     xticklabels({'PLV' 'iPLV' 'ampCorr' 'orthAmpCorr'});
     xlim([0 5]);
+    ylim([-0.15 1.1]);
     ylabel('Within-subject correlation');
     switch freqBandIndex
         case 1

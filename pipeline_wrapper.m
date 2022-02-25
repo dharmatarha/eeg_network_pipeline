@@ -76,6 +76,21 @@
 % epochDistSimHelper.m script which plots the group-level average epoch
 % similarity values for each epoch distance, each frequency band and each
 % connectivity metric.
+%
+% differentConnMetricsCorr_groupAvg_unthr.m, differentConnMetricsCorr_groupAvg_thr.m,
+% differentConnMetricsCorr_subjectAvg_unthr.m, differentConnMetricsCorr_subjectAvg_thr.m,
+% differentConnMetricsCorr_noAvg_unthr.m, differentConnMetricsCorr_noAvg_thr.m
+% have to be run. These functions compute and plot the relation between
+% different measures for each frequency band. The relation is correlation
+% between edges computed with different measures. There are three types of
+% edge calculation, both for thresholded and unthresholded data. In the
+% first case, group level average is calculated, so ROIs*(ROIs-1)/2 edges
+% are compared between different measures. In the second case, subject
+% level averages are calculated, so subjNo*ROIs*(ROIs-1)/2 edges are
+% compared between different measures. In the third case, no averages are
+% calculated, so all edges from each epoch and each subject are compared.
+% So, subjNo*epochNo*ROIs*(ROIs-1)/2 edges are compared between different
+% measures.
 
 
 % run selectEpochsWrapper.m
@@ -104,7 +119,21 @@
 % run groupSizeDependentCorrelationWrapper_unthr.m
 % run edgeContrToReliability_thr.m
 % run epochDistanceSimilarityWrapper.m
+% run differentConnMetricsCorr_groupAvg_unthr.m
+% run differentConnMetricsCorr_groupAvg_thr.m
+% run differentConnMetricsCorr_subjectAvg_unthr.m
+% run differentConnMetricsCorr_subjectAvg_thr.m
+% run differentConnMetricsCorr_noAvg_unthr.m
+% run differentConnMetricsCorr_noAvg_thr.m
+% run epochDistSimHelper.m
 
+% alternatively
+% run connectivity/connectivityWrapperReal_epochLengthSpec.m
+% run selectEpochsWrapper_preDefEpochs.m
+% run withinSubjectCorrelationWrapper_unthresholded.m (be careful with the directory name)
+% run groupSizeDependentCorrelationWrapper_unthr.m (be careful with the directory name)
+% run epochDistanceSimilarityWrapper.m (be careful with the directory name)
+% run epochDistSimHelper.m
 
 
 % dirName = '../NAS502/EEG_resting_state/delta/';
