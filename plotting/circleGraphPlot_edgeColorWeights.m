@@ -1,4 +1,4 @@
-function mainFig = circleGraphPlot_edgeColorWeights(connMatrix, edgeColorWeights, colorMap, varargin)
+function [mainFig, G, cmapColors] = circleGraphPlot_edgeColorWeights(connMatrix, edgeColorWeights, colorMap, varargin)
 %% Plotting network connectivity with module-structure in a circle layout
 % Version highlighting given edge sets
 %
@@ -53,7 +53,7 @@ function mainFig = circleGraphPlot_edgeColorWeights(connMatrix, edgeColorWeights
 %
 % Outputs:
 % mainFig       - Figure handle for the plot depicting the network.
-%
+% G             - Matlab's graph object for the network depicted
 %
 
 
@@ -95,7 +95,7 @@ if ~isempty(varargin)
         if isnumeric(varargin{v}) && ismember(length(varargin{v}), [1 2]) && ~exist('trimmingThr', 'var')
             trimmingThr = varargin{v};
             for t = 1: length(trimmingThr)
-                if ~ismember(trimmingThr(t), 0:0.001:0.9)
+                if ~ismembertol(trimmingThr(t), 0:0.001:0.9)
                     error('Optional input arg "trimmingThr" has value(s) outside 0:0.001:0.9!');
                 end
             end
@@ -392,7 +392,7 @@ set(gca,'XColor', gcaLinesColor,'YColor', gcaLinesColor);
 % set axes position relative to figure
 set(gca, 'Position', gcaPosInFig);
 % % set axes font sizes
-% set(gca, 'FontSize', 18);
+set(gca, 'FontSize', 18);
 
 
 return
