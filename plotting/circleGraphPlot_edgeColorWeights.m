@@ -165,7 +165,7 @@ else
     disp([char(10), 'Cannot apply lobule-highlighting for given ROI/node label set']);
 end
 
-
+labels = cellfun(@(x)[' ' x ' '], labels, 'uni', false);
 %% Hard-coded params
 
 % RGB color for not-highlighted (background) edges
