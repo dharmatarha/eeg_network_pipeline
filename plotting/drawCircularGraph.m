@@ -206,7 +206,7 @@ for elementIndex = 1:length(nzElements)
                 [u(1);v(1)],...
                 [u(2);v(2)],...
                 'LineWidth', lineWidth(elementIndex),...
-                'Color', colorMap(round(999*scaledColorValues(i))+1, :),...
+                'Color', colorMap(round(999*scaledColorValues(elementIndex))+1, :),...
                 'PickableParts','none');
         else % points are not diametric, so draw an arc
             u  = [cos(nodeThetas(nzRows(elementIndex)));sin(nodeThetas(nzRows(elementIndex)))];
@@ -232,9 +232,9 @@ for elementIndex = 1:length(nzElements)
                 'Color', colorMap(round(999*scaledColorValues(elementIndex))+1, :),...
                 'PickableParts','none');
             
-        end % if abs(nzRows(i) - nzColumns(i)) - length(adjacencyMatrix)/2 == 0
+        end % if abs(nzRows(elementIndex) - nzColumns(elementIndex)) - length(adjacencyMatrix)/2 == 0
         
-    end % if nzRows(i) ~= nzColumns(i)
+    end % nzRows(elementIndex) ~= nzColumns(elementIndex)
     
 end % for elementIndex = 1:length(nzElements)
 
