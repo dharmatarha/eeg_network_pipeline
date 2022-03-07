@@ -122,23 +122,22 @@ colorMatrix = colorMatrix(:, permutationVector);
 
 %% Draw nodes
 
-t = linspace(-pi,pi,length(adjacencyMatrix) + 1).'; % theta for each node
-nodeLines = [];
-extents = [];
+nodeThetas = linspace(-pi,pi,length(adjacencyMatrix) + 1).'; % theta for each node
+labelExtents = [];
 labelOffsetFactor = 1.1;
-for i = 1:length(adjacencyMatrix)
-    x = cos(t(i));
-    y = sin(t(i));
-    nodeLines(end+1) = line(...
-        cos(t(i)),...
-        sin(t(i)),...
+for nodeIndex = 1:length(adjacencyMatrix)
+    x = cos(nodeThetas(nodeIndex));
+    y = sin(nodeThetas(nodeIndex));
+    line(...
+        cos(nodeThetas(nodeIndex)),...
+        sin(nodeThetas(nodeIndex)),...
         2,...
         'Color', 'k',...
         'Marker','o',...
         'LineStyle','none',...
         'PickableParts','all');
     tau = atan2(y,x);
-    textLabel = text(0,0,textLabels{i});
+    textLabel = text(0,0,textLabels{nodeIndex});
     textLabel.Position = labelOffsetFactor*([x, y]);
     if abs(tau) > pi/2
         textLabel.Rotation = 180*(tau/pi + 1);
@@ -146,17 +145,17 @@ for i = 1:length(adjacencyMatrix)
     else
         textLabel.Rotation = tau*180/pi;
     end
-    extents(i) = textLabel.Extent(3);
+    labelExtents(nodeIndex) = textLabel.Extent(3);
 end
 
 
 %% Draw connections
 
 % Find non-zero values of the adjacencyMatrix and their indices
-[row,col,v] = find(adjacencyMatrix);
+[nzRows, nzColumns, nzElements] = find(adjacencyMatrix);
 
 % Select the same values from the colorMatrix too
-relevantColorValues = diag(colorMatrix(row, col));
+relevantColorValues = diag(colorMatrix(nzRows, nzColumns));
 
 % Rescale color values
 if max(relevantColorValues) - min(relevantColorValues) > 0
@@ -173,7 +172,7 @@ colorMap = parula(1000);
 % Calculate line widths based on values of s (stored in v).
 minLineWidth  = 0.5;
 lineWidthCoef = 5;
-lineWidth = v./max(v);
+lineWidth = nzElements ./ max(nzElements);
 if sum(lineWidth) == numel(lineWidth) % all lines are the same width.
     lineWidth = repmat(minLineWidth,numel(lineWidth),1);
 else % lines of variable width.
@@ -196,23 +195,22 @@ end
 % y0 = (u(1)-v(1))/(u(1)*v(2)-u(2)*v(1));
 % r^2 = x0^2 + y0^2 - 1
 
-connections = [];
 
-for i = 1:length(v)
-    if row(i) ~= col(i)
-        if abs(row(i) - col(i)) - length(adjacencyMatrix)/2 == 0
+for elementIndex = 1:length(nzElements)
+    if nzRows(elementIndex) ~= nzColumns(elementIndex)
+        if abs(nzRows(elementIndex) - nzColumns(elementIndex)) - length(adjacencyMatrix)/2 == 0
             % points are diametric, so draw a straight line
-            u = [cos(t(row(i)));sin(t(row(i)))];
-            v = [cos(t(col(i)));sin(t(col(i)))];
-            connections(end+1) = line(...
+            u = [cos(nodeThetas(nzRows(elementIndex)));sin(nodeThetas(nzRows(elementIndex)))];
+            v = [cos(nodeThetas(nzColumns(elementIndex)));sin(nodeThetas(nzColumns(elementIndex)))];
+            line(...
                 [u(1);v(1)],...
                 [u(2);v(2)],...
-                'LineWidth', lineWidth(i),...
+                'LineWidth', lineWidth(elementIndex),...
                 'Color', colorMap(round(999*scaledColorValues(i))+1, :),...
                 'PickableParts','none');
         else % points are not diametric, so draw an arc
-            u  = [cos(t(row(i)));sin(t(row(i)))];
-            v  = [cos(t(col(i)));sin(t(col(i)))];
+            u  = [cos(nodeThetas(nzRows(elementIndex)));sin(nodeThetas(nzRows(elementIndex)))];
+            v  = [cos(nodeThetas(nzColumns(elementIndex)));sin(nodeThetas(nzColumns(elementIndex)))];
             x0 = -(u(2)-v(2))/(u(1)*v(2)-u(2)*v(1));
             y0 =  (u(1)-v(1))/(u(1)*v(2)-u(2)*v(1));
             r  = sqrt(x0^2 + y0^2 - 1);
@@ -227,29 +225,29 @@ for i = 1:length(v)
                 theta = linspace(thetaLim(1),thetaLim(2)).';
             end
             
-            connections(end+1) = line(...
+            line(...
                 r*cos(theta)+x0,...
                 r*sin(theta)+y0,...
-                'LineWidth', lineWidth(i),...
-                'Color', colorMap(round(999*scaledColorValues(i))+1, :),...
+                'LineWidth', lineWidth(elementIndex),...
+                'Color', colorMap(round(999*scaledColorValues(elementIndex))+1, :),...
                 'PickableParts','none');
             
-        end % if abs(row(i) - col(i)) - length(adjacencyMatrix)/2 == 0
+        end % if abs(nzRows(i) - nzColumns(i)) - length(adjacencyMatrix)/2 == 0
         
-    end % if row(i) ~= col(i)
+    end % if nzRows(i) ~= nzColumns(i)
     
-end % for i = 1:length(v)
+end % for elementIndex = 1:length(nzElements)
 
 
 %% Set axes properties
 
 axis image;
 ax = gca;
-extent = max(extents(:));
-fudgeFactor_x = 2; % Not sure why this is necessary. Eyeballed it.
-fudgeFactor_y = 2.2; % Not sure why this is necessary. Eyeballed it.
-ax.XLim = ax.XLim + fudgeFactor_x*extent*[-1 1];
-ax.YLim = ax.YLim + fudgeFactor_y*extent*[-1 1];
+maxLabelExtent = max(labelExtents(:));
+labelExtentFactor_x = 2;
+labelExtentFactor_y = 2.2;
+ax.XLim = ax.XLim + labelExtentFactor_x*maxLabelExtent*[-1 1];
+ax.YLim = ax.YLim + labelExtentFactor_y*maxLabelExtent*[-1 1];
 ax.Visible = 'off';
 ax.SortMethod = 'depth';
 
