@@ -128,16 +128,10 @@ labelOffsetFactor = 1.1;
 for nodeIndex = 1:length(adjacencyMatrix)
     x = cos(nodeThetas(nodeIndex));
     y = sin(nodeThetas(nodeIndex));
-    line(...
-        cos(nodeThetas(nodeIndex)),...
-        sin(nodeThetas(nodeIndex)),...
-        2,...
-        'Color', 'k',...
-        'Marker','o',...
-        'LineStyle','none',...
-        'PickableParts','all');
-    tau = atan2(y,x);
-    textLabel = text(0,0,textLabels{nodeIndex});
+    line(cos(nodeThetas(nodeIndex)), sin(nodeThetas(nodeIndex)),...
+        'Color', 'k', 'Marker', 'o');
+    tau = atan2(y, x);
+    textLabel = text(0, 0, textLabels{nodeIndex});
     textLabel.Position = labelOffsetFactor*([x, y]);
     if abs(tau) > pi/2
         textLabel.Rotation = 180*(tau/pi + 1);
@@ -169,7 +163,7 @@ end
 % parula values. The color is proportional to the scaled color value.
 colorMap = parula(1000);
 
-% Calculate line widths based on values of s (stored in v).
+% Calculate line widths based on the number of non-zero elements.
 minLineWidth  = 0.5;
 lineWidthCoef = 5;
 lineWidth = nzElements ./ max(nzElements);
@@ -206,8 +200,8 @@ for elementIndex = 1:length(nzElements)
                 [u(1);v(1)],...
                 [u(2);v(2)],...
                 'LineWidth', lineWidth(elementIndex),...
-                'Color', colorMap(round(999*scaledColorValues(elementIndex))+1, :),...
-                'PickableParts','none');
+                'Color', colorMap(round(999*scaledColorValues(elementIndex))+1, :)...
+                );
         else % points are not diametric, so draw an arc
             u  = [cos(nodeThetas(nzRows(elementIndex)));sin(nodeThetas(nzRows(elementIndex)))];
             v  = [cos(nodeThetas(nzColumns(elementIndex)));sin(nodeThetas(nzColumns(elementIndex)))];
@@ -219,8 +213,7 @@ for elementIndex = 1:length(nzElements)
             
             if u(1) >= 0 && v(1) >= 0
                 % ensure the arc is within the unit disk
-                theta = [linspace(max(thetaLim),pi,50),...
-                    linspace(-pi,min(thetaLim),50)].';
+                theta = [linspace(max(thetaLim),pi,50), linspace(-pi,min(thetaLim),50)].';
             else
                 theta = linspace(thetaLim(1),thetaLim(2)).';
             end
@@ -229,8 +222,8 @@ for elementIndex = 1:length(nzElements)
                 r*cos(theta)+x0,...
                 r*sin(theta)+y0,...
                 'LineWidth', lineWidth(elementIndex),...
-                'Color', colorMap(round(999*scaledColorValues(elementIndex))+1, :),...
-                'PickableParts','none');
+                'Color', colorMap(round(999*scaledColorValues(elementIndex))+1, :)...
+                );
             
         end % if abs(nzRows(elementIndex) - nzColumns(elementIndex)) - length(adjacencyMatrix)/2 == 0
         
@@ -249,7 +242,6 @@ labelExtentFactor_y = 2.2;
 ax.XLim = ax.XLim + labelExtentFactor_x*maxLabelExtent*[-1 1];
 ax.YLim = ax.YLim + labelExtentFactor_y*maxLabelExtent*[-1 1];
 ax.Visible = 'off';
-ax.SortMethod = 'depth';
 
 fig = gcf;
 fig.Color = [1 1 1];
